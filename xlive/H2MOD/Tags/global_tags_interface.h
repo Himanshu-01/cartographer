@@ -6,8 +6,10 @@ namespace TagInterface
 	using namespace std;	
 
 	//* Main TagInterface Manager Class
-	static class global_tags_interface
+	class global_tags_interface
 	{
+		//var to store the created interfaces
+		static map<datum, void*> global_tag_interface_list;
 		//Opens the tag in memory to be modified
 		static void Open(__int32 type, void* tag_mem);
 		//Closes the tag in memory
@@ -21,5 +23,5 @@ namespace TagInterface
 		static void Release();
 		//sets up call patch for interface unloading
 		static void Init();
-	}GlobalTagInterface;
+	};
 }

@@ -77,6 +77,16 @@ namespace tags
 		datum datum_index;
 		size_t data_offset;
 		size_t size;
+
+		tag_instance& operator=(const tag_instance& other)
+		{
+			type = other.type;
+			datum_index = other.datum_index;
+			data_offset = other.data_offset;
+			size = other.size;
+
+			return *this;
+		}
 	};
 
 	struct tag_parent_info

@@ -519,16 +519,10 @@
     <ClCompile Include="3rdparty\tinyxml\tinyxml2.cpp">
       <Filter>Source Files\3rdparty\tinyxml</Filter>
     </ClCompile>
-    <ClCompile Include="H2MOD\Tags\MetaLoader\cache_loader.cpp">
-      <Filter>Source Files\H2MOD\Modules\MetaLoader</Filter>
-    </ClCompile>
     <ClCompile Include="H2MOD\Tags\MetaLoader\tag_loader.cpp">
       <Filter>Source Files\H2MOD\Modules\MetaLoader</Filter>
     </ClCompile>
     <ClCompile Include="Blam\Cache\Tags\tag_base.cpp">
-      <Filter>Source Files\H2MOD\Modules\MetaLoader</Filter>
-    </ClCompile>
-    <ClCompile Include="H2MOD\Tags\MetaLoader\meta_struct.cpp">
       <Filter>Source Files\H2MOD\Modules\MetaLoader</Filter>
     </ClCompile>
     <ClCompile Include="XLive\Cryptography\Rc4.cpp">
@@ -569,6 +563,33 @@
     </ClCompile>
     <ClCompile Include="XLive\XStorage\XStorage.cpp">
       <Filter>Source Files\XLive\XStorage</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\misc\directory_functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\meta_cache_loader\cache_loader.cpp">
+      <Filter>Source Files\H2MOD\Modules\MetaLoader</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\query_parser\query_parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\misc\string_functions.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\module_loader\tag_module_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Blam\Cache\Tags\ugh!.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\sound_definitions\sound_gestalt_manager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\h2_functions\h2_tag_funcs.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="H2MOD\Tags\MetaLoader\h2_functions\h2_memory_funcs.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -784,9 +805,6 @@
     </ClInclude>
     <ClInclude Include="Blam\Enums\Tags\TagGroups.h">
       <Filter>Source Files\Blam\Enums\Tags</Filter>
-    </ClInclude>
-    <ClInclude Include="Blam\Cache\TagGroups.hpp">
-      <Filter>Source Files\Blam\Cache</Filter>
     </ClInclude>
     <ClInclude Include="Blam\Cache\DataTypes\DataRef.h">
       <Filter>Source Files\Blam\Cache\DataTypes</Filter>
@@ -1136,12 +1154,6 @@
     <ClInclude Include="H2MOD\Modules\Networking\NetworkConfiguration\NetworkConfiguration.h">
       <Filter>Source Files\H2MOD\Modules\Networking\NetworkConfiguration</Filter>
     </ClInclude>
-    <ClInclude Include="H2MOD\Tags\MetaLoader\cache_loader.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="H2MOD\Tags\MetaLoader\meta_struct.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="H2MOD\Modules\CustomResolutions\CustomResolutions.h">
       <Filter>Source Files\H2MOD\Modules\CustomResolutions</Filter>
     </ClInclude>
@@ -1287,6 +1299,48 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Blam\Cache\TagGroups\scenario_definition.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\tag_loader_constants.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\misc\directory_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\meta_cache_loader\cache_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\query_parser\query_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\misc\string_functions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\module_loader\tag_module_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Blam\Cache\Tags\snd!.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Blam\Cache\TagGroups.hpp">
+      <Filter>Source Files\Blam\Cache</Filter>
+    </ClInclude>
+    <ClInclude Include="Blam\Cache\Tags\ugh!.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\sound_gestalt_manager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\h2engine_sound_gestalt.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\tagblock.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\h2_functions\h2_tag_funcs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="H2MOD\Tags\MetaLoader\h2_functions\h2_memory_funcs.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -7,6 +7,8 @@
 
 #include"..\stdafx.h"
 #include"..\3rdparty\tinyxml\tinyxml2.h"
+#include"..\plugin_definitions\plugin_definitions.h"
+#include"..\misc\directory_functions.h"
 
 namespace meta_struct
 {
@@ -34,41 +36,6 @@ namespace meta_struct
 	{
 		int old_datum;
 		int new_datum;
-	};
-	/// <summary>
-	/// A class representing the structure halo2 plugins
-	/// </summary>
-	class plugins_field
-	{
-		std::string name;
-		int offset;
-		int entry_size;
-
-		std::map<int, std::string> Tag_refs;//<offset,name>
-		std::map<int, std::string> Data_refs;//<offset,name>
-		std::map<int, std::string> stringID;//<offset,name>
-		std::map<int, std::string> WCTag_refs;//<offset,name>(withClass tagRefs,somewhat different from the normal tags)
-
-		std::list<std::shared_ptr<plugins_field>> reflexive;
-
-	public:
-		//constructor
-		plugins_field(std::string name, int off, int entry_size);
-
-		int Get_offset();
-		int Get_entry_size();
-		std::string Get_name();
-
-		void Add_tag_ref(int off, std::string name);
-		void Add_data_ref(int off, std::string name);
-		void Add_BLOCK(std::shared_ptr<plugins_field> field);
-		void Add_stringid_ref(int off, std::string name);
-		void Add_WCtag_ref(int off, std::string name);
-		std::list<int> Get_tag_ref_list();
-		std::list<int> Get_data_ref_list();
-		std::list<int> Get_stringID_ref_list();
-		std::list<int> Get_WCtag_ref_list();
-		std::list<std::shared_ptr<plugins_field>> Get_reflexive_list();
 	};
 	/// <summary>
 	/// a class containing the data of the concerned meta
@@ -133,8 +100,5 @@ namespace meta_struct
 	std::shared_ptr<plugins_field> Get_meta_BLOCK(tinyxml2::XMLElement* element);
 
 	//some usefull functions	
-	std::string Get_file(std::string file_loc);
-	std::string Get_file_type(std::string file);
-	std::string Get_file_directory(std::string file_loc);
 	std::string to_hex_string(int);
 }

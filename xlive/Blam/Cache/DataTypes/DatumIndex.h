@@ -16,9 +16,13 @@ struct datum
 		this->Salt = -1;
 	}
 	//Copy Constructor
-	datum(INT32 Identifier)
+	datum(const INT32& other)
 	{
-		this->data = Identifier;
+		this->data = other;
+	}
+	datum(const datum& other)
+	{
+		this->data = other.data;
 	}
 
 	constexpr datum(short _index, short _salt) :

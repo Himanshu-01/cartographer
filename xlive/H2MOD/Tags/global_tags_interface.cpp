@@ -8,12 +8,13 @@
 
 using Blam::Enums::Tags::TagGroupTypes;
 
-void _cdecl ResetMapData();
+//dont want it to be _thiscall
+void _cdecl patchcall_h2_ResetMapData();
 
 namespace TagInterface
 {
-	//var to store the created interfaces
-	static map<datum, void*> global_tag_interface_list;
+	//static definition
+	map<datum, void*> global_tags_interface::global_tag_interface_list;
 
 	void* global_tags_interface::GetTagInterface(datum tag, int type)
 	{
@@ -89,16 +90,16 @@ namespace TagInterface
 	}
 	void global_tags_interface::Init()
 	{
-		PatchCall(h2mod->GetAddress(0x27683), (DWORD)ResetMapData);
+		PatchCall(h2mod->GetAddress(0x27683), (DWORD)patchcall_h2_ResetMapData);//for properly deallocating tag_interfaces->TODO
 	}	
 }
-void _cdecl ResetMapData()
+void _cdecl patchcall_h2_ResetMapData()
 {
 	//clear up all the interfaces and properly dispose all the occupied memory
-	TagInterface::GlobalTagInterface.Release();
+	TagInterface::global_tags_interface::Release();
 
 	//and then call unloading procedure
 	typedef void(_cdecl ResetMapData)();
-	auto pResetMapData = h2mod->GetAddress<ResetMapData*>(0x30CD4);
+	auto pResetMapData = h2mod->GetAddress<ResetMapData*>(0x30CD4);//TODO
 	pResetMapData();
 }
