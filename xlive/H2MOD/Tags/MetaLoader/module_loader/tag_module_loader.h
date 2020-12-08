@@ -19,6 +19,7 @@ namespace tag_loader
 		std::string debug_tag_name;
 		std::string	tag_module_name;
 
+		tag_loader_tag_instance() {};
 		tag_loader_tag_instance(const tag_loader_tag_instance& other)
 		{
 			tag_instance = other.tag_instance;
