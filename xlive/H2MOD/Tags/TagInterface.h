@@ -21,6 +21,15 @@ namespace tags
 		int field_24;
 		BYTE padding[260];
 		char version[32];
+		enum scnr_type : int
+		{
+			SinglePlayer = 0,
+			Multiplayer,
+			MainMenu,
+			MultiplayerShared,
+			SinglePlayerShared
+		};
+
 		scnr_type type;
 		int crc;
 		int crc_uiid;

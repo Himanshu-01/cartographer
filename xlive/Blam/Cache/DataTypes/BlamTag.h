@@ -4,7 +4,7 @@
 
 struct blam_tag
 {
-	enum class tag_group_type : __int32
+	enum class tag_group_type : unsigned __int32
 	{
 		none = -1,
 		model = 'hlmt',

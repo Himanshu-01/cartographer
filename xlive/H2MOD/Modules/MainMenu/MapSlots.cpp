@@ -77,7 +77,7 @@ namespace MapSlots
 						newBlock.path = buffer;
 					}
 
-					MapData.push_back(newBlock);
+					//MapData.push_back(newBlock);
 
 					//Store the bitmap datum for loading it into the main menu
 					BitmapsToLoad.emplace(newBlock.bitmap.TagIndex, map);
@@ -101,9 +101,9 @@ namespace MapSlots
 				for (auto item : BitmapsToLoad)
 				{
 
-					tag_loader::Load_tag(item.first.ToInt(), false, item.second);
+					//tag_loader::Load_tag(item.first.ToInt(), false, item.second);
 				}
-				tag_loader::Push_Back();
+				//tag_loader::Push_Back();
 
 				//Grab the globals tag
 				auto matg_datum = tags::find_tag(blam_tag::tag_group_type::globals, "globals\\globals");
@@ -132,7 +132,7 @@ namespace MapSlots
 									//Write the data loaded from the maps into the unused slot
 									*slot = newSlot;
 									//Resolve the loaded bitmap datum
-									slot->bitmap.TagIndex = tag_loader::ResolveNewDatum(newSlot.bitmap.TagIndex.ToInt());
+									//slot->bitmap.TagIndex = tag_loader::ResolveNewDatum(newSlot.bitmap.TagIndex.ToInt());
 									//Change the map id and sort ID so that the maps are 
 									//placed in order at the end of the list
 									slot->map_id = MapIndex + i;

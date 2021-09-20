@@ -1,5 +1,6 @@
 #include "SpecialEvents.h"
-#include "H2MOD/Tags/MetaLoader/tag_loader.h"
+#include "H2MOD\Tags\MetaLoader\module_loader\tag_module_loader.h"
+#include "H2MOD\Tags\MetaLoader\misc\directory_functions.h"
 #include "Blam/Cache/DataTypes/StringID.h"
 #include "Blam/Cache/TagGroups/model_defenition.hpp"
 #include "Blam/Cache/TagGroups/render_model_definition.hpp"
@@ -72,10 +73,8 @@ namespace SpecialEvents
 	{
 		if (h2mod->GetMapType() == scnr_type::Multiplayer)
 		{
-			santa_hat_datum = tag_loader::Get_tag_datum("scenarios\\objects\\multi\\christmas_hat_map\\hat\\hat", "carto_shared");
+			santa_hat_datum = tag_loader::tag_module_loader::tag_module_load("scenarios\\objects\\multi\\christmas_hat_map\\hat\\hat.cache");
 			if (!santa_hat_datum.IsNull()) {
-				tag_loader::Load_tag(santa_hat_datum.ToInt(), true, "carto_shared");
-				tag_loader::Push_Back();
 				//auto scen = tags::get_tag<blam_tag::tag_group_type::scenery, s_scenery_group_definition>(datum(_INJECTED_TAG_START_));
 				auto hlmt_chief_datum = tags::find_tag(blam_tag::tag_group_type::model, "objects\\characters\\masterchief\\masterchief_mp");
 				if (hlmt_chief_datum != datum::Null) {
@@ -84,7 +83,7 @@ namespace SpecialEvents
 					auto a = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 					a->parent_marker = string_id(184552154);
 					a->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-					a->child_object.TagIndex = tag_loader::ResolveNewDatum(santa_hat_datum.ToInt());
+					a->child_object.TagIndex = santa_hat_datum;
 				}
 				auto hlmt_elite_datum = tags::find_tag(blam_tag::tag_group_type::model, "objects\\characters\\elite\\elite_mp");
 				if (hlmt_elite_datum != datum::Null)
@@ -94,7 +93,7 @@ namespace SpecialEvents
 					auto a = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 					a->parent_marker = new_elite_head_marker;
 					a->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-					a->child_object.TagIndex = tag_loader::ResolveNewDatum(santa_hat_datum.ToInt());
+					a->child_object.TagIndex = santa_hat_datum;
 				}
 			}
 		}
@@ -104,17 +103,13 @@ namespace SpecialEvents
 	{
 		if (h2mod->GetMapType() == scnr_type::Multiplayer)
 		{
-			if(tag_loader::Map_exists("carto_shared"))
+			if(Map_exists("carto_shared"))//we dont need this anymore
 			{
-				paddy_hat_datum = tag_loader::Get_tag_datum("objects\\multi\\stpat_hat\\stpat_hat", "carto_shared");
-				paddy_beard_datum = tag_loader::Get_tag_datum("objects\\multi\\stpat_hat\\beard\\beard", "carto_shared");
-				paddy_pot_datum = tag_loader::Get_tag_datum("scenarios\\objects\\multi\\carto_shared\\pot_of_gold\\pot_of_gold", "carto_shared");
+				paddy_hat_datum = tag_loader::tag_module_loader::tag_module_load("objects\\multi\\stpat_hat\\stpat_hat.cache");
+				paddy_beard_datum = tag_loader::tag_module_loader::tag_module_load("objects\\multi\\stpat_hat\\beard\\beard.cache");
+				paddy_pot_datum = tag_loader::tag_module_loader::tag_module_load("scenarios\\objects\\multi\\carto_shared\\pot_of_gold\\pot_of_gold.cache");
 				if (!paddy_hat_datum.IsNull() && !paddy_beard_datum.IsNull() && !paddy_pot_datum.IsNull())
 				{
-					tag_loader::Load_tag(paddy_hat_datum.ToInt(), true, "carto_shared");
-					tag_loader::Load_tag(paddy_beard_datum.ToInt(), true, "carto_shared");
-					tag_loader::Load_tag(paddy_pot_datum.ToInt(), true, "carto_shared");
-					tag_loader::Push_Back();
 					auto hlmt_chief_datum = tags::find_tag(blam_tag::tag_group_type::model, "objects\\characters\\masterchief\\masterchief");
 					if (hlmt_chief_datum != datum::Null) {
 						auto hlmt_chief = tags::get_tag<blam_tag::tag_group_type::model, s_model_group_definition>(hlmt_chief_datum);
@@ -122,11 +117,11 @@ namespace SpecialEvents
 						auto hat = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						hat->parent_marker = string_id(Blam::Enums::Game::HS_HEAD);
 						hat->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						hat->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_hat_datum.ToInt());
+						hat->child_object.TagIndex = paddy_hat_datum;
 						auto beard = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						beard->parent_marker = string_id(Blam::Enums::Game::HS_HEAD);
 						beard->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						beard->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_beard_datum.ToInt());
+						beard->child_object.TagIndex = paddy_beard_datum;
 
 					}
 					auto hlmt_chief_mp_datum = tags::find_tag(blam_tag::tag_group_type::model, "objects\\characters\\masterchief\\masterchief_mp");
@@ -136,11 +131,11 @@ namespace SpecialEvents
 						auto hat = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						hat->parent_marker = string_id(Blam::Enums::Game::HS_HEAD);
 						hat->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						hat->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_hat_datum.ToInt());
+						hat->child_object.TagIndex = paddy_hat_datum;
 						auto beard = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						beard->parent_marker = string_id(Blam::Enums::Game::HS_HEAD);
 						beard->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						beard->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_beard_datum.ToInt());
+						beard->child_object.TagIndex = paddy_beard_datum;
 					}
 					auto hlmt_elite_datum = tags::find_tag(blam_tag::tag_group_type::model, "objects\\characters\\elite\\elite_mp");
 					if (hlmt_elite_datum != datum::Null)
@@ -150,15 +145,15 @@ namespace SpecialEvents
 						auto a = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						a->parent_marker = new_elite_head_marker;
 						a->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						a->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_hat_datum.ToInt());
+						a->child_object.TagIndex = paddy_hat_datum;
 						auto beard = MetaExtender::add_tag_block2<s_model_group_definition::s_variants_block::s_objects_block>((unsigned long)std::addressof(b->objects));
 						beard->parent_marker = new_elite_head_marker;
 						beard->child_object.TagGroup = blam_tag::tag_group_type::scenery;
-						beard->child_object.TagIndex = tag_loader::ResolveNewDatum(paddy_beard_datum.ToInt());
+						beard->child_object.TagIndex = paddy_beard_datum;
 					}
 				}
 
-				auto paddy_pot = tags::get_tag<blam_tag::tag_group_type::scenery, s_scenery_group_definition>(tag_loader::ResolveNewDatum(paddy_pot_datum.ToInt()), true);
+				auto paddy_pot = tags::get_tag<blam_tag::tag_group_type::scenery, s_scenery_group_definition>(paddy_pot_datum, true);
 				auto paddy_pot_model_datum = paddy_pot->objectTag.model.TagIndex;
 				auto paddy_pot_model = tags::get_tag<blam_tag::tag_group_type::model, s_model_group_definition>(paddy_pot_model_datum, true);
 

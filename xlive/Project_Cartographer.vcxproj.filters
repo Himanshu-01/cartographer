@@ -18,8 +18,6 @@
     <ClCompile Include="H2MOD\Modules\UI\XboxLiveTaskProgress.cpp" />
     <ClCompile Include="H2MOD\Tags\TagInterface.cpp" />
     <ClCompile Include="H2MOD\Variants\XboxTick\XboxTick.cpp" />
-    <ClCompile Include="H2MOD\Tags\MetaLoader\cache_loader.cpp" />
-    <ClCompile Include="H2MOD\Tags\MetaLoader\meta_struct.cpp" />
     <ClCompile Include="H2MOD\Tags\MetaLoader\tag_loader.cpp" />
     <ClCompile Include="H2MOD\Modules\ServerConsole\ServerConsole.cpp" />
     <ClCompile Include="stdafx.cpp" />
@@ -114,6 +112,14 @@
     <ClCompile Include="H2MOD\Modules\SpecialEvents\SpecialEvents.cpp" />
     <ClCompile Include="H2MOD\GUI\imgui_integration\MessageBox.cpp" />
     <ClCompile Include="Util\Memory.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\module_loader\tag_module_loader.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\misc\directory_functions.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\misc\string_functions.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\h2_functions\h2_memory_funcs.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\h2_functions\h2_tag_funcs.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\meta_cache_loader\cache_loader.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\query_parser\query_parser.cpp" />
+    <ClCompile Include="H2MOD\Tags\MetaLoader\sound_definitions\sound_gestalt_manager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -250,8 +256,6 @@
     <ClInclude Include="H2MOD\Modules\UI\XboxLiveTaskProgress.h" />
     <ClInclude Include="H2MOD\Tags\TagInterface.h" />
     <ClInclude Include="H2MOD\Variants\XboxTick\XboxTick.h" />
-    <ClInclude Include="H2MOD\Tags\MetaLoader\cache_loader.h" />
-    <ClInclude Include="H2MOD\Tags\MetaLoader\meta_struct.h" />
     <ClInclude Include="H2MOD\Tags\MetaLoader\tag_loader.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="Util\SimpleIni.h" />
@@ -378,6 +382,19 @@
     <ClInclude Include="H2MOD\Modules\SpecialEvents\SpecialEvents.h" />
     <ClInclude Include="Blam\Cache\TagGroups\physics_model_defenition.hpp" />
     <ClInclude Include="Util\Memory.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\module_loader\tag_module_loader.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\misc\string_functions.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\misc\directory_functions.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\h2_functions\h2_tag_funcs.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\h2_functions\h2_memory_funcs.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\meta_cache_loader\cache_loader.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\tag_loader_constants.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\query_parser\query_parser.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\h2engine_sound_gestalt.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\memory_array.h" />
+    <ClInclude Include="H2MOD\Tags\MetaLoader\sound_definitions\sound_gestalt_manager.h" />
+    <ClInclude Include="Blam\Cache\TagGroups\sound_definition.h" />
+    <ClInclude Include="Blam\Cache\TagGroups\sound_cache_file_gestalt_definition.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />

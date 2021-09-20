@@ -28,7 +28,7 @@
 #include "H2MOD/Modules/TagFixes/TagFixes.h"
 #include "H2MOD/Modules/Startup/Startup.h"
 #include "H2MOD/Tags/MetaLoader/tag_loader.h"
-#include "Blam/Cache/TagGroups/model_defenition.hpp"
+#include "H2MOD/Tags/TagInterface.h"
 #include "H2MOD/Modules/RenderHooks/RenderHooks.h"
 #include "H2MOD/Modules/HaloScript/HaloScript.h"
 #include "H2MOD/Modules/ObserverMode/ObserverMode.h"
@@ -1749,7 +1749,7 @@ void H2MOD::Initialize()
 		KeyboardInput::Initialize();
 		ControllerInput::Initialize();
 		
-		Initialise_tag_loader();
+		Initialize_tag_loader();
 		RenderHooks::Initialize();
 		DirectorHooks::Initialize();
 		MeleeFix::Initialize();
@@ -1765,7 +1765,7 @@ void H2MOD::Initialize()
 		
 	}
 	TagFixes::Initalize();
-	MapSlots::Initialize();
+	//MapSlots::Initialize();
 	HaloScript::Initialize();
 	LOG_TRACE_GAME("H2MOD - Initialized v0.6.2.0");
 	LOG_TRACE_GAME("H2MOD - BASE ADDR {:x}", this->GetBase());
