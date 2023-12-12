@@ -1,5 +1,6 @@
 #pragma once
 
+
 #include "Blam/Engine/game/players.h"
 #include "Blam/Engine/math/random_math.h"
 #include "Blam/Engine/Networking/Session/NetworkSession.h"

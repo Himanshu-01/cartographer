@@ -79,6 +79,15 @@ struct s_player_profile_traits
 };
 CHECK_STRUCT_SIZE(s_player_profile_traits, 16);
 
+#pragma pack(push, 1)
+struct s_player_identifier
+{
+	DWORD unk1;
+	DWORD unk2;
+};
+CHECK_STRUCT_SIZE(s_player_identifier, 8);
+#pragma pack(pop)
+
 struct s_clan_identifiers
 {
 	DWORD ID_1;
