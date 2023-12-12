@@ -289,6 +289,7 @@
     <ClCompile Include="Blam\Engine\bitmaps\bitmaps.cpp" />
     <ClCompile Include="Blam\Engine\rasterizer\rasterizer_loading.cpp" />
     <ClCompile Include="Blam\Engine\memory\lruv_cache.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_controller.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />

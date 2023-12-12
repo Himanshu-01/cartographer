@@ -131,3 +131,38 @@ struct s_event_record
 	};
 };
 CHECK_STRUCT_SIZE(s_event_record, 16);
+
+struct s_user_interface_controller
+{
+	uint32 m_flags;
+	uint32 user_index;
+	s_player_identifier controller_user_identifier;
+	PAD32;
+	s_saved_game_file_player_profile player_profile;
+	uint32 profile_index;
+	uint32 player_team;
+	int8 player_handicap_level;
+	PAD(3);
+	int8 bungienet_user;
+	PAD(3);
+	int8 player_is_griefer;
+	PAD(3);
+	int8 achievement_flags;
+	PAD(3);
+	s_player_identifier field_1234;
+	c_static_wchar_string32 player_name;
+
+};
+CHECK_STRUCT_SIZE(s_user_interface_controller, 4732);
+
+struct s_user_interface_controller_globals
+{
+	s_user_interface_controller controllers[k_number_of_controllers];
+	s_event_record event_records[k_number_of_controllers];
+	bool controller_detached[k_number_of_controllers];
+	bool event_manager_suppress;
+	PAD(3);
+};
+CHECK_STRUCT_SIZE(s_user_interface_controller_globals, 19000);
+
+s_user_interface_controller_globals* get_user_interface_controller_globals(void);
