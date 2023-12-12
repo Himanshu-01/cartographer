@@ -825,6 +825,7 @@
     <ClInclude Include="Blam\Engine\interface\signal_slot.h" />
     <ClInclude Include="Blam\Engine\saved_games\player_profile.h" />
     <ClInclude Include="Blam\Engine\saved_games\saved_game_files.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_controller.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
