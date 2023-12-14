@@ -4,46 +4,50 @@
 
 s_user_interface_controller_globals* get_user_interface_controller_globals(void)
 {
-	return Memory::GetAddress<s_user_interface_controller_globals*>(0x96C858);
+	return Memory::GetAddress<s_user_interface_controller_globals*>(0x96C858,0x999038);
 }
 
 
 bool __cdecl user_interface_controller_is_player_profile_valid(e_controller_index controller_index)
 {
 
-	return INVOKE(0x206B50, 0, user_interface_controller_is_player_profile_valid, controller_index);
+	//return INVOKE(0x206B50, 0x1F3F78, user_interface_controller_is_player_profile_valid, controller_index);
+	if(IN_RANGE_INCLUSIVE(controller_index,_controller_index_0,_controller_index_3))
+		return get_user_interface_controller_globals()->controllers[controller_index].m_flags.test(_controller_state_has_signed_in_bit);
+	return false;
 }
 
 uint32 __cdecl user_interface_controller_get_next_valid_index(e_controller_index controller_index)
 {
-	//return INVOKE(0x206B13, 0, user_interface_controller_get_next_valid_index, controller_index);
+	//return INVOKE(0x206B13, 0x1F3F3A, user_interface_controller_get_next_valid_index, controller_index);
 	switch (controller_index)
 	{
 	case NONE:
-		return 0;
-	case 0:
-		return 1;
-	case 1:
-		return 2;
-	case 2:
-		return 3;
+		return _controller_index_0;
+	case _controller_index_0:
+		return _controller_index_1;
+	case _controller_index_1:
+		return _controller_index_2;
+	case _controller_index_2:
+		return _controller_index_3;
 	}
-	return NONE;
+	// should probably replace this with _controller_index_invalid 
+	return NONE; 
 }
 
 uint32 __cdecl user_interface_controller_get_user_index(e_controller_index controller_index)
 {
-	return INVOKE(0x20687F, 0, user_interface_controller_get_user_index, controller_index);
+	return INVOKE(0x20687F, 0x1F3CE8, user_interface_controller_get_user_index, controller_index);
 }
 
 void __cdecl user_interface_controller_set_user_index(e_controller_index controller_index, uint32 user_index)
 {
-	INVOKE(0x207342, 0, user_interface_controller_set_user_index, controller_index, user_index);
+	INVOKE(0x207342, 0x1F43F2, user_interface_controller_set_user_index, controller_index, user_index);
 }
 
 e_controller_index __cdecl user_interface_controller_get_controller_for_user(uint32 user_index)
 {
-	return INVOKE(0x207365, 0, user_interface_controller_get_controller_for_user, user_index);
+	return INVOKE(0x207365, 0x1F4415, user_interface_controller_get_controller_for_user, user_index);
 }
 
 e_game_team __cdecl user_interface_controller_get_user_active_team(e_controller_index controller_index)
@@ -117,17 +121,17 @@ void __cdecl user_interface_controller_update_network_properties(e_controller_in
 
 void __cdecl user_interface_controller_sign_out(e_controller_index controller_index)
 {
-	INVOKE(0x208257, 0, user_interface_controller_sign_out, controller_index);
+	INVOKE(0x208257, 0x1F491B, user_interface_controller_sign_out, controller_index);
 }
 
 void __cdecl user_interface_controller_sign_out_all_controllers()
 {
-	INVOKE(0x208A28, 0, user_interface_controller_sign_out_all_controllers);
+	INVOKE(0x208A28, 0x1F4E9F, user_interface_controller_sign_out_all_controllers);
 }
 
 void __cdecl user_interface_controller_sign_in(e_controller_index controller_index, s_saved_game_file_player_profile* profile, uint32 profile_index, int caller_handles_failures)
 {
-	INVOKE(0x2087BF, 0, user_interface_controller_sign_in, controller_index, profile, profile_index, caller_handles_failures);
+	INVOKE(0x2087BF, 0x1F4CD8, user_interface_controller_sign_in, controller_index, profile, profile_index, caller_handles_failures);
 }
 void __cdecl user_interface_controller_sign_in_with_identifier(e_controller_index controller_index, s_player_identifier* identifier)
 {

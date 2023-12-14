@@ -27,7 +27,7 @@ struct s_saved_game_file_player_profile
 {
 	uint32 field_0;
 	uint32 field_4;
-	c_static_string<64> player_name;
+	static_string64 player_name;
 	c_static_string<16> gamertag;
 	PAD(4);
 	uint32 m_last_level_map_id;

@@ -132,16 +132,29 @@ struct s_event_record
 };
 CHECK_STRUCT_SIZE(s_event_record, 16);
 
+enum e_controller_state_flags
+{
+	_controller_state_bit0,
+	_controller_state_bit1,
+	_controller_state_bit2,
+	_controller_state_has_signed_in_bit = 3,
+	_controller_state_has_xbox_live_bit = 4,
+	_controller_state_save_in_progress_bit=5,
+	_controller_state_bit6,
+	k_controller_state_flags_count,
+};
+
 struct s_user_interface_controller
 {
-	uint32 m_flags;
+	c_flags<e_controller_state_flags, uint32, k_controller_state_flags_count> m_flags;
 	uint32 user_index;
 	s_player_identifier controller_user_identifier;
 	PAD32;
 	s_saved_game_file_player_profile player_profile;
 	uint32 profile_index;
-	uint32 player_team;
-	int8 player_handicap_level;
+	e_game_team player_team;
+	PAD16;
+	e_handicap player_handicap_level;
 	PAD(3);
 	int8 bungienet_user;
 	PAD(3);
