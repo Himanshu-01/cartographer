@@ -3,6 +3,27 @@
 
 #include "Blam/Engine/interface/hud.h"
 
+c_user_interface_text::c_user_interface_text()
+{
+	this->m_custom_font_type = 0;
+	this->m_text_is_pulsating = 0;
+	this->field_16 = 1;
+	this->field_18 = NONE;
+	this->m_text_justification = 2;
+	this->field_20 = 1.0;
+	this->field_24 = NONE;
+	this->field_38 = 0;
+	this->field_3C = NONE;
+	this->text_length = 0;
+	this->m_ui_start_time = 0;
+	this->m_text_color.blue = 1.0;
+	this->m_text_color.green = 1.0;
+	this->m_text_color.red = 1.0;
+}
+c_user_interface_text::~c_user_interface_text()
+{
+
+}
 
 // Seperated scale for the text labels (carto addition)
 float ui_text_label_scaling = 0.0f;
