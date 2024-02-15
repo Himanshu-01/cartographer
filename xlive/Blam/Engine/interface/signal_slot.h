@@ -5,7 +5,7 @@
 
 class c_screen_widget;
 class c_list_widget;
-class s_event_record;
+struct s_event_record;
 
 
 class _slot
@@ -25,17 +25,21 @@ public:
 CHECK_STRUCT_SIZE(_slot, 0xC);
 
 
+#define INVOKE_CLASS_FN(classobj,functionPtr)  ((classobj)->*(functionPtr))
+
 template <typename type = short>
 class _slot1 :_slot {};
 template <class X = s_event_record*, typename type = short>
 class _slot2 :_slot {};
 
 
-template <class X = c_screen_widget, typename type = short>
+template <class X = c_user_interface_widget, typename type = short>
 class c_slot1 : _slot1<type>
 {
+	typedef char(X::* handler_t)(type*);
+
 	X* m_class_ptr;
-	char(__thiscall* m_handler)(X*, type*);
+	handler_t m_handler;
 
 public:
 	c_slot1()
@@ -43,7 +47,7 @@ public:
 		m_class_ptr = 0;
 		m_handler = 0;
 	}
-	c_slot1(X* _class, void* handler)
+	c_slot1(X* _class, handler_t handler)
 	{
 
 		m_class_ptr = _class;
@@ -51,7 +55,7 @@ public:
 	}
 	virtual char event_handler(type* id)
 	{
-		return this->m_handler(m_class_ptr, id);
+		return INVOKE_CLASS_FN(m_class_ptr, m_handler) (id);
 	}
 };
 //CHECK_STRUCT_SIZE(class c_slot1<c_screen_widget,long>, 0x18);
@@ -60,8 +64,10 @@ public:
 template <class X = c_list_widget, typename Y = s_event_record*, typename type = short>
 class c_slot2 : _slot2<Y, type>
 {
+	typedef char(X::* handler_t)(Y*, type*);
+
 	X* m_class_ptr;
-	char(__thiscall* m_handler)(X*, Y*, type*);
+	handler_t m_handler;
 
 public:
 	c_slot2()
@@ -69,7 +75,7 @@ public:
 		m_class_ptr = 0;
 		m_handler = 0;
 	}
-	c_slot2(X* _class, void* handler)
+	c_slot2(X* _class, handler_t handler)
 	{
 
 		m_class_ptr = _class;
@@ -77,7 +83,7 @@ public:
 	}
 	virtual char event_handler(Y* event, type* id)
 	{
-		return this->m_handler(m_class_ptr, event, id);
+		return INVOKE_CLASS_FN(m_class_ptr, m_handler) (event, id);
 	}
 };
 //CHECK_STRUCT_SIZE(class c_slot2<class c_search_option_max_players_edit_list, struct s_event_record *, long>, 0x18);
