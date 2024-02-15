@@ -354,6 +354,7 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_widget.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_button.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_text.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_widget_window.cpp" />
     <ClCompile Include="Blam\Engine\items\item_definitions.cpp" />
     <ClCompile Include="Blam\Engine\items\weapons.cpp" />
     <ClCompile Include="Blam\Engine\items\weapon_definitions.cpp" />
@@ -534,6 +535,7 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_widget.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_button.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_text.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_widget_window.h" />
     <ClInclude Include="Blam\Engine\items\item_definitions.h" />
     <ClInclude Include="Blam\Engine\items\weapon_definitions.h" />
     <ClInclude Include="Blam\Engine\main\interpolator.h" />

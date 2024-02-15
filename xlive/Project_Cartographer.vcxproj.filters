@@ -299,6 +299,7 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_hud_block.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_bitmap_block.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_button.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_widget_window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -844,6 +845,7 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_hud_block.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_bitmap_block.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_button.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_widget_window.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
