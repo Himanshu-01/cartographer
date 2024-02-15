@@ -80,6 +80,56 @@ void c_user_interface_widget::render_widget(rectangle2d* viewport_bounds)
 	INVOKE_TYPE(0x2114DD, 0x0, void(__thiscall*)(c_user_interface_widget*, rectangle2d*), this, viewport_bounds);
 }
 
+e_user_interface_widget_type c_user_interface_widget::get_type()
+{
+	return this->m_widget_type;
+}
+
+c_user_interface_widget* c_user_interface_widget::get_next()
+{
+	return this->next_widget;
+}
+
+c_user_interface_widget* c_user_interface_widget::get_previous()
+{
+	return this->previous_widget;
+}
+
+c_user_interface_widget* c_user_interface_widget::get_parent()
+{
+	return this->parent_widget;
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_child(e_user_interface_widget_type type, uint32 idx, bool recursive_search)
+{
+	return INVOKE_TYPE(0x211909, 0x0, c_user_interface_widget * (__thiscall*)(c_user_interface_widget*, e_user_interface_widget_type, uint32, bool), this, type, idx, recursive_search);
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_text_widget(uint32 idx)
+{
+	return try_find_child(_widget_type_text, idx, false);
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_hud_widget(uint32 idx)
+{
+	return try_find_child(_widget_type_hud, idx, false);
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_bitmap_widget(uint32 idx)
+{
+	return try_find_child(_widget_type_bitmap, idx, false);
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_player_widget(uint32 idx)
+{
+	return try_find_child(_widget_type_player, idx, false);
+}
+
+c_user_interface_widget* c_user_interface_widget::try_find_model_widget(uint32 idx)
+{
+	return try_find_child(_widget_type_model, idx, false);
+}
+
 void* c_user_interface_widget::get_mouse_region(rectangle2d* mouse_region_out)
 {
 	return INVOKE_TYPE(0x2114E0, 0x0, void* (__thiscall*)(c_user_interface_widget*, rectangle2d*), this, mouse_region_out);

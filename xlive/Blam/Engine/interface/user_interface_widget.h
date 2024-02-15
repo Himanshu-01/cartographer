@@ -61,6 +61,17 @@ protected:
 public:
 	c_user_interface_widget(e_user_interface_widget_type widget_type, int16 user_flags);
 
+	e_user_interface_widget_type get_type();
+	c_user_interface_widget* get_next();
+	c_user_interface_widget* get_previous();
+	c_user_interface_widget* get_parent();
+	c_user_interface_widget* try_find_child(e_user_interface_widget_type type, uint32 idx, bool recursive_search);
+	c_user_interface_widget* try_find_text_widget(uint32 idx);
+	c_user_interface_widget* try_find_hud_widget(uint32 idx);
+	c_user_interface_widget* try_find_bitmap_widget(uint32 idx);
+	c_user_interface_widget* try_find_player_widget(uint32 idx);
+	c_user_interface_widget* try_find_model_widget(uint32 idx);
+
 	// Virtual functions
 
 	virtual ~c_user_interface_widget();
