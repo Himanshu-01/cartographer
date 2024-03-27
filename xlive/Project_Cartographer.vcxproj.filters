@@ -300,6 +300,10 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_bitmap_block.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_button.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_window.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_press_start_introduction.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_memory.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_4way_signin.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_networking.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -846,6 +850,10 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_bitmap_block.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_button.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_window.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_press_start_introduction.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_memory.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_4way_signin.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_networking.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />

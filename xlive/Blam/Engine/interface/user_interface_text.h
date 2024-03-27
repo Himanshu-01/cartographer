@@ -3,7 +3,7 @@
 
 class c_user_interface_text
 {
-protected:
+public:
 	//void* __vtable;
 	int32 m_custom_font_type;
 	real_rgb_color m_text_color;
@@ -21,6 +21,11 @@ protected:
 
 public:
 	c_user_interface_text();
+
+	void set_font(int32 font_type);
+	void set_pulsating(bool pulsating);
+	void set_color(real_rgb_color* color);
+	void set_color(const real_rgb_color* color);
 
 	virtual ~c_user_interface_text();
 	virtual void  initial_raw_string(wchar_t* raw_text) = 0;

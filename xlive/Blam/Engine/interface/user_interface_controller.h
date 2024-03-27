@@ -119,6 +119,7 @@ enum e_user_interface_automation_mode : uint16
 };
 
 // Credits :  https://github.com/twist84/ManagedDonkey/blob/main/game/source/interface/user_interface_controller.hpp
+#pragma pack(push , 1)
 struct s_event_record
 {
 	e_user_interface_event_type type;
@@ -129,7 +130,9 @@ struct s_event_record
 		e_user_interface_automation_mode automation_mode;
 		uint16 value;
 	};
+	PAD(2);
 };
+#pragma pack(pop)
 CHECK_STRUCT_SIZE(s_event_record, 16);
 
 enum e_controller_state_flags
@@ -205,3 +208,5 @@ void __cdecl user_interface_controller_sign_in_with_identifier(e_controller_inde
 void __cdecl user_interface_controller_sign_in_to_live(e_controller_index controller_index, bool online);
 void __cdecl user_interface_controller_sign_out(e_controller_index controller_index);
 void __cdecl user_interface_controller_sign_out_all_controllers();
+void user_interface_controller_get_profile_data(e_controller_index controller_index, s_saved_game_file_player_profile* profile, uint32* profile_index);
+bool user_interface_controller_has_gamepad(e_controller_index controller_index);

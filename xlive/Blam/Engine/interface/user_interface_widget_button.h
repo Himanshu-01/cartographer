@@ -14,6 +14,8 @@ protected:
 	_slot* signal;
 
 public:
+	c_button_widget(int16 button_index, int16 user_flags);
+
 	virtual ~c_button_widget();
 	virtual void update() override;
 	virtual void render_widget(rectangle2d* viewport_bounds) override;

@@ -56,7 +56,7 @@ protected:
 
 	void destroy_recursive();
 	void initialize_animation(s_screen_animation_block* animation);
-	void set_bounds(rectangle2d*  bounds);
+	void set_bounds(rectangle2d* bounds);
 
 public:
 	c_user_interface_widget(e_user_interface_widget_type widget_type, int16 user_flags);
@@ -65,12 +65,18 @@ public:
 	c_user_interface_widget* get_next();
 	c_user_interface_widget* get_previous();
 	c_user_interface_widget* get_parent();
+	c_user_interface_widget* get_children();
 	c_user_interface_widget* try_find_child(e_user_interface_widget_type type, uint32 idx, bool recursive_search);
 	c_user_interface_widget* try_find_text_widget(uint32 idx);
 	c_user_interface_widget* try_find_hud_widget(uint32 idx);
 	c_user_interface_widget* try_find_bitmap_widget(uint32 idx);
 	c_user_interface_widget* try_find_player_widget(uint32 idx);
 	c_user_interface_widget* try_find_model_widget(uint32 idx);
+	void set_visible(bool visible);
+	void set_child_visible(e_user_interface_widget_type type, uint32 idx,  bool visible);
+	void set_allocated(bool allocated);
+	void add_new_child(c_user_interface_widget* child);
+	void update_users_mask(uint32 user_mask);
 
 	// Virtual functions
 

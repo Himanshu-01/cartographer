@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Util/Memory.h"
+#include "input/input_windows.h"
 #include "user_interface_controller.h"
 
 s_user_interface_controller_globals* get_user_interface_controller_globals(void)
@@ -140,4 +141,18 @@ void __cdecl user_interface_controller_sign_in_with_identifier(e_controller_inde
 void __cdecl user_interface_controller_sign_in_to_live(e_controller_index controller_index, bool online)
 {
 	INVOKE(0x208A01, 0, user_interface_controller_sign_in_to_live, controller_index, online);
+}
+
+void user_interface_controller_get_profile_data(e_controller_index controller_index, s_saved_game_file_player_profile* profile, uint32* profile_index)
+{
+	INVOKE_TYPE(0x206890, 0x0, void(__cdecl*)(e_controller_index, s_saved_game_file_player_profile*, uint32*), controller_index, profile, profile_index);
+}
+
+bool user_interface_controller_has_gamepad(e_controller_index controller_index)
+{
+	if (VALID_INDEX(controller_index, k_number_of_controllers))
+	{
+		return input_has_gamepad(controller_index, nullptr);
+	}
+	return false;
 }

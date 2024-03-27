@@ -18,6 +18,9 @@
 
 // for XNet connection logging
 #include "XLive/xnet/IpManagement/XnIp.h"
+#include "Blam/Engine/interface/screens/screen_press_start_introduction.h"
+#include "Blam/Engine/interface/screens/screen_esrb_warning.h"
+#include "interface/screens/screen_4way_signin.h"
 
 std::mutex commandInsertMtx;
 
@@ -70,7 +73,8 @@ std::vector<ConsoleCommand*> CommandCollection::commandTable = {
 	new ConsoleCommand("game_splitscreen", "sets the number of multiplayer splitscreen players for the next map, 1 parameter(s): <int>", 1, 1, CommandCollection::game_splitscreen),
 	new ConsoleCommand("game_mode", "sets the game mode for the next map, 1 parameter(s): <int>", 1, 1, CommandCollection::game_mode),
 	new ConsoleCommand("invite", "creates a invite code that you can send to people for direct connecting", 0, 0, CommandCollection::invite),
-	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect)
+	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect),
+	new ConsoleCommand("test", "eeee", 0, 0, CommandCollection::test)
 };
 
 void CommandCollection::InitializeCommandsMap()
@@ -874,3 +878,25 @@ int CommandCollection::connect(const std::vector<std::string>& tokens, ConsoleCo
 
 	return 0;
 }
+
+int CommandCollection::test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	s_screen_parameters params;
+	
+	params.m_flags = 0;
+	params.m_window_index = _render_window_4;
+	params.field_C = 0;
+	params.user_flags = user_interface_controller_get_signed_in_controllers_mask();
+	params.m_channel_type = _user_interface_channel_type_gameshell;
+	params.m_screen_state.field_0 = 0xFFFFFFFF;
+	params.m_screen_state.field_4 = 0xFFFFFFFF;
+	params.m_screen_state.field_8 = 0xFFFFFFFF;
+	params.m_load_function = c_screen_4way_signin::load_type2;
+	c_screen_4way_signin::load_type2(&params);
+
+	//ENABLE_THIS_FOR_UI_DEBUG
+	//WriteValue<uint8>(Memory::GetAddress(0x977370), 1);
+	
+	return 0;
+}
+

@@ -2,7 +2,7 @@
 #include "user_interface_widget.h"
 
 #pragma pack(push , 1)
-class c_bitmap_widget : protected c_user_interface_widget
+class c_bitmap_widget : public c_user_interface_widget
 {
 protected:
 	void* m_tag_block;
@@ -16,6 +16,10 @@ protected:
 	void* m_bitmaps_block;
 
 public:
+	void verify_and_update_bitmap_index(int16 index);
+
+
+
 	virtual ~c_bitmap_widget();
 	virtual void update() override;
 	virtual void render_widget(rectangle2d* viewport_bounds) override;

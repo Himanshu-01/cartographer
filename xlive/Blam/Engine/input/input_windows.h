@@ -27,3 +27,5 @@ rumble_state* controller_rumble_state_get(int32 controller_index);
 int32* hs_debug_simulate_gamepad_global_get(void);
 
 bool* input_suppress_global_get(void);
+
+char  input_has_gamepad(__int16 gamepad_index, bool* a2);

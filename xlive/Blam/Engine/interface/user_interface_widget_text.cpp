@@ -16,6 +16,21 @@ c_text_widget::c_text_widget(datum user_index) :
 	this->field_74 = 0;
 }
 
+void c_text_widget::set_string(wchar_t const* string)
+{
+	INVOKE_TYPE(0x21BAA9, 0x0, void(__thiscall*)(c_text_widget*, wchar_t const*), this, string);
+}
+
+void c_text_widget::set_screen_string(string_id sid)
+{
+	INVOKE_TYPE(0x21BF85, 0x0, void(__thiscall*)(c_text_widget*, string_id), this, sid);
+}
+
+void c_text_widget::set_text_properties(int32 flags, int16 animation_index, real_argb_color* text_color, int32 font, rectangle2d* bounds)
+{
+	INVOKE_TYPE(0x21BC81, 0x0, void(__thiscall*)(c_text_widget*, int32, int16, real_argb_color*, int32, rectangle2d*), this, flags, animation_index, text_color, font, bounds);
+}
+
 c_text_widget::~c_text_widget()
 {
 	//return INVOKE_TYPE(0x21B9E9, 0x0, c_user_interface_widget*(__thiscall*)(c_text_widget*, char), lpMem, a2);

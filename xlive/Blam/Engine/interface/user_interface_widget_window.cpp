@@ -40,6 +40,15 @@ c_screen_widget::c_screen_widget(e_user_interface_screen_id menu_id, e_user_inte
 	this->field_9FE = 0;
 }
 
+void c_screen_widget::verify_and_load_from_layout(datum widget_tag, s_interface_expected_screen_layout* expected_layout)
+{
+	INVOKE_TYPE(0x210A44, 0x0, void(__thiscall*)(c_screen_widget*, datum, s_interface_expected_screen_layout*), this, widget_tag, expected_layout);
+}
+void c_screen_widget::apply_new_representations_to_players(c_player_widget_representation* representations, int32 player_count)
+{
+	INVOKE_TYPE(0x211CD0, 0x0, void(__thiscall*)(c_screen_widget*, c_player_widget_representation*, int32), this, representations, player_count);
+}
+
 c_screen_widget::~c_screen_widget()
 {
 	// do we need to call this?
@@ -179,3 +188,7 @@ void c_screen_widget::sub_60F2A4(char bitmap_index)
 	return INVOKE_TYPE(0x20F2A4, 0x0, void(__thiscall*)(c_screen_widget*, char), this, bitmap_index);
 }
 
+void user_interface_register_screen_to_channel(c_screen_widget* new_screen, s_screen_parameters* parameters)
+{
+	return INVOKE_TYPE(0x20B8C3, 0x0, void(__cdecl*)(c_screen_widget*, s_screen_parameters*), new_screen, parameters);
+}

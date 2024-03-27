@@ -2,6 +2,13 @@
 
 #include "user_interface_widget_button.h"
 
+c_button_widget::c_button_widget(int16 button_index, int16 user_flags):
+	c_user_interface_widget(_widget_type_button,user_flags)
+{
+	m_flags = 0;
+	m_button_index = button_index;
+}
+
 c_button_widget::~c_button_widget()
 {
 

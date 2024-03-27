@@ -100,6 +100,11 @@ c_user_interface_widget* c_user_interface_widget::get_parent()
 	return this->parent_widget;
 }
 
+c_user_interface_widget* c_user_interface_widget::get_children()
+{
+	return this->child_widget;
+}
+
 c_user_interface_widget* c_user_interface_widget::try_find_child(e_user_interface_widget_type type, uint32 idx, bool recursive_search)
 {
 	return INVOKE_TYPE(0x211909, 0x0, c_user_interface_widget * (__thiscall*)(c_user_interface_widget*, e_user_interface_widget_type, uint32, bool), this, type, idx, recursive_search);
@@ -128,6 +133,33 @@ c_user_interface_widget* c_user_interface_widget::try_find_player_widget(uint32 
 c_user_interface_widget* c_user_interface_widget::try_find_model_widget(uint32 idx)
 {
 	return try_find_child(_widget_type_model, idx, false);
+}
+
+void c_user_interface_widget::set_visible(bool visible)
+{
+	this->m_visible = visible;
+}
+
+void c_user_interface_widget::set_child_visible(e_user_interface_widget_type type, uint32 idx, bool visible)
+{
+	c_user_interface_widget* widget = this->try_find_child(type, idx, false);
+	if (widget)
+		widget->set_visible(visible);
+}
+
+void c_user_interface_widget::set_allocated(bool allocated)
+{
+	this->m_allocated = allocated;
+}
+
+void c_user_interface_widget::add_new_child(c_user_interface_widget* child)
+{
+	INVOKE_TYPE(0x21208E, 0x0, void(__thiscall*)(c_user_interface_widget*, c_user_interface_widget*), this, child);
+}
+
+void c_user_interface_widget::update_users_mask(uint32 user_mask)
+{
+	INVOKE_TYPE(0x211B37, 0x0, void(__thiscall*)(c_user_interface_widget*, uint32), this, user_mask);
 }
 
 void* c_user_interface_widget::get_mouse_region(rectangle2d* mouse_region_out)

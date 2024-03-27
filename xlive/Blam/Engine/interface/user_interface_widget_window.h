@@ -1,6 +1,8 @@
 #pragma once
 #include "user_interface_widget.h"
 #include "user_interface_widget_text.h"
+#include "user_interface_widget_button.h"
+#include "user_interface_player_widget.h"
 #include "signal_slot.h"
 
 #define k_maximum_number_of_special_widgets 16
@@ -308,6 +310,30 @@ enum e_user_interface_screen_id
 	_screen_about_dialog = 0x129,
 };
 
+#pragma pack(push , 1)
+struct s_interface_expected_pane
+{
+	c_button_widget** expected_buttons;
+	c_list_widget* expected_list;
+	DWORD buttons_count;
+	DWORD list_exists;
+};
+#pragma pack(pop)
+CHECK_STRUCT_SIZE(s_interface_expected_pane, 0x10);
+
+class c_tab_view_widget
+{
+	int pad;
+};
+struct s_interface_expected_screen_layout
+{
+	c_tab_view_widget* tab_view;
+	int32 panes_count;
+	int32 field_8;
+	s_interface_expected_pane panes[6];
+};
+CHECK_STRUCT_SIZE(s_interface_expected_screen_layout, 0x6C);
+
 
 #pragma pack(push , 1)
 class c_screen_widget : protected c_user_interface_widget
@@ -335,6 +361,8 @@ protected:
 
 public:
 	c_screen_widget(e_user_interface_screen_id menu_id, e_user_interface_channel_type channel_type, e_user_interface_render_window window_index, int16 user_flags);
+	void verify_and_load_from_layout(datum widget_tag, s_interface_expected_screen_layout* expected_layout);
+	void apply_new_representations_to_players(c_player_widget_representation* representations, int32 player_count);
 
 	virtual ~c_screen_widget();
 	virtual char handle_event(s_event_record* event) override;
@@ -367,3 +395,6 @@ public:
 };
 #pragma pack(pop)
 CHECK_STRUCT_SIZE(c_screen_widget, 0xA5C);
+
+// Todo : move to proper location
+void user_interface_register_screen_to_channel(c_screen_widget* new_screen, s_screen_parameters* parameters);

@@ -1,5 +1,6 @@
 #pragma once
 #include "user_interface_group_widget.h"
+#include "game/players.h"
 
 class c_player_widget : protected c_group_widget
 {
@@ -12,3 +13,34 @@ public:
 	virtual int setup_children() override;
 };
 CHECK_STRUCT_SIZE(c_player_widget, 0x78);
+
+#pragma pack(push , 1)
+class c_player_widget_representation
+{
+private:
+	uint32 m_flags;
+	wchar_t* m_player_configuration_name;
+	c_static_wchar_string32 m_player_custom_name;
+	s_player_profile_traits m_appearance;
+	string_id m_team_name;
+	e_game_team m_player_team;
+	bool m_fake_player;
+	bool m_player_is_observing;
+	uint16 m_player_rank;
+	uint8 gap_62[2];
+	uint32 m_bungie_role;
+	real_rgb_color m_change_colors;
+
+public:
+	c_player_widget_representation();
+	void set_player_name_from_configuration(s_player_properties* configuration);
+	void set_player_rank(int32 rank);
+	void set_player_team(e_game_team team);
+	void set_player_team_name(string_id team_name);
+	void set_player_is_observer(bool observer);
+	void set_fake_player(bool fake);
+	void set_user_role(int32 role);
+	void set_appearance(s_player_profile_traits* appearance);
+};
+#pragma pack(pop)
+CHECK_STRUCT_SIZE(c_player_widget_representation, 0x74);

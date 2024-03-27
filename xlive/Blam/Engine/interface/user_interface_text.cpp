@@ -25,6 +25,26 @@ c_user_interface_text::~c_user_interface_text()
 
 }
 
+void c_user_interface_text::set_font(int32 font_type)
+{
+	this->m_custom_font_type = font_type;
+}
+
+void c_user_interface_text::set_pulsating(bool pulsating)
+{
+	this->m_text_is_pulsating = pulsating;
+}
+
+void c_user_interface_text::set_color(real_rgb_color* color)
+{
+	this->m_text_color = *color;
+}
+
+void c_user_interface_text::set_color(const real_rgb_color* color)
+{
+	this->m_text_color = *color;
+}
+
 // Seperated scale for the text labels (carto addition)
 float ui_text_label_scaling = 0.0f;
 

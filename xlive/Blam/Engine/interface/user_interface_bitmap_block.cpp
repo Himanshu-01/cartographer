@@ -2,6 +2,11 @@
 
 #include "user_interface_bitmap_block.h"
 
+void c_bitmap_widget::verify_and_update_bitmap_index(int16 index)
+{
+	INVOKE_TYPE(0x21C300, 0x0, void(__thiscall*)(c_bitmap_widget*, int16), this, index);
+}
+
 c_bitmap_widget::~c_bitmap_widget()
 {
 }

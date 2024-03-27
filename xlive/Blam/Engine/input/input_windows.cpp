@@ -15,3 +15,8 @@ bool* input_suppress_global_get(void)
 {
 	return Memory::GetAddress<bool*>(0x479F52);
 }
+
+char  input_has_gamepad(__int16 gamepad_index, bool* a2)
+{
+	return INVOKE_TYPE(0x2F3CD, 0x0, char(__cdecl*)(__int16, bool*), gamepad_index, a2);
+}
