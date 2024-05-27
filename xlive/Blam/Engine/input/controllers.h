@@ -2,6 +2,7 @@
 
 enum e_controller_index : int32
 {
+	k_no_controller = -1,
 	_controller_index_0 = 0,
 	_controller_index_1 = 1,
 	_controller_index_2 = 2,
@@ -51,3 +52,6 @@ CHECK_STRUCT_SIZE(s_controller_profile, 5760);
 s_controller_profile* controller_profile_get(e_controller_index index);
 
 s_controller_button_state* controller_button_state_get(e_controller_index index);
+
+e_controller_index first_controller();
+e_controller_index next_controller(e_controller_index controller);

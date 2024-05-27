@@ -55,6 +55,11 @@ long long shell_time_now(long long denominator)
 	return shell_time_from_counter(counter, freq, denominator) + (k_process_system_time_startup_offset_sec * denominator);
 }
 
+uint32 __cdecl system_milliseconds()
+{
+	return INVOKE(0x37E51, 0x2B4CE, system_milliseconds);
+}
+
 long long shell_time_now_sec()
 {
 	return shell_time_now(k_shell_time_sec_denominator);

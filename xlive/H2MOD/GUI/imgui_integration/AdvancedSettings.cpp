@@ -2,6 +2,7 @@
 
 #include "Blam/Engine/game/cheats.h"
 #include "Blam/Engine/game/game.h"
+#include "Blam/Engine/input/input_abstraction.h"
 #include "Blam/Engine/interface/hud.h"
 #include "Blam/Engine/interface/new_hud.h"
 #include "Blam/Engine/interface/first_person_camera.h"
@@ -57,6 +58,7 @@ namespace ImGuiHandler {
 			std::map<std::string, std::string> string_cache;
 			void DrawDeadzones()
 			{
+				//return;
 				ImDrawList* draw_list = ImGui::GetForegroundDrawList();
 				const ImGuiViewport* viewport = ImGui::GetMainViewport();
 				ImVec2 Center(
@@ -84,19 +86,20 @@ namespace ImGuiHandler {
 					draw_list->AddCircleFilled(Center, H2Config_Deadzone_Radial, ImColor(20, 20, 20, 125), 120);
 				}
 
-				short* C_Input = (short*)ControllerInput::get_controller_input(0);
+				//short* C_Input = (short*)ControllerInput::get_controller_input(0);
+				s_gamepad_input_button_state* state = input_get_gamepad_state(_controller_index_0);
 				ImVec2 Thumb_Pos(
-					Center.x + (100 * (C_Input[28] / (float)MAXSHORT)),
-					Center.y - (100 * (C_Input[29] / (float)MAXSHORT)));
+					Center.x + (100 * (state->thumb_right.x / (float)MAXSHORT)),
+					Center.y - (100 * (state->thumb_right.y / (float)MAXSHORT)));
 				int axial_invalid = 0;
-				if (abs(C_Input[28]) <= ((float)MAXSHORT * (H2Config_Deadzone_A_X / 100)))
+				if (abs(state->thumb_right.x) <= ((float)MAXSHORT * (H2Config_Deadzone_A_X / 100)))
 					axial_invalid++;
-				if (abs(C_Input[29]) <= ((float)MAXSHORT * (H2Config_Deadzone_A_Y / 100)))
+				if (abs(state->thumb_right.y) <= ((float)MAXSHORT * (H2Config_Deadzone_A_Y / 100)))
 					axial_invalid++;
 				bool radial_invalid = false;
 				unsigned int ar = pow((short)((float)MAXSHORT * (H2Config_Deadzone_Radial / 100)), 2);
-				unsigned int arx = pow(C_Input[28], 2);
-				unsigned int ary = pow(C_Input[29], 2);
+				unsigned int arx = pow(state->thumb_right.x, 2);
+				unsigned int ary = pow(state->thumb_right.y, 2);
 				unsigned int rh = arx + ary;
 				if (rh <= ar)
 				{
@@ -439,7 +442,7 @@ namespace ImGuiHandler {
 					if (ImGui::IsItemEdited())
 					{
 						H2Config_controller_sens = (float)g_controller_sens;
-						ControllerInput::SetSensitiviy(H2Config_controller_sens);
+						input_abstraction_set_controller_look_sensitivity(_controller_index_0,H2Config_controller_sens);
 					}
 					ImGui::PushItemWidth(WidthPercentage(15));
 					ImGui::InputFloat("##Controllersens2", &H2Config_controller_sens, 0, 110, "%.5f", ImGuiInputTextFlags_::ImGuiInputTextFlags_AutoSelectAll); ImGui::SameLine();
@@ -449,14 +452,14 @@ namespace ImGuiHandler {
 						if (g_controller_sens < 1)
 							g_controller_sens = 1;
 						g_controller_sens = (int)H2Config_controller_sens;
-						ControllerInput::SetSensitiviy(H2Config_controller_sens);
+						input_abstraction_set_controller_look_sensitivity(_controller_index_0,H2Config_controller_sens);
 					}
 					ImGui::PushItemWidth(WidthPercentage(10));
 					if (ImGui::Button(GetString(reset, "Controllersens3"), ImVec2(WidthPercentage(10), item_size.y)))
 					{
 						g_controller_sens = 3;
 						H2Config_controller_sens = 3.0f;
-						ControllerInput::SetSensitiviy(H2Config_controller_sens);
+						input_abstraction_set_controller_look_sensitivity(_controller_index_0,H2Config_controller_sens);
 					}
 					ImGui::PopItemWidth();
 
@@ -483,7 +486,7 @@ namespace ImGuiHandler {
 					if (ImGui::Combo("##C_Deadzone_Type", &g_deadzone, items, 3))
 					{
 						H2Config_Controller_Deadzone = (H2Config_Deadzone_Type)(byte)g_deadzone;
-						ControllerInput::SetDeadzones();
+						input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 					}
 					if (ImGui::IsItemHovered())
 					{
@@ -498,7 +501,7 @@ namespace ImGuiHandler {
 						ImGui::SliderFloat("##C_Deadzone_A_X_1", &H2Config_Deadzone_A_X, 0, 100, "");
 						if (ImGui::IsItemEdited())
 						{
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(13));
@@ -509,14 +512,14 @@ namespace ImGuiHandler {
 								H2Config_Deadzone_A_X = 0;
 							if (H2Config_Deadzone_A_X > 100)
 								H2Config_Deadzone_A_X = 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(15));
 						if (ImGui::Button(GetString(e_default, "C_Deadzone_A_X_3"), ImVec2(WidthPercentage(12), item_size.y)))
 						{
 							H2Config_Deadzone_A_X = (8689.0f / (float)MAXSHORT) * 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::PopItemWidth();
 						ImGui::Text(GetString(axial_deadzone_Y));
@@ -524,7 +527,7 @@ namespace ImGuiHandler {
 						ImGui::SliderFloat("##C_Deadzone_A_Y_1", &H2Config_Deadzone_A_Y, 0, 100, "");
 						if (ImGui::IsItemEdited())
 						{
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(13));
@@ -535,14 +538,14 @@ namespace ImGuiHandler {
 								H2Config_Deadzone_A_Y = 0;
 							if (H2Config_Deadzone_A_Y > 100)
 								H2Config_Deadzone_A_Y = 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(12));
 						if (ImGui::Button(GetString(e_default, "C_Deadzone_A_Y_3"), ImVec2(WidthPercentage(12), item_size.y)))
 						{
 							H2Config_Deadzone_A_Y = (8689.0f / (float)MAXSHORT) * 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::PopItemWidth();
 					}
@@ -552,7 +555,7 @@ namespace ImGuiHandler {
 						ImGui::SliderFloat("##C_Deadzone_R_1", &H2Config_Deadzone_Radial, 0, 100, "");
 						if (ImGui::IsItemEdited())
 						{
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(13));
@@ -563,14 +566,14 @@ namespace ImGuiHandler {
 								H2Config_Deadzone_Radial = 0;
 							if (H2Config_Deadzone_Radial > 100)
 								H2Config_Deadzone_Radial = 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::SameLine();
 						ImGui::PushItemWidth(WidthPercentage(12));
 						if (ImGui::Button(GetString(e_default, "C_Deadzone_R_R_3"), ImVec2(WidthPercentage(12), item_size.y)))
 						{
 							H2Config_Deadzone_Radial = (8689.0f / (float)MAXSHORT) * 100;
-							ControllerInput::SetDeadzones();
+							input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
 						}
 						ImGui::PopItemWidth();
 					}

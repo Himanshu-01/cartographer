@@ -13,6 +13,7 @@ void shell_windows_apply_patches();
 long long shell_time_now_sec();
 long long shell_time_now_msec();
 long long shell_time_now(long long denominator);
+uint32 __cdecl system_milliseconds();
 
 void shell_windows_throttle_framerate(int desired_framerate);
 

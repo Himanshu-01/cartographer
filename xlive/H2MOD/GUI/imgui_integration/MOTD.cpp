@@ -9,6 +9,7 @@
 #include "H2MOD/Modules/Input/Mouseinput.h"
 #include "H2MOD/Modules/Input/PlayerControl.h"
 #include "H2MOD/Modules/Shell/Startup/Startup.h"
+#include "Blam/Engine/input/input_windows.h"
 
 #include "XLive/xnet/IpManagement/XnIp.h"
 
@@ -165,7 +166,7 @@ namespace ImGuiHandler
 				ImTextureID texId = ImGuiHandler::GetTexture(patch_notes);
 				ImGui::Image(texId, ImGui::GetIO().DisplaySize);
 
-				if (ControllerInput::get_controller_input(0)[16] == 1
+				if ( input_get_gamepad_state(0)->button_frames_down[_xinput_gamepad_a]
 					|| ImGui::IsItemClicked())
 				{
 					ImGuiHandler::ToggleWindow(ImGuiHandler::ImMOTD::windowName);

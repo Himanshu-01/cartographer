@@ -55,6 +55,34 @@ XUSER_SIGNIN_INFO* UserGetSignInInfo(DWORD dwUserIndex)
 	return &usersSignInInfo[dwUserIndex];
 }
 
+void XUserSetupGuests(XUID primary_xuid, bool online)
+{
+	for (DWORD dwUserIndex = 1; dwUserIndex < 4; dwUserIndex++)
+	{
+		if (online)
+		{
+			usersSignInInfo[dwUserIndex].dwInfoFlags |= XUSER_INFO_FLAG_LIVE_ENABLED | XUSER_INFO_FLAG_GUEST;
+			usersSignInInfo[dwUserIndex].UserSigninState = eXUserSigninState_SignedInToLive;
+			// primary_xuid in ONLINE is sure to have last 2 bits 0
+			// we can just use OR operator to append the guest_index to make them different
+			// this is then used to create online_guest_names which are tied to this guest_index
+			usersSignInInfo[dwUserIndex].xuid = primary_xuid | dwUserIndex;
+		}
+		else
+		{
+			usersSignInInfo[dwUserIndex].dwInfoFlags |= XUSER_INFO_FLAG_GUEST;
+			usersSignInInfo[dwUserIndex].UserSigninState = eXUserSigninState_SignedInLocally;
+			// primary_xuid in OFFLINE is returned by rand() and we have no idea which bits are set
+			// in this case we will just add the local_user_index to make the xuids slightly different
+			// offline_guest_names are determined by profile names so it doesnt matter what we set the xuid as
+			usersSignInInfo[dwUserIndex].xuid = primary_xuid + dwUserIndex;
+		}
+
+		usersSignInInfo[dwUserIndex].dwGuestNumber = dwUserIndex;
+		usersSignInInfo[dwUserIndex].dwSponsorUserIndex = 0;
+	}
+}
+
 void XUserSetup(DWORD dwUserIndex, XUID xuid, const char* userName, unsigned long xnaddr, unsigned long lanaddr, unsigned short baseport, const char* abEnet, const char* abOnline, bool online)
 {
 	// GFWL supports only 1 user logged in at the time
@@ -76,6 +104,9 @@ void XUserSetup(DWORD dwUserIndex, XUID xuid, const char* userName, unsigned lon
 	usersSignInInfo[dwUserIndex].xuid = xuid;
 	usersSignInInfo[dwUserIndex].dwGuestNumber = 0;
 	usersSignInInfo[dwUserIndex].dwSponsorUserIndex = 0;
+
+	//fixes guest_signins
+	XUserSetupGuests(xuid, online);
 
 	gXnIpMgr.SetupLocalConnectionInfo(xnaddr, lanaddr, baseport, abEnet, abOnline);
 }
@@ -100,8 +131,6 @@ int WINAPI XUserGetXUID(DWORD dwUserIndex, PXUID pXuid)
 	if (pXuid == NULL)
 		return ERROR_INVALID_PARAMETER;
 
-	if (dwUserIndex != 0)
-		dwUserIndex = 0;
 
 	LIMITED_LOG(35, LOG_TRACE_XLIVE, "XUserGetXUID()");
 
@@ -166,7 +195,7 @@ DWORD WINAPI XUserGetName(DWORD dwUserIndex, LPSTR szUserName, DWORD cchUserName
 
 		return ERROR_SUCCESS;
 	}
-	
+
 	return ERROR_NOT_LOGGED_ON;
 }
 
@@ -202,7 +231,7 @@ int WINAPI XUserGetSigninInfo(DWORD dwUserIndex, DWORD dwFlags, PXUSER_SIGNIN_IN
 }
 
 // #5264: XUserAreUsersFriends
-int WINAPI XUserAreUsersFriends(DWORD dwUserIndex, DWORD * pXuids, DWORD dwXuidCount, DWORD * pResult, PXOVERLAPPED pOverlapped)
+int WINAPI XUserAreUsersFriends(DWORD dwUserIndex, DWORD* pXuids, DWORD dwXuidCount, DWORD* pResult, PXOVERLAPPED pOverlapped)
 {
 	LOG_TRACE_XLIVE("XUserAreUsersFriends");
 	return ERROR_NOT_LOGGED_ON;
@@ -291,7 +320,7 @@ DWORD WINAPI XUserResetStatsViewAllUsers(DWORD dwViewId, PXOVERLAPPED pOverlappe
 }
 
 // #5281: XUserReadStats
-DWORD WINAPI XUserReadStats(DWORD dwTitleId, DWORD dwNumXuids, CONST XUID *pXuids, DWORD dwNumStatsSpecs, DWORD *pSpecs, DWORD *pcbResults, DWORD *pResults, PXOVERLAPPED pOverlapped)
+DWORD WINAPI XUserReadStats(DWORD dwTitleId, DWORD dwNumXuids, CONST XUID* pXuids, DWORD dwNumStatsSpecs, DWORD* pSpecs, DWORD* pcbResults, DWORD* pResults, PXOVERLAPPED pOverlapped)
 {
 	if (pcbResults)
 	{
@@ -337,7 +366,7 @@ DWORD WINAPI XUserReadStats(DWORD dwTitleId, DWORD dwNumXuids, CONST XUID *pXuid
 }
 
 // #5284: XUserCreateStatsEnumeratorByRank
-DWORD WINAPI XUserCreateStatsEnumeratorByRank(DWORD dwTitleId, DWORD dwRankStart, DWORD dwNumRows, DWORD dwNuStatSpec, CONST XUSER_STATS_SPEC* pSpecs, DWORD * pcbBuffer, PHANDLE ph)
+DWORD WINAPI XUserCreateStatsEnumeratorByRank(DWORD dwTitleId, DWORD dwRankStart, DWORD dwNumRows, DWORD dwNuStatSpec, CONST XUSER_STATS_SPEC* pSpecs, DWORD* pcbBuffer, PHANDLE ph)
 {
 	LOG_TRACE_XLIVE("XUserCreateStatsEnumeratorByRank");
 
@@ -366,7 +395,7 @@ DWORD WINAPI XUserCreateStatsEnumeratorByXuid(DWORD dwTitleId, XUID XuidPivot, D
 }
 
 // #5285: XUserCreateStatsEnumeratorByRating
-DWORD WINAPI XUserCreateStatsEnumeratorByRating(DWORD dwTitleId, LONGLONG i64Rating, DWORD dwNumRows, DWORD dwNumStatsSpecs, CONST XUSER_STATS_SPEC* pSpecs, PDWORD *pcbBuffer, PHANDLE ph)
+DWORD WINAPI XUserCreateStatsEnumeratorByRating(DWORD dwTitleId, LONGLONG i64Rating, DWORD dwNumRows, DWORD dwNumStatsSpecs, CONST XUSER_STATS_SPEC* pSpecs, PDWORD* pcbBuffer, PHANDLE ph)
 {
 	if (pcbBuffer)
 		*pcbBuffer = 0;
@@ -421,14 +450,14 @@ std::wstring XProfileSettingIdToString(DWORD settingId)
 	case 0x3FFF: return L"XPROFILE_TITLE_SPECIFIC1";
 	case 0x3FFE: return L"XPROFILE_TITLE_SPECIFIC2";
 	case 0x3FFD: return L"XPROFILE_TITLE_SPECIFIC3";
-	
+
 	default: return L"<unknown>";
 	}
 }
 
 // #5331: XUserReadProfileSettings
 DWORD WINAPI XUserReadProfileSettings(DWORD dwTitleId, DWORD dwUserIndex, DWORD dwNumSettingIds,
-	DWORD * pdwSettingIds, DWORD * pcbResults, XUSER_READ_PROFILE_SETTING_RESULT * pResults, PXOVERLAPPED pOverlapped)
+	DWORD* pdwSettingIds, DWORD* pcbResults, XUSER_READ_PROFILE_SETTING_RESULT* pResults, PXOVERLAPPED pOverlapped)
 {
 	LOG_TRACE_XLIVE("XUserReadProfileSettings  (TitleId = {0}, UserIndex = {1}, NumSettingIds = {2}, pdwSettingIds = {3:p}, pcbResults = {4}, pResults = {5:p}, pOverlapped = {6:p})",
 		dwTitleId, dwUserIndex, dwNumSettingIds, (void*)pdwSettingIds, *pcbResults, (void*)pResults, (void*)pOverlapped);
@@ -456,7 +485,7 @@ DWORD WINAPI XUserReadProfileSettings(DWORD dwTitleId, DWORD dwUserIndex, DWORD 
 			settingSize = (pdwSettingIds[lcv] >> 16) & 0xFFF;
 			settingId = (pdwSettingIds[lcv] >> 0) & 0x3FFF;
 
-			XUserProfileSettingsLog += (lcv == 0 ? L"id = (" : L", id: (" ) + XProfileSettingIdToString(settingId) + L")";
+			XUserProfileSettingsLog += (lcv == 0 ? L"id = (" : L", id: (") + XProfileSettingIdToString(settingId) + L")";
 
 			if (settingType == XUSER_DATA_TYPE_BINARY || settingType == XUSER_DATA_TYPE_UNICODE)
 				size += settingSize;
@@ -464,7 +493,7 @@ DWORD WINAPI XUserReadProfileSettings(DWORD dwTitleId, DWORD dwUserIndex, DWORD 
 
 		if (XUserProfileSettingsLog.length() > 0)
 			LOG_TRACE_XLIVE(XUserProfileSettingsLog);
-		
+
 		size += dwNumSettingIds * sizeof(XUSER_PROFILE_SETTING);
 		size += sizeof(XUSER_READ_PROFILE_SETTING_RESULT);
 
@@ -485,7 +514,7 @@ DWORD WINAPI XUserReadProfileSettings(DWORD dwTitleId, DWORD dwUserIndex, DWORD 
 		SecureZeroMemory(pResults, *pcbResults);
 
 		pResults->dwSettingsLen = dwNumSettingIds;
-		pResults->pSettings = (XUSER_PROFILE_SETTING *)((BYTE *)pResults + sizeof(XUSER_READ_PROFILE_SETTING_RESULT));
+		pResults->pSettings = (XUSER_PROFILE_SETTING*)((BYTE*)pResults + sizeof(XUSER_READ_PROFILE_SETTING_RESULT));
 
 		XUSER_PROFILE_SETTING* profileSettings = pResults->pSettings;
 		BYTE* pSettingData = (BYTE*)profileSettings + (dwNumSettingIds * sizeof(XUSER_PROFILE_SETTING));
@@ -601,10 +630,10 @@ DWORD WINAPI XUserReadProfileSettingsByXuid(
 	DWORD dwTitleId,
 	DWORD dwUserIndexRequester,
 	DWORD dwNumFor,
-	const XUID *pxuidFor,
+	const XUID* pxuidFor,
 	DWORD dwNumSettingIds,
-	const DWORD *pdwSettingIds,
-	DWORD *pcbResults,
+	const DWORD* pdwSettingIds,
+	DWORD* pcbResults,
 	PXUSER_READ_PROFILE_SETTING_RESULT pResults,
 	PXOVERLAPPED pOverlapped
 )

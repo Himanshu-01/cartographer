@@ -217,11 +217,12 @@ namespace ControllerInput
 
 	unsigned char* ControllerInput::get_controller_input(__int16 index)
 	{
-		return p_get_controller_input(index);
+		return INVOKE_TYPE(0x2F433, 0, get_controller_input_t, index);
 	}
 
 	void ControllerInput::ToggleModern()
 	{
+		return;
 		if (Memory::IsDedicatedServer()) return;
 		if(H2Config_controller_modern)
 		{
@@ -235,6 +236,7 @@ namespace ControllerInput
 
 	void ControllerInput::SetSensitiviy(float value)
 	{
+		return;
 		if (Memory::IsDedicatedServer()) return;
 		if (value == 0.0f) return;
 
@@ -246,6 +248,7 @@ namespace ControllerInput
 
 	void ControllerInput::SetDeadzones()
 	{
+		return;
 		if (Memory::IsDedicatedServer()) return;
 		if (H2Config_Controller_Deadzone == Axial || H2Config_Controller_Deadzone == Both) {
 			*axialDeadzoneX = (short)((float)MAXSHORT * (H2Config_Deadzone_A_X / 100));

@@ -16,6 +16,7 @@
 #include "Blam/Engine/game/game_time.h"
 #include "Blam/Engine/game/player_control.h"
 #include "Blam/Engine/input/input_xinput.h"
+#include "Blam/Engine/input/input_abstraction.h"
 #include "Blam/Engine/interface/hud.h"
 #include "Blam/Engine/interface/hud_messaging.h"
 #include "Blam/Engine/interface/motion_sensor.h"
@@ -464,8 +465,8 @@ bool __cdecl OnMapLoad(s_game_options* options)
 		wchar_t* variant_name = NetworkSession::GetGameVariantName();
 		LOG_INFO_GAME(L"[h2mod] engine type: {}, game variant name: {}", (int)options->game_mode, variant_name);
 
-		ControllerInput::SetDeadzones();
-		ControllerInput::SetSensitiviy(H2Config_controller_sens);
+		input_abstraction_set_controller_thumb_deadzone(_controller_index_0);
+		input_abstraction_set_controller_look_sensitivity(_controller_index_0,H2Config_controller_sens);
 		MouseInput::SetSensitivity(H2Config_mouse_sens);
 		hud_patches_on_map_load();
 
@@ -981,6 +982,8 @@ void H2MOD::ApplyHooks() {
 		main_render_apply_patches();
 		effects_apply_patches();
 		xinput_apply_patches();
+		input_windows_apply_patches();
+		input_abstraction_patches_apply();
 
 		// Map loading patch (saves framerate)
 		// TODO move
@@ -1003,9 +1006,9 @@ void H2MOD::Initialize()
 
 	if (!Memory::IsDedicatedServer())
 	{
-		MouseInput::Initialize();
+		//MouseInput::Initialize();
 		KeyboardInput::Initialize();
-		ControllerInput::Initialize();
+		//ControllerInput::Initialize();
 		
 		Initialise_tag_loader();
 		RenderHooks::Initialize();

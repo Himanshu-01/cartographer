@@ -13,3 +13,5 @@ public:
 };
 
 void xinput_apply_patches(void);
+
+bool input_xinput_update_gamepad(uint32 gamepad_index, uint32 duration_ms, struct s_gamepad_input_button_state* gamepad_state);
