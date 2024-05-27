@@ -29,9 +29,9 @@ std::map<std::string, unsigned int> objectIds;
 
 const char command_error_bad_arg[] = "# exception catch (bad arg): ";
 
-ComVarFromPtr(d3d9ex_var, bool*, &H2Config_d3d9ex, 
+ComVarFromPtr(d3d9ex_var, bool*, &H2Config_d3d9ex,
 	"var_d3d9ex", "enable/disable d3d9ex, 1 parameter(s): <bool>", 1, 1, CommandCollection::SetD3D9ExStateCmd);
-ComVarFromPtr(network_stats_overlay_var, bool*, &ImGuiHandler::g_network_stats_overlay, 
+ComVarFromPtr(network_stats_overlay_var, bool*, &ImGuiHandler::g_network_stats_overlay,
 	"var_net_metrics", "enable/disable useful net metrics, 1 parameter(s)", 1, 1, CommandCollection::NetworkMetricsCmd);
 
 ComVarFromPtr(og_frame_limiter_var, bool*, &g_main_game_time_frame_limiter_enabled,
@@ -74,7 +74,8 @@ std::vector<ConsoleCommand*> CommandCollection::commandTable = {
 	new ConsoleCommand("game_mode", "sets the game mode for the next map, 1 parameter(s): <int>", 1, 1, CommandCollection::game_mode),
 	new ConsoleCommand("invite", "creates a invite code that you can send to people for direct connecting", 0, 0, CommandCollection::invite),
 	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect),
-	new ConsoleCommand("test", "eeee", 0, 0, CommandCollection::test)
+	new ConsoleCommand("test", "eeee", 1, 1, CommandCollection::test),
+	new ConsoleCommand("change", "eeee", 1, 1, CommandCollection::test2)
 };
 
 void CommandCollection::InitializeCommandsMap()
@@ -153,9 +154,9 @@ int CommandCollection::BoolVarHandlerCmd(const std::vector<std::string>& tokens,
 int CommandCollection::DisplayXyzCmd(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
 	ConsoleLog* output = (ConsoleLog*)cbData.strOutput;
-	
+
 	if (game_is_multiplayer()
-		&& !NetworkSession::LocalPeerIsSessionHost()) 
+		&& !NetworkSession::LocalPeerIsSessionHost())
 	{
 		output->Output(StringFlag_None, "# only host can see xyz for now...");
 		return 0;
@@ -179,7 +180,7 @@ int CommandCollection::NetworkMetricsCmd(const std::vector<std::string>& tokens,
 int CommandCollection::SetD3D9ExStateCmd(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
 	ConsoleLog* output = (ConsoleLog*)cbData.strOutput;
-	
+
 	if (Memory::IsDedicatedServer()) {
 		output->Output(StringFlag_None, "# command unavailable on dedicated servers");
 		return 0;
@@ -204,7 +205,7 @@ int CommandCollection::LogSelectedMapFilenameCmd(const std::vector<std::string>&
 		output->Output(StringFlag_None, "# not in a network session");
 		return 0;
 	}
-	
+
 	std::string mapFileName;
 	std::wstring mapFilenameWide;
 	MapManager::GetMapFilename(mapFilenameWide);
@@ -309,7 +310,7 @@ int CommandCollection::KickPeerCmd(const std::vector<std::string>& tokens, Conso
 int CommandCollection::DownloadMapCmd(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
 	ConsoleLog* output = (ConsoleLog*)cbData.strOutput;
-	
+
 	if (!NetworkSession::LocalPeerIsSessionHost())
 	{
 		output->Output(StringFlag_None, "# cannot download map using command while not being the session host!");
@@ -473,10 +474,10 @@ int CommandCollection::SetMaxPlayersCmd(const std::vector<std::string>& tokens, 
 {
 	ConsoleLog* output = cbData.strOutput;
 
-	ComVar<int> value; 
+	ComVar<int> value;
 	std::string exception;
 
-	do 
+	do
 	{
 		if (!NetworkSession::LocalPeerIsSessionHost()) {
 			output->Output(StringFlag_None, "# can be only used by host");
@@ -564,7 +565,7 @@ int CommandCollection::ReloadSpawnCommandListCmd(const std::vector<std::string>&
 int CommandCollection::SpawnCmd(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
 	ConsoleLog* output = cbData.strOutput;
-	
+
 	int tokenArgPos = 1;
 
 	// spawn object_name count same_team near_player x y z i j k
@@ -676,7 +677,7 @@ int CommandCollection::InjectTagCmd(const std::vector<std::string>& tokens, Cons
 {
 	ConsoleLog* output = cbData.strOutput;
 
-	if (!NetworkSession::LocalPeerIsSessionHost() 
+	if (!NetworkSession::LocalPeerIsSessionHost()
 		&& !game_is_campaign())
 	{
 		output->Output(StringFlag_None, "# can only be used by the session host");
@@ -709,20 +710,20 @@ int CommandCollection::Crash(const std::vector<std::string>& tokens, ConsoleComm
 //	commands end
 //////////////////////////////////////////////////////////////////////////
 
-void CommandCollection::ObjectSpawn(datum object_idx, int count, const real_point3d* position, const real_vector3d* rotation, float randomMultiplier, bool sameTeam) 
+void CommandCollection::ObjectSpawn(datum object_idx, int count, const real_point3d* position, const real_vector3d* rotation, float randomMultiplier, bool sameTeam)
 {
 	typedef void(__cdecl* set_orientation_t)(real_vector3d* forward, real_vector3d* up, const real_point3d* orient);
 	auto p_vector3d_from_euler_angles3d = Memory::GetAddress<set_orientation_t>(0x3347B);
 
-	for (int i = 0; i < count; i++) 
+	for (int i = 0; i < count; i++)
 	{
-		try 
+		try
 		{
 			object_placement_data new_object_placement;
 			datum localPlayerIdx = player_index_from_user_index(0);
 			real_point3d* localPlayerPos = s_player::get_unit_coords(localPlayerIdx);
-			
-			if (!DATUM_IS_NONE(object_idx)) 
+
+			if (!DATUM_IS_NONE(object_idx))
 			{
 				object_placement_data_new(&new_object_placement, object_idx, -1, 0);
 
@@ -879,24 +880,91 @@ int CommandCollection::connect(const std::vector<std::string>& tokens, ConsoleCo
 	return 0;
 }
 
+extern int g_check_counter;
 int CommandCollection::test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
+
+	g_check_counter = 0;
 	s_screen_parameters params;
-	
+
+
+	ConsoleLog* output = cbData.strOutput;
+	ComVar<int> context;
+	std::string exception;
+	//stringID.SetValFromStr(tokens[1], 0, exception);
+
+	if (!context.SetValFromStr(tokens[1], 0, exception))
+	{
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "	%s", exception.c_str());
+		return 0;
+	}
+
 	params.m_flags = 0;
-	params.m_window_index = _render_window_4;
+	params.m_window_index = _window_4;
 	params.field_C = 0;
 	params.user_flags = user_interface_controller_get_signed_in_controllers_mask();
 	params.m_channel_type = _user_interface_channel_type_gameshell;
 	params.m_screen_state.field_0 = 0xFFFFFFFF;
 	params.m_screen_state.field_4 = 0xFFFFFFFF;
 	params.m_screen_state.field_8 = 0xFFFFFFFF;
-	params.m_load_function = c_screen_4way_signin::load_type2;
-	c_screen_4way_signin::load_type2(&params);
+
+
+	//params.m_load_function = c_screen_4way_signin::load_type2;
+	//c_screen_4way_signin::load_type2(&params);
+
+	switch (context.GetVal())
+	{
+	case _4_way_signin_type_crossgame_invite:
+		params.m_load_function = c_screen_4way_signin::load_type4;
+		break;
+	case _4_way_signin_type_xbox_live:
+		params.m_load_function = c_screen_4way_signin::load_type3;
+		break;
+
+	case _4_way_signin_type_system_link:
+		params.m_load_function = c_screen_4way_signin::load_type2;
+		break;
+
+	case _4_way_signin_type_splitscreen:
+		params.m_load_function = c_screen_4way_signin::load_type1;
+		break;
+
+	case _4_way_signin_type_campaign:
+		params.m_load_function = c_screen_4way_signin::load_type0;
+		break;
+
+	default:
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "must be in range [0,4]");
+		return 0;
+	}
+
+	params.m_load_function(&params);
+
 
 	//ENABLE_THIS_FOR_UI_DEBUG
 	//WriteValue<uint8>(Memory::GetAddress(0x977370), 1);
-	
+
+	return 0;
+}
+extern string_id g_change_animation;
+int CommandCollection::test2(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	ConsoleLog* output = cbData.strOutput;
+	ComVar<int> stringID;
+	std::string exception;
+	//stringID.SetValFromStr(tokens[1], 0, exception);
+
+	if (!stringID.SetValFromStr(tokens[1], 0, exception))
+	{
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "	%s", exception.c_str());
+		return 0;
+	}
+	g_change_animation = stringID.GetVal();
+	output->Output(StringFlag_None, "setting to : 0x%08X", g_change_animation);
+
 	return 0;
 }
 

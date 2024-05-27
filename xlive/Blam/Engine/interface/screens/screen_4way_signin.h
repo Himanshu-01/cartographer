@@ -17,6 +17,9 @@ class c_screen_4way_signin : protected c_screen_widget
 {
 protected:
 	e_4_way_signin_types m_call_context;
+
+	char handle_main_events(s_event_record* event);
+	char handle_default_events(s_event_record* event);
 public:
 
 	static void* load(s_screen_parameters* parameters);
@@ -25,6 +28,7 @@ public:
 	static void* load_type2(s_screen_parameters* parameters);
 	static void* load_type1(s_screen_parameters* parameters);
 	static void* load_type0(s_screen_parameters* parameters);
+	static void apply_patches();
 	c_screen_4way_signin(e_user_interface_channel_type channel_type, e_user_interface_render_window window_index, int16 user_flags);
 
 	virtual ~c_screen_4way_signin();

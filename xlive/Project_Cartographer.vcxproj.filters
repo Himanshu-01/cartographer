@@ -304,6 +304,9 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_memory.cpp" />
     <ClCompile Include="Blam\Engine\interface\screens\screen_4way_signin.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_networking.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_utilities.cpp" />
+    <ClCompile Include="Blam\Engine\Networking\online\online_account_xbox.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_globals.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -854,6 +857,9 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_memory.h" />
     <ClInclude Include="Blam\Engine\interface\screens\screen_4way_signin.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_networking.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_utilities.h" />
+    <ClInclude Include="Blam\Engine\Networking\online\online_account_xbox.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_globals.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
