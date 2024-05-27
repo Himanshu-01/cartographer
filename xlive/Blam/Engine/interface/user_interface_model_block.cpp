@@ -7,6 +7,12 @@ void c_model_widget::apply_appearance_and_character(s_player_profile_traits* app
 	INVOKE_TYPE(0x240CEE, 0x0, void(__thiscall*)(c_model_widget*, s_player_profile_traits*, e_character_type), this, appearance, character);
 }
 
+void c_model_widget::set_model_animation_mode(string_id mode)
+{
+	INVOKE_TYPE(0x24055A, 0x0, void(__thiscall*)(c_model_widget*, string_id), this, mode);
+}
+
+
 c_model_widget::~c_model_widget()
 {
 	//return INVOKE_TYPE(0x240789, 0x0, c_user_interface_widget*(__thiscall*)(c_model_widget*, char), lpMem, a2);

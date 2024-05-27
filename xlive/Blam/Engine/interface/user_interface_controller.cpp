@@ -2,6 +2,7 @@
 #include "Util/Memory.h"
 #include "input/input_windows.h"
 #include "user_interface_controller.h"
+#include "Networking/online/online_account_xbox.h"
 
 s_user_interface_controller_globals* get_user_interface_controller_globals(void)
 {
@@ -33,7 +34,7 @@ uint32 __cdecl user_interface_controller_get_next_valid_index(e_controller_index
 		return _controller_index_3;
 	}
 	// should probably replace this with _controller_index_invalid 
-	return NONE; 
+	return NONE;
 }
 
 uint32 __cdecl user_interface_controller_get_user_index(e_controller_index controller_index)
@@ -153,6 +154,71 @@ bool user_interface_controller_has_gamepad(e_controller_index controller_index)
 	if (VALID_INDEX(controller_index, k_number_of_controllers))
 	{
 		return input_has_gamepad(controller_index, nullptr);
+		//return input_has_gamepad_plugged(controller_index);
 	}
 	return false;
+}
+
+void  user_interface_controller_pick_profile_dialog(e_controller_index controller_index, int live)
+{
+	return INVOKE_TYPE(0x209236, 0x0, void(__cdecl*)(e_controller_index, int), controller_index, live);
+}
+
+bool __cdecl user_interface_controller_is_guest(e_controller_index controller_index)
+{
+	//	
+	//	v1 = 0xC70 * controller_index;
+	//	invalid_xuid = (&g_controller_user_identifiers + v1) == 0;
+	//	v3 = &g_controller_user_identifiers + v1;
+	//	v4 = 0;
+	//	if (!invalid_xuid)
+	//		v4 = v3;
+	//	return (*(v4 + 8) & 3) != 0;
+	//	
+	s_user_interface_controller_globals* g_user_interface_controller_globals = get_user_interface_controller_globals();
+	XUID* identifier = (XUID*)& g_user_interface_controller_globals->controllers[controller_index].controller_user_identifier;
+	if (!ONLINE_USER_VALID(*identifier))
+		return false;
+
+	return online_xuid_is_guest_account(*identifier);
+}
+
+uint32 __cdecl user_interface_controller_get_guest_controllers_count_for_master(e_controller_index master_controller_index)
+{
+	if (user_interface_controller_is_guest(master_controller_index))
+		return 0;
+
+
+	s_user_interface_controller_globals* g_user_interface_controller_globals = get_user_interface_controller_globals();
+	XUID master_identifier = *(XUID*)&g_user_interface_controller_globals->controllers[master_controller_index].controller_user_identifier;
+	if (!ONLINE_USER_VALID(master_identifier))
+		return 0;
+
+	uint32 count = 0;
+	for (e_controller_index controller_idx = first_controller();
+		controller_idx != k_no_controller;
+		controller_idx = next_controller(controller_idx))
+	{
+		if (controller_idx == master_controller_index)
+			continue;
+
+		//	if(g_user_interface_controller_globals->controllers[controller_idx].m_flags.test(_controller_state_has_xbox_live_bit))
+		//	we dont use xlive sign in in cartographer
+		//	skipping this check
+		
+		if (g_user_interface_controller_globals->controllers[controller_idx].m_flags.test(_controller_state_has_xbox_live_bit))
+		{
+			s_player_identifier player_id = g_user_interface_controller_globals->controllers[controller_idx].controller_user_identifier;
+			XUID compare_id = *(XUID*)&g_user_interface_controller_globals->controllers[controller_idx].controller_user_identifier;
+			if (!ONLINE_USER_VALID(compare_id))
+				continue;
+
+			if ((compare_id & ~0x3ULL) == (master_identifier & ~0x3ULL))
+				count++;
+		}
+
+	}
+
+	return count;	
+
 }

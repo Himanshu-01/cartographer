@@ -48,6 +48,10 @@ void c_screen_widget::apply_new_representations_to_players(c_player_widget_repre
 {
 	INVOKE_TYPE(0x211CD0, 0x0, void(__thiscall*)(c_screen_widget*, c_player_widget_representation*, int32), this, representations, player_count);
 }
+void* c_screen_widget::get_screen_definition()
+{
+	return INVOKE_TYPE(0x20E8A6, 0x0, void*(__thiscall*)(c_screen_widget*), this);
+}
 
 c_screen_widget::~c_screen_widget()
 {

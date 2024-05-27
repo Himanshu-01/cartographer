@@ -210,3 +210,6 @@ void __cdecl user_interface_controller_sign_out(e_controller_index controller_in
 void __cdecl user_interface_controller_sign_out_all_controllers();
 void user_interface_controller_get_profile_data(e_controller_index controller_index, s_saved_game_file_player_profile* profile, uint32* profile_index);
 bool user_interface_controller_has_gamepad(e_controller_index controller_index);
+void  user_interface_controller_pick_profile_dialog(e_controller_index controller_index, int live);
+bool __cdecl user_interface_controller_is_guest(e_controller_index controller_index);
+uint32 __cdecl user_interface_controller_get_guest_controllers_count_for_master(e_controller_index master_controller_index);
