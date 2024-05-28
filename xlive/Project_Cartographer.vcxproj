@@ -345,6 +345,7 @@
     <ClCompile Include="Blam\Engine\input\input_windows.cpp" />
     <ClCompile Include="Blam\Engine\input\input_xinput.cpp" />
     <ClCompile Include="Blam\Engine\interface\screens\screen_4way_signin.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_multiplayer_pregame_lobby.cpp" />
     <ClCompile Include="Blam\Engine\interface\screens\screen_press_start_introduction.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_bitmap_block.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_controller.cpp" />
@@ -528,6 +529,7 @@
     <ClInclude Include="Blam\Engine\interface\screens\screens_patches.h" />
     <ClInclude Include="Blam\Engine\interface\screens\screen_4way_signin.h" />
     <ClInclude Include="Blam\Engine\interface\screens\screen_esrb_warning.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_multiplayer_pregame_lobby.h" />
     <ClInclude Include="Blam\Engine\interface\screens\screen_press_start_introduction.h" />
     <ClInclude Include="Blam\Engine\interface\signal_slot.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface.h" />

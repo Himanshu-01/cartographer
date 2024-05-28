@@ -25,6 +25,7 @@
 #include "Blam/Engine/interface/new_hud.h"
 #include "Blam/Engine/interface/user_interface_text.h"
 #include "Blam/Engine/interface/screens/screens_patches.h"
+#include "Blam/Engine/interface/screens/screen_multiplayer_pregame_lobby.h"
 #include "Blam/Engine/items/weapon_definitions.h"
 #include "Blam/Engine/main/loading.h"
 #include "Blam/Engine/main/main_game.h"
@@ -959,6 +960,7 @@ void H2MOD::ApplyHooks() {
 		PatchCall(Memory::GetAddress(0x2422C8), get_last_single_player_level_id_unlocked_from_profile);
 
 		user_interface_text_apply_hooks();
+		c_screen_multiplayer_pregame_lobby::apply_patches();
 		hud_messaging_apply_hooks();
 		font_group_apply_hooks();
 		screens_apply_patches();

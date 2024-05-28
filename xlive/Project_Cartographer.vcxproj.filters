@@ -307,6 +307,7 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_utilities.cpp" />
     <ClCompile Include="Blam\Engine\Networking\online\online_account_xbox.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_globals.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_multiplayer_pregame_lobby.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -860,6 +861,7 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_utilities.h" />
     <ClInclude Include="Blam\Engine\Networking\online\online_account_xbox.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_globals.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_multiplayer_pregame_lobby.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
