@@ -4,6 +4,8 @@
 class c_group_widget : protected c_user_interface_widget
 {
 public:
+	c_group_widget(e_user_interface_widget_type widget_type, int16 user_flags);
+
 	virtual ~c_group_widget();
 	/*virtual void render_widget(rectangle2d* viewport_bounds) override;
 	virtual int get_intro_delay() override;*/

@@ -1,0 +1,31 @@
+#pragma once
+#include "user_interface_group_widget.h"
+#include "signal_slot.h"
+
+class c_list_item_widget : public c_group_widget
+{
+protected:
+	datum m_last_data_index;
+	int32 m_intro_delay_milliseconds;
+	bool field_78;
+	uint8 gap_79[3];
+	_slot* signal1;
+	_slot* signal2;
+
+public:
+	c_list_item_widget();
+
+	virtual ~c_list_item_widget();
+	virtual void update() override;
+	virtual int get_intro_delay() override;
+	virtual char handle_event(s_event_record* event) override;
+	virtual void construct_animation_on_region_enter(int a1) override;
+	virtual void construct_animation_on_region_leave(int a1) override;
+	virtual bool can_interact() override;
+	virtual bool sub_6114B9() override;
+
+	// c_list_item_widget includes
+
+	bool last_data_index_valid();
+};
+CHECK_STRUCT_SIZE(c_list_item_widget, 0x84);
