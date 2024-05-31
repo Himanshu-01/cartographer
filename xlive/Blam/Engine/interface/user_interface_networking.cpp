@@ -25,3 +25,18 @@ void __cdecl user_interface_set_desired_multiplayer_mode(int32 desired_mode)
 {
 	INVOKE(0x217138, 0x0, user_interface_set_desired_multiplayer_mode, desired_mode);
 }
+
+e_session_protocol __cdecl user_interface_squad_get_active_protocol()
+{
+	return INVOKE(0x215EA9, 0x0, user_interface_squad_get_active_protocol);
+}
+
+bool __cdecl user_interface_squad_local_peer_is_leader()
+{
+	return INVOKE(0x2152B0, 0x0, user_interface_squad_local_peer_is_leader);
+}
+
+int16 __cdecl user_interface_squad_get_player_count()
+{
+	return INVOKE(0x21525A, 0x0, user_interface_squad_get_player_count);
+}

@@ -16,6 +16,11 @@ c_list_widget::c_list_widget(int16 user_flags)
 	this->m_list_has_hidden_items = 0;
 	this->field_A6 = 0;
 	this->field_A7 = 1;
+
+	this->signal1 = nullptr;
+	this->signal2 = nullptr;
+	//this->signal2->reset();
+
 }
 
 c_list_widget::~c_list_widget()

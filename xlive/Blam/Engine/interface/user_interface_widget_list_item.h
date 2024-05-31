@@ -9,8 +9,8 @@ protected:
 	int32 m_intro_delay_milliseconds;
 	bool field_78;
 	uint8 gap_79[3];
-	_slot* signal1;
-	_slot* signal2;
+	_slot1<>* signal1;
+	_slot2<>* signal2;
 
 public:
 	c_list_item_widget();
@@ -26,6 +26,6 @@ public:
 
 	// c_list_item_widget includes
 
-	bool last_data_index_valid();
+	virtual bool last_data_index_valid();
 };
 CHECK_STRUCT_SIZE(c_list_item_widget, 0x84);

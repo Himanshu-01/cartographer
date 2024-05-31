@@ -11,7 +11,7 @@ protected:
 	int32 m_flags;
 	int16 m_button_index;
 	uint8 gap_FA[2];
-	_slot* signal;
+	_slot2<> *signal;
 
 public:
 	c_button_widget(int16 button_index, int16 user_flags);

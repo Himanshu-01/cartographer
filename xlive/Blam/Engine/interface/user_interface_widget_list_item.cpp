@@ -11,6 +11,8 @@ c_list_item_widget::c_list_item_widget() :
 	this->field_78 = 1;
 	//signal_slot_ptr_reset((_slot*)&this->signal1);
 	//signal_slot_ptr_reset((_slot*)&this->signal2);
+	this->signal1 = nullptr;
+	this->signal2 = nullptr;
 	this->m_widget_type = _widget_type_list_item;
 	this->field_6D = 1;
 

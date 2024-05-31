@@ -29,8 +29,8 @@ protected:
 	bool m_list_has_hidden_items;
 	bool field_A6;
 	bool field_A7;
-	_slot* signal1;
-	_slot* signal2;
+	_slot1<>* signal1;
+	_slot2<>* signal2;
 
 public:
 	c_list_widget(int16 user_flags);

@@ -7,6 +7,7 @@ c_button_widget::c_button_widget(int16 button_index, int16 user_flags):
 {
 	m_flags = 0;
 	m_button_index = button_index;
+	signal = nullptr;
 }
 
 c_button_widget::~c_button_widget()
