@@ -1,5 +1,7 @@
 #include "stdafx.h"
 #include "user_interface_widget_list.h"
+#include "user_interface_widget_text.h"
+#include "memory/data.h"
 
 c_list_widget::c_list_widget(int16 user_flags)
 	:c_user_interface_widget(_widget_type_list, user_flags)
@@ -19,7 +21,6 @@ c_list_widget::c_list_widget(int16 user_flags)
 
 	this->signal1 = nullptr;
 	this->signal2 = nullptr;
-	//this->signal2->reset();
 
 }
 
@@ -27,6 +28,51 @@ c_list_widget::~c_list_widget()
 {
 	//return INVOKE_TYPE(0x213BBF, 0x0, void*(__thiscall*)(c_list_widget*, char), lpMem, a2);
 }
+
+datum c_list_widget::get_old_data_index()
+{
+	return INVOKE_TYPE(0x21383B, 0x0, datum(__thiscall*)(c_list_widget*), this);
+}
+
+void c_list_widget::update_list_items_from_mapping(c_list_item_widget* item, int32 skin_index, int32 text_widget_idx, s_item_text_mapping* mapping, int32 total_mappings)
+{
+	//INVOKE_TYPE(0x2139F8, 0x0, void(__thiscall*)(c_list_widget*, c_list_item_widget*, int32, int32, s_item_text_mapping*, int32), this, item, skin_index, text_widget_idx, mapping, total_mappings);
+
+	if (item == nullptr)
+		return;
+
+
+	c_text_widget* item_text = (c_text_widget*)item->try_find_text_widget(text_widget_idx);
+	if (item_text)
+	{
+		s_dynamic_list_item* item_datum = (s_dynamic_list_item*)datum_try_and_get(this->m_list_data, item->get_last_data_index());
+		if (item_datum && total_mappings > 0)
+		{
+			int16 mapping_idx = 0;
+			while (mapping[mapping_idx].item_id != item_datum->item_id)
+			{
+				if (++mapping_idx > total_mappings)
+					return;
+			}
+			item_text->set_screen_string(mapping[mapping_idx].item_text);
+		}
+	}
+}
+void c_list_widget::set_focused_item_index(datum item_index)
+{
+	INVOKE_TYPE(0x213F50, 0x0, void(__thiscall*)(c_list_widget*, __int16), this, DATUM_INDEX_TO_ABSOLUTE_INDEX(item_index));
+}
+
+void c_list_widget::remove_focused_item_datum_from_data_array()
+{
+	INVOKE_TYPE(0x214C32, 0x0, void(__thiscall*)(c_list_widget*), this);
+}
+
+void c_list_widget::remove_item_from_list(c_list_item_widget* item)
+{
+	INVOKE_TYPE(0x2144A4, 0x0, void(__thiscall*)(c_list_widget*, c_list_item_widget*), this, item);
+}
+
 
 int c_list_widget::setup_children()
 {
@@ -57,6 +103,11 @@ int c_list_widget::get_intro_delay()
 char c_list_widget::handle_event(s_event_record* event)
 {
 	return INVOKE_TYPE(0x214CA9, 0x0, char(__thiscall*)(c_list_widget*, s_event_record*), this, event);
+}
+
+c_list_item_widget* c_list_widget::try_find_item_widget(uint32 idx)
+{
+	return INVOKE_TYPE(0x213772, 0x0, c_list_item_widget*(__thiscall*)(c_list_widget*, int), this, idx);
 }
 
 void c_list_widget::construct_animation_on_region_enter(int a1)

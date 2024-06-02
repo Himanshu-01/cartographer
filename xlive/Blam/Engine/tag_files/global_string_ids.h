@@ -2,7 +2,7 @@
 
 enum e_global_string_id : unsigned int
 {
-	NUM_NULL = 0x0,
+	HS_EMPTY_STRING = 0x0,
 	HS_NUM_0 = 0x100030A,
 	HS_NUM_1 = 0x100030B,
 	HS_NUM_2 = 0x100030C,
@@ -377,6 +377,7 @@ enum e_global_string_id : unsigned int
 	HS_REPLACE = 0x700054C,
 	HS_ROLLOFF = 0x7000552,
 	HS_COMPASS = 0x700055A,
+	HS_VARIANT = 0x700055B,
 	HS_DTH_MJR = 0x700060B,
 	HS_DTH_SLW = 0x700060C,
 	HS_EMITTER = 0x700061B,

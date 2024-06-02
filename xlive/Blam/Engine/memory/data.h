@@ -124,5 +124,6 @@ private:
 
 // Get data in s_data_array from datum index
 void* datum_get(s_data_array* data, datum index);
+void* __cdecl datum_try_and_get(s_data_array* data, datum index);
 
 void __cdecl datum_delete(s_data_array* data_array, datum object_index);

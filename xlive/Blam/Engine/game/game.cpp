@@ -99,6 +99,11 @@ bool game_is_authoritative(void)
 	return game_options_get()->simulation_type != _game_simulation_distributed_client;
 }
 
+bool game_is_beta_build(void)
+{
+    return INVOKE(0x209ED8, 0x0, game_is_beta_build);
+}
+
 s_game_cluster_bit_vectors* game_get_cluster_activation(void)
 {
 	return get_main_game_globals()->cluster_activation;

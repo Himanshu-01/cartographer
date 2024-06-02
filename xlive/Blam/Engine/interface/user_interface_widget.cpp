@@ -135,6 +135,11 @@ c_user_interface_widget* c_user_interface_widget::try_find_model_widget(uint32 i
 	return try_find_child(_widget_type_model, idx, false);
 }
 
+c_screen_widget* c_user_interface_widget::get_parent_screen()
+{
+	return INVOKE_TYPE(0x211BA1, 0x0, c_screen_widget*(__thiscall*)(c_user_interface_widget*), this);
+}
+
 void c_user_interface_widget::set_visible(bool visible)
 {
 	this->m_visible = visible;

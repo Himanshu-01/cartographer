@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "user_interface_networking.h"
+#include "saved_games/game_variant.h"
 
 void user_interface_squad_clear_match_playlist()
 {
@@ -39,4 +40,19 @@ bool __cdecl user_interface_squad_local_peer_is_leader()
 int16 __cdecl user_interface_squad_get_player_count()
 {
 	return INVOKE(0x21525A, 0x0, user_interface_squad_get_player_count);
+}
+
+bool __cdecl user_interface_session_get_map(uint32* campaign_id, uint32* map_id, uint32* custom_map_id)
+{
+	return INVOKE(0x21564E, 0x0, user_interface_session_get_map, campaign_id, map_id, custom_map_id);
+}
+
+int16 __cdecl user_interface_session_get_campaign_difficulty(void)
+{
+	return INVOKE(0x215697, 0x0, user_interface_session_get_campaign_difficulty);
+}
+
+s_game_variant* __cdecl user_interface_session_get_game_variant(void)
+{
+	return INVOKE(0x215692, 0x0, user_interface_session_get_game_variant);
 }

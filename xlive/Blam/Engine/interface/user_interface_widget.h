@@ -29,6 +29,7 @@ CHECK_STRUCT_SIZE(s_screen_animation_block, 0x34);
 
 struct s_event_record;
 class c_user_interface_text;
+class c_screen_widget;
 
 #pragma pack(push , 1)
 class c_user_interface_widget
@@ -72,6 +73,7 @@ public:
 	c_user_interface_widget* try_find_bitmap_widget(uint32 idx);
 	c_user_interface_widget* try_find_player_widget(uint32 idx);
 	c_user_interface_widget* try_find_model_widget(uint32 idx);
+	c_screen_widget* get_parent_screen();
 	void set_visible(bool visible);
 	void set_child_visible(e_user_interface_widget_type type, uint32 idx,  bool visible);
 	void set_allocated(bool allocated);

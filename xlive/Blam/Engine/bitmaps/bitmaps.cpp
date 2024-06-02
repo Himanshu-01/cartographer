@@ -39,3 +39,8 @@ uint8* __cdecl bitmap_get_base_address(bitmap_data* bitmap, int16 column, int16 
 {
 	return INVOKE(0x2742F4, 0x0, bitmap_get_base_address, bitmap, column, row, mipmap_index);
 }
+
+bitmap_data* bitmap_tag_get_bitmaps_block(datum bitmap_tag_index, int16 bitmap_index)
+{
+	return INVOKE(0x37D482, 0x0, bitmap_tag_get_bitmaps_block, bitmap_tag_index, bitmap_index);
+}

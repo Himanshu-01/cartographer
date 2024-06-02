@@ -18,6 +18,11 @@ c_list_item_widget::c_list_item_widget() :
 
 }
 
+datum c_list_item_widget::get_last_data_index()
+{
+	return this->m_last_data_index;
+}
+
 c_list_item_widget::~c_list_item_widget()
 {
 	//return INVOKE_TYPE(0x220057, 0x0, void*(__thiscall*)(c_list_item_widget*, char), lpMem,a2);

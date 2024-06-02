@@ -5,18 +5,32 @@
 
 #define k_no_of_visible_items_for_squad_settings 7
 
-class c_squad_settings_list : protected c_list_widget
+class c_squad_settings_list : public c_list_widget
 {
 protected:
 	c_list_item_widget m_list_items[k_no_of_visible_items_for_squad_settings];
 	c_slot2<c_squad_settings_list,s_event_record*,long> m_slot;
-	bool field_464;
+	bool m_party_mgmt_item_deleted;
 	uint8 gap_465[3];
 
 	char handle_item_pressed_event(s_event_record** pevent, long* pitem_index);
+	char handle_item_change_map(s_event_record** pevent);
+	char handle_item_change_variant(s_event_record** pevent);
+	char handle_item_change_level(s_event_record** pevent);
+	char handle_item_change_difficulty(s_event_record** pevent);
+	char handle_item_quick_options(s_event_record** pevent);
+	char handle_item_switch_to_coop(s_event_record** pevent);
+	char handle_item_switch_to_arranged(s_event_record** pevent);
+	char handle_item_switch_to_optimatch(s_event_record** pevent);
+	char handle_item_change_hopper(s_event_record** pevent);
+	char handle_item_party_management(s_event_record** pevent);
+
 
 public:
 	c_squad_settings_list(int16 user_flags);
+	uint16 get_last_item_type();
+	bool party_management_exists();
+	void party_management_delete_item();
 
 	virtual ~c_squad_settings_list();
 	char handle_event(s_event_record* event) override;

@@ -5,6 +5,7 @@
 #include "screen_xbox_live_task_progress_dialog.h"
 #include "screen_4way_signin.h"
 #include "screen_multiplayer_pregame_lobby.h"
+#include "screen_squad_settings.h"
 
 void screens_apply_patches_on_map_load()
 {
@@ -16,4 +17,5 @@ void screens_apply_patches_on_map_load()
 void screens_apply_patches()
 {
 	c_screen_esrb_warning::apply_patches();
+	c_screen_squad_settings::apply_patches();
 }

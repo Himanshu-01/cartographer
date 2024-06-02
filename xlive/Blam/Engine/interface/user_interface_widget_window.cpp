@@ -53,6 +53,11 @@ void* c_screen_widget::get_screen_definition()
 	return INVOKE_TYPE(0x20E8A6, 0x0, void*(__thiscall*)(c_screen_widget*), this);
 }
 
+void c_screen_widget::animate_widget(int32 type)
+{
+	INVOKE_TYPE(0x212604, 0x0, void(__thiscall*)(c_screen_widget*, int32), this, type);
+}
+
 c_screen_widget::~c_screen_widget()
 {
 	// do we need to call this?

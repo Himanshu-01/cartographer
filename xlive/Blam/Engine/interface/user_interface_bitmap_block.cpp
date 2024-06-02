@@ -6,6 +6,15 @@ void c_bitmap_widget::verify_and_update_bitmap_index(int16 index)
 {
 	INVOKE_TYPE(0x21C300, 0x0, void(__thiscall*)(c_bitmap_widget*, int16), this, index);
 }
+void c_bitmap_widget::assign_new_bitmap_block(bitmap_data* block)
+{
+	INVOKE_TYPE(0x21CF73, 0x0, void(__thiscall*)(c_bitmap_widget*, bitmap_data*), this, block);
+}
+
+void c_bitmap_widget::set_local_bitmap(int16 local_bitmap_block_index, int16 bitmap_block_index)
+{
+	INVOKE_TYPE(0x21CFED, 0x0, int(__thiscall*)(c_bitmap_widget*, int16, int16), this, local_bitmap_block_index, bitmap_block_index);
+}
 
 c_bitmap_widget::~c_bitmap_widget()
 {

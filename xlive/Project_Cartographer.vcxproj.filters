@@ -311,6 +311,7 @@
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_list.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_widget_list_item.cpp" />
     <ClCompile Include="Blam\Engine\interface\screens\screen_squad_settings.cpp" />
+    <ClCompile Include="Blam\Engine\main\levels.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\discord\discord_register.h" />
@@ -868,6 +869,7 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_list_item.h" />
     <ClInclude Include="Blam\Engine\interface\user_interface_widget_list.h" />
     <ClInclude Include="Blam\Engine\interface\screens\screen_squad_settings.h" />
+    <ClInclude Include="Blam\Engine\main\levels.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />

@@ -14,6 +14,7 @@ protected:
 
 public:
 	c_list_item_widget();
+	datum get_last_data_index();
 
 	virtual ~c_list_item_widget();
 	virtual void update() override;

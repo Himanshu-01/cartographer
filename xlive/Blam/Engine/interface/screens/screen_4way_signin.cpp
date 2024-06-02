@@ -18,11 +18,7 @@
 enum e_4way_signin_main_text_blocks
 {
 
-
-	//_4way_signin_main_pane_0_text_player0_profile_name = 0,
-	// Note : all text blocks are shifted by 2 (internally) wrt tag block index
-	// probably to account for menu title text and button key text
-	_4way_signin_main_pane_0_text_player0_profile_name = 2,
+	_4way_signin_main_pane_0_text_player0_profile_name = 0,
 	_4way_signin_main_pane_0_text_player0_insert_controller,
 	_4way_signin_main_pane_0_text_player1_profile_name,
 	_4way_signin_main_pane_0_text_player1_insert_controller,
@@ -190,8 +186,8 @@ void c_screen_4way_signin::update()
 
 		}
 
-		this->set_child_visible(_widget_type_text, profile_name_text_id, controller_has_joined);
-		c_text_widget* press_a_to_join_text = (c_text_widget*)this->try_find_text_widget(press_a_to_join_text_id);
+		this->set_child_visible(_widget_type_text, TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(profile_name_text_id), controller_has_joined);
+		c_text_widget* press_a_to_join_text = (c_text_widget*)this->try_find_text_widget(TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(press_a_to_join_text_id));
 		if (press_a_to_join_text)
 		{
 			press_a_to_join_text->set_visible(false);
@@ -212,7 +208,7 @@ void c_screen_4way_signin::update()
 			}
 		}
 
-		c_text_widget* insert_controller_text = (c_text_widget*)this->try_find_text_widget(insert_controller_text_id);
+		c_text_widget* insert_controller_text = (c_text_widget*)this->try_find_text_widget(TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(insert_controller_text_id));
 		if (insert_controller_text)
 		{
 			if (controller_has_joined)
@@ -230,9 +226,9 @@ void c_screen_4way_signin::update()
 		//this->set_child_visible(_widget_type_text, profile_name_heading_text_id, show_gamertag_text);
 		//this->set_child_visible(_widget_type_text, gamertag_heading_text_id, show_gamertag_text);
 
-		this->set_child_visible(_widget_type_text, gamertag_text_id, show_gamertag_text);
-		this->set_child_visible(_widget_type_text, gamertag_heading_text_id, show_gamertag_text);
-		this->set_child_visible(_widget_type_text, profile_name_heading_text_id, controller_has_joined);
+		this->set_child_visible(_widget_type_text, TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(gamertag_text_id), show_gamertag_text);
+		this->set_child_visible(_widget_type_text, TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(gamertag_heading_text_id), show_gamertag_text);
+		this->set_child_visible(_widget_type_text, TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(profile_name_heading_text_id), controller_has_joined);
 
 		//for some reason game saves player characters as masterchief and dervish in saved profiles
 		c_model_widget* ui_player_model_a = (c_model_widget*)this->try_find_model_widget(ui_player_model_id_a);

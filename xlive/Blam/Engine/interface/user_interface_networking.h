@@ -11,6 +11,7 @@ enum e_session_protocol
 	_protocol_live_optimatch = 0x6,
 };
 
+struct s_game_variant;
 
 void user_interface_squad_clear_match_playlist();
 
@@ -23,3 +24,7 @@ void __cdecl user_interface_set_desired_multiplayer_mode(int32 desired_mode);
 e_session_protocol __cdecl user_interface_squad_get_active_protocol();
 bool __cdecl user_interface_squad_local_peer_is_leader();
 int16 __cdecl user_interface_squad_get_player_count();
+
+bool __cdecl user_interface_session_get_map(uint32* campaign_id, uint32* map_id, uint32* custom_map_id);
+int16 __cdecl user_interface_session_get_campaign_difficulty(void);
+s_game_variant* __cdecl user_interface_session_get_game_variant(void);

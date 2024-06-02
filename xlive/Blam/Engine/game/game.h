@@ -80,6 +80,7 @@ bool game_is_predicted(void);
 bool game_is_distributed(void);
 bool game_is_playback(void);
 bool game_is_authoritative(void);
+bool game_is_beta_build(void);
 s_game_cluster_bit_vectors* game_get_cluster_activation(void);
 
 // Setup default player data in the game options structure

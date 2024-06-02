@@ -5,8 +5,13 @@
 #include "user_interface_player_widget.h"
 #include "signal_slot.h"
 
-#define k_maximum_number_of_special_widgets 16
+#define K_MAXIMUM_NUMBER_OF_SPECIAL_WIDGETS 16
 
+#define K_HEADER_TEXT_BLOCK_INDEX 0
+#define K_BUTTON_KEY_TEXT_BLOCK_INDEX 1
+#define K_MINIMUM_NUMBER_OF_DEFAULT_SCREEN_TEXTS 2
+#define TEXT_BLOCK_INDEX_TO_WIDGET_INDEX(block_idx) \
+			(block_idx+K_MINIMUM_NUMBER_OF_DEFAULT_SCREEN_TEXTS)
 
 #pragma pack(push , 1)
 struct s_interface_expected_pane
@@ -50,7 +55,7 @@ protected:
 	bool field_9FD;
 	int32 field_9FE;
 	uint8 gap_A02[2];
-	c_user_interface_widget* m_special_widgets[k_maximum_number_of_special_widgets];
+	c_user_interface_widget* m_special_widgets[K_MAXIMUM_NUMBER_OF_SPECIAL_WIDGETS];
 	c_slot1<c_screen_widget, long> m_screen_slot;
 
 
@@ -62,6 +67,7 @@ public:
 	void verify_and_load_from_layout(datum widget_tag, s_interface_expected_screen_layout* expected_layout);
 	void apply_new_representations_to_players(c_player_widget_representation* representations, int32 player_count);
 	void* get_screen_definition();
+	void animate_widget(int32 type);
 
 	virtual ~c_screen_widget();
 	virtual char handle_event(s_event_record* event) override;

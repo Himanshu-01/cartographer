@@ -1,5 +1,6 @@
 #pragma once
 #include "user_interface_widget.h"
+#include "bitmaps/bitmap_group.h"
 
 #pragma pack(push , 1)
 class c_bitmap_widget : public c_user_interface_widget
@@ -17,7 +18,8 @@ protected:
 
 public:
 	void verify_and_update_bitmap_index(int16 index);
-
+	void assign_new_bitmap_block(bitmap_data* block);
+	void set_local_bitmap(int16 local_bitmap_block_index, int16 bitmap_block_index);
 
 
 	virtual ~c_bitmap_widget();

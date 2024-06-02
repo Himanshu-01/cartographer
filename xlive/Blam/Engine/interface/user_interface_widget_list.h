@@ -3,6 +3,22 @@
 #include "user_interface_widget_list_item.h"
 #include "signal_slot.h"
 #include "memory/data.h"
+#include "tag_files/string_id.h"
+
+
+struct s_item_text_mapping
+{
+	int16 item_id;
+	string_id item_text;
+};
+CHECK_STRUCT_SIZE(s_item_text_mapping, 8);
+
+struct s_dynamic_list_item
+{
+	uint16 unk;
+	int16 item_id;
+};
+CHECK_STRUCT_SIZE(s_dynamic_list_item, 4);
 
 class c_list_widget : public c_user_interface_widget
 {
@@ -34,6 +50,12 @@ protected:
 
 public:
 	c_list_widget(int16 user_flags);
+	c_list_item_widget* try_find_item_widget(uint32 idx);
+	datum get_old_data_index();
+	void update_list_items_from_mapping(c_list_item_widget* item, int32 skin_index, int32 text_widget_idx, s_item_text_mapping* mapping, int32 total_mappings);
+	void set_focused_item_index(datum item_index);
+	void remove_focused_item_datum_from_data_array();
+	void remove_item_from_list(c_list_item_widget* item);
 
 	virtual ~c_list_widget();
 	virtual int setup_children() override;
