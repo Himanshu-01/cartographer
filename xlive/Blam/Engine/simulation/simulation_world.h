@@ -107,7 +107,7 @@ public:
 	c_simulation_distributed_world* get_distributed_world(void) const { return m_distributed_world; }
 
 	void initialize_world(int32 a2, int32 a3, int32 a4);
-	
+
 	void delete_all_actors(void);
 
 	void update_queue_reset(void);
@@ -190,6 +190,11 @@ public:
 	{
 		ASSERT(exists());
 		return m_time_running;
+	}
+
+	bool do_we_have_sufficient_updates(void)
+	{
+		return m_synchronous_client_queue_length > 5;
 	}
 };
 ASSERT_STRUCT_SIZE(c_simulation_world, 0x12B0);

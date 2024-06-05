@@ -20,6 +20,9 @@
 
 // for XNet connection logging
 #include "XLive/xnet/IpManagement/XnIp.h"
+//#include "Blam/Engine/interface/screens/screen_press_start_introduction.h"
+//#include "Blam/Engine/interface/screens/screen_esrb_warning.h"
+//#include "interface/screens/screen_4way_signin.h"
 
 std::mutex commandInsertMtx;
 
@@ -77,7 +80,9 @@ std::vector<ConsoleCommand*> CommandCollection::commandTable = {
 	new ConsoleCommand("game_splitscreen", "sets the number of multiplayer splitscreen players for the next map, 1 parameter(s): <int>", 1, 1, CommandCollection::game_splitscreen),
 	new ConsoleCommand("game_mode", "sets the game mode for the next map, 1 parameter(s): <int>", 1, 1, CommandCollection::game_mode),
 	new ConsoleCommand("invite", "creates a invite code that you can send to people for direct connecting", 0, 0, CommandCollection::invite),
-	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect)
+	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect),
+	new ConsoleCommand("test", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::test),
+	new ConsoleCommand("change", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::test2)
 };
 
 void CommandCollection::InitializeCommandsMap()
@@ -907,3 +912,135 @@ int CommandCollection::connect(const std::vector<std::string>& tokens, ConsoleCo
 
 	return 0;
 }
+
+
+extern bool force_coop;
+int CommandCollection::test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+
+	//g_check_counter = 0;
+	//s_screen_parameters params;
+
+
+	ConsoleLog* output = cbData.strOutput;
+	ComVar<int> context;
+	std::string exception;
+	//stringID.SetValFromStr(tokens[1], 0, exception);
+
+	if (!context.SetValFromStr(tokens[1], 0, exception))
+	{
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "	%s", exception.c_str());
+		return 0;
+	}
+
+	//params.m_flags = 0;
+	//params.m_window_index = _window_4;
+	//params.field_C = 0;
+	//params.user_flags = user_interface_controller_get_signed_in_controllers_mask();
+	//params.m_channel_type = _user_interface_channel_type_gameshell;
+	//params.m_screen_state.field_0 = 0xFFFFFFFF;
+	//params.m_screen_state.field_4 = 0xFFFFFFFF;
+	//params.m_screen_state.field_8 = 0xFFFFFFFF;
+
+
+	////params.m_load_function = c_screen_4way_signin::load_type2;
+	////c_screen_4way_signin::load_type2(&params);
+
+	//switch (context.GetVal())
+	//{
+	//case _4_way_signin_type_crossgame_invite:
+	//	params.m_load_function = c_screen_4way_signin::load_type4;
+	//	break;
+	//case _4_way_signin_type_xbox_live:
+	//	params.m_load_function = c_screen_4way_signin::load_type3;
+	//	break;
+
+	//case _4_way_signin_type_system_link:
+	//	params.m_load_function = c_screen_4way_signin::load_type2;
+	//	break;
+
+	//case _4_way_signin_type_splitscreen:
+	//	params.m_load_function = c_screen_4way_signin::load_type1;
+	//	break;
+
+	//case _4_way_signin_type_campaign:
+	//	params.m_load_function = c_screen_4way_signin::load_type0;
+	//	break;
+
+	//default:
+	//	output->Output(StringFlag_None, command_error_bad_arg);
+	//	output->Output(StringFlag_None, "must be in range [0,4]");
+	//	return 0;
+	//}
+
+	//params.m_load_function(&params);
+
+
+	//ENABLE_THIS_FOR_UI_DEBUG
+	//WriteValue<uint8>(Memory::GetAddress(0x977370), 1);
+
+	force_coop = context.GetVal();
+
+	return 0;
+}
+
+int CommandCollection::test2(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	ConsoleLog* output = cbData.strOutput;
+	ComVar<int> stringID;
+	std::string exception;
+	//stringID.SetValFromStr(tokens[1], 0, exception);
+
+	if (!stringID.SetValFromStr(tokens[1], 0, exception))
+	{
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "	%s", exception.c_str());
+		return 0;
+	}
+	//g_change_animation = stringID.GetVal();
+	//output->Output(StringFlag_None, "setting to : 0x%08X", g_change_animation);
+
+
+	//s_screen_parameters params;
+
+	//params.m_flags = 4;
+	//params.m_window_index = _window_4;
+	//params.field_C = 0;
+	//params.user_flags = user_interface_controller_get_signed_in_controllers_mask();
+	//params.m_channel_type = _user_interface_channel_type_dialog;
+	//params.m_screen_state.field_0 = 0xFFFFFFFF;
+	//params.m_screen_state.field_4 = 0xFFFFFFFF;
+	//params.m_screen_state.field_8 = 0xFFFFFFFF;
+	//params.m_load_function = c_screen_squad_settings::load;
+
+	//params.m_load_function(&params);
+	enum e_network_game_simulation_protocol
+	{
+		_network_game_simulation_protocol_offline = 0,
+		_network_game_simulation_protocol_synchronous = 1,
+		_network_game_simulation_protocol_distributed = 2,
+		k_network_game_simulation_protocol_count = 3,
+	};
+
+	s_network_session* session = NetworkSession::GetActiveNetworkSession();
+	INVOKE_TYPE(0x1C8F03, 0x0, char(__thiscall*)(s_network_session*, int), session, stringID.GetVal());
+
+	int16 difficulty = 1;
+	//void __cdecl user_interface_squad_clear_game_settings()
+	//INVOKE(0x2171A0, 0x0, user_interface_squad_clear_game_settings);
+	//INVOKE_TYPE(0x2171A0, 0x0, void(*__cdecl)()),
+	
+	
+	//void __cdecl user_interface_globals_set_game_difficulty_real(int32 difficulty)
+	//INVOKE(0x209E44, 0x0, user_interface_globals_set_game_difficulty_real, difficulty);
+	//INVOKE_TYPE(0x209E44, 0x0, void(__cdecl*)(int), difficulty);
+	
+
+	//user_interface_squad_set_campaign_difficulty(difficulty);
+	//INVOKE_TYPE(0x215624, 0x0, bool(__cdecl*)(int), difficulty);
+	
+
+	return 0;
+}
+

@@ -7,6 +7,7 @@
 #include "simulation_watcher.h"
 
 #include "game/game.h"
+#include "game/game_time.h"
 #include "objects/objects.h"
 #include "simulation/game_interface/simulation_game_action.h"
 
@@ -142,6 +143,14 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 			&game_simulation_queue
 		);
     }
+    else
+    {
+        // if we dont run simulation means we are sychronous-client
+        // applying client hacks here
+        random_math_set_seed(update->random_seed);
+        time_globals::get()->tick_count = update->game_time_ticks;
+        // "if it works it works" 
+    }
 
     for (int32 i = 0; i < k_maximum_players; i++)
     {
@@ -274,6 +283,14 @@ void simulation_apply_patches(void)
     PatchCall(Memory::GetAddress(0x39D73, 0xC0F8), simulation_update_pregame);
     PatchCall(Memory::GetAddress(0x4A4DF, 0x4375D), simulation_apply_before_game);
     PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);
+
+
+    PatchCall(Memory::GetAddress(0x1AE002), synchronous_update_encode);
+    PatchCall(Memory::GetAddress(0x1ED08E), synchronous_update_encode);
+    PatchCall(Memory::GetAddress(0x1AE084), synchronous_update_decode);
+    PatchCall(Memory::GetAddress(0x1ED0A3), synchronous_update_decode);
+
+
 
     WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);
     return;

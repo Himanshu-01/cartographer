@@ -375,9 +375,20 @@ void H2MOD::toggle_ai_multiplayer(bool toggle)
 
 typedef bool(__cdecl *map_cache_load_t)(s_game_options* map_load_settings);
 map_cache_load_t p_map_cache_load;
-
+bool force_coop = false;
 bool __cdecl OnMapLoad(s_game_options* options)
 {
+
+	if (force_coop)
+	{
+		options->game_mode = _game_mode_campaign;
+		options->coop = true;
+		force_coop = false;
+		LOG_INFO_GAME("[h2mod] FORCING COOP FOR TESTING");
+
+		
+	}
+
 	static bool resetAfterMatch = false;
 
 	// set the light suppressor flag to false
@@ -417,6 +428,8 @@ bool __cdecl OnMapLoad(s_game_options* options)
 
 	bool game_mode_ui_shell = options->game_mode == _game_mode_ui_shell;
 	new_hud_patches_on_map_load(game_mode_ui_shell);
+
+	
 
 	if (game_mode_ui_shell)
 	{
@@ -824,6 +837,32 @@ __declspec(naked) void object_function_value_adjust_primary_firing()
 	}
 }
 
+
+void simulation_synchronous_patches()
+{
+	//simulation_build_update : world->m_out_of_sync = 1;
+	//1DBF69
+	NopFill(Memory::GetAddress(0x1DBF69), 4);
+
+	//c_simulation_world::handle_synchronous_update : this->m_out_of_sync = 1;  
+	//1DD43E
+	NopFill(Memory::GetAddress(0x1DD43E), 4);
+
+	//c_simulation_world::handle_synchronous_update :
+	// 1DD44D
+	//if (update->update_number < next_update_no)
+	//	return 0;
+	//if (update->update_number != next_update_no
+	//	|| this->m_world_state != _simulation_world_state_active && !this->m_time_immediate_update)
+	NopFill(Memory::GetAddress(0x1DD44D), 0x14);
+
+
+	WriteValue<BYTE>(Memory::GetAddress(0x23EC55 + 1), 0);	// Prevent the game from pausing during the game
+
+	//call    user_interface_globals_invoke_pause_screen
+	NopFill(Memory::GetAddress(0x7AE4), 0x5); // prevent pause menu from showing up when not in focus
+
+}
 void H2MOD::ApplyHooks() {
 	/* Should store all offsets in a central location and swap the variables based on h2server/halo2.exe*/
 	/* We also need added checks to see if someone is the host or not, if they're not they don't need any of this handling. */
@@ -956,6 +995,12 @@ void H2MOD::ApplyHooks() {
 		input_abstraction_patches_apply();
 		render_apply_patches();
 		apply_interface_hooks();
+
+		// Map loading patch (saves framerate)
+		// TODO move
+		//NopFill(Memory::GetAddress(0x39BAB), 5);
+
+		simulation_synchronous_patches();
 	}
 	else {
 		LOG_INFO_GAME("{} - applying dedicated server hooks", __FUNCTION__);

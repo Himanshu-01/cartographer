@@ -46,6 +46,8 @@ namespace CommandCollection
 	int game_mode(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	int invite(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	int connect(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int test2(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	// misc
 	void ObjectSpawn(datum object_idx, int count, const real_point3d* position, const real_vector3d* rotation, float randomMultiplier, bool sameTeam);
 	void ReadObjectDatumIdx();

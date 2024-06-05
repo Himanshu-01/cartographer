@@ -280,6 +280,28 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 			__FUNCTION__, GetNetworkMessageName(message_type), network_channel_index);
 	}
 
+	if (message_type == _synchronous_update)
+	{
+		int update_no = *(int*)(packet);
+		bool simulation_in_progress = *(bool*)((char*)packet + 4);
+
+		LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_update.update_no = {} , simulation_in_progress = {} ",
+			update_no, simulation_in_progress);
+	}
+	if (message_type == _synchronous_actions)
+	{
+
+		uint32 action_number = *(uint32*)(packet);
+		uint32 current_update_number = *(uint32*)((char*)packet + 4);
+		bool oos = *(bool*)((char*)packet + 8);
+
+		
+		LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_actions.action_number = {} , current_update_number = {} , oos {} ",
+			action_number, current_update_number, oos);
+
+	}
+
+
 	if (!MessageIsCustom(message_type))
 		p_handle_channel_message(thisx, network_channel_index, message_type, dynamic_data_size, packet);
 
@@ -292,6 +314,7 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 			NetworkMessage::SendAntiCheat(peer_index);
 		}
 	}
+	
 }
 
 void NetworkMessage::SendRequestMapFilename(int mapDownloadId)

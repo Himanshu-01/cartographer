@@ -2,6 +2,7 @@
 
 #include "network_observer.h"
 #include "network_channel.h"
+#include "Networking/NetworkMessageTypeCollection.h"
 
 
 
@@ -135,6 +136,40 @@ void __cdecl initialize_network_observer_configuration()
 	g_network_configuration->field_1FC = 0.33333334f;
 	g_network_configuration->field_200 = 4096 * 4; // H2v - 4096, 60 tick  = H2v * 4 = 16384
 }
+
+typedef void(__stdcall* observer_channel_send_message_t_T)(void* thisx, int, int, char, int, int, void*);
+observer_channel_send_message_t_T p_observer_channel_message;
+
+void __stdcall observer_channel_send_message_hook(void* thisx, int session_index, int observer_index, char send_out_of_band, int type, int size, void* data)
+{
+	c_network_observer* obj = (c_network_observer*)thisx;
+	LOG_TRACE_NETWORK(" {} - Sending message: {} to peer index: {}", __FUNCTION__, GetNetworkMessageName(type), NetworkSession::GetPeerIndexFromNetworkAddress(&obj->observer_channels[observer_index].address));
+
+
+	if (type == _synchronous_update)
+	{
+		int update_no = *(int*)(data);
+		bool simulation_in_progress = *(bool*)((char*)data + 4);
+		//LOG_TRACE_NETWORK(" synchronous_update.update_no = {} , simulation_in_progress = {}  ", *(int*)(data), *(bool*)(data + 4));
+		LOG_TRACE_NETWORK("[H2MOD-MESSAGE-DESCRIPTION] synchronous_update.update_no = {} , simulation_in_progress = {} ",
+			update_no, simulation_in_progress);
+	}
+	if (type == _synchronous_actions)
+	{
+
+		uint32 action_number = *(uint32*)(data);
+		uint32 current_update_number = *(uint32*)((char*)data + 4);
+		bool oos = *(bool*)((char*)data + 8);
+
+		//LOG_TRACE_NETWORK(" synchronous_update.update_no = {} , simulation_in_progress = {}  ", *(int*)(data), *(bool*)(data + 4));
+		LOG_TRACE_NETWORK("[H2MOD-MESSAGE-DESCRIPTION] synchronous_actions.action_number = {} , current_update_number = {} , oos {} ",
+			action_number, current_update_number, oos);
+
+	}
+
+	p_observer_channel_message(thisx, session_index, observer_index, send_out_of_band, type, size, data);
+}
+
 
 void c_network_observer::send_message(int32 session_index, int32 observer_index, bool send_out_of_band, int32 type, int32 size, void* data)
 {
@@ -361,4 +396,6 @@ void c_network_observer::apply_patches()
 	{
 		PatchCall(Memory::GetAddress(0x1D97DD, 0x1BEE59), is_network_observer_mode_managed);
 	}
+
+	p_observer_channel_message = (observer_channel_send_message_t_T)DetourClassFunc(Memory::GetAddress<BYTE*>(0x1BED40, 0x1B8C1A), (BYTE*)observer_channel_send_message_hook, 8);
 }
