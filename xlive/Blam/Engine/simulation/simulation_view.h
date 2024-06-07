@@ -2,7 +2,7 @@
 
 #include "machine_id.h"
 
-enum e_simulation_view_type : __int16
+enum e_simulation_view_type : int16
 {
 	_simulation_view_type_none = 0x0,
 	_simulation_view_type_synchronous_to_remote_authority = 0x1,
@@ -12,7 +12,7 @@ enum e_simulation_view_type : __int16
 	k_simulation_view_type_count = 0x5,
 };
 
-enum e_simulation_view_death_reason
+enum e_simulation_view_reason
 {
 	_simulation_view_death_reason_none = 0x0,
 	_simulation_view_death_reason_disconnected = 0x1,
@@ -29,55 +29,84 @@ enum e_simulation_view_death_reason
 	k_simulation_view_reason_count = 0xC,
 };
 
-#pragma pack(push,1)
-struct c_simulation_view
+enum e_simulation_view_establishment_mode
 {
-	char field_0[2];
+	_simulation_view_establishment_mode_none = 0x0,
+	_simulation_view_establishment_mode_ready_to_connect = 0x1,
+	_simulation_view_establishment_mode_established = 0x2,
+	_simulation_view_establishment_mode_ready_to_join = 0x3,
+	_simulation_view_establishment_mode_joining = 0x4,
+	_simulation_view_establishment_mode_active = 0x5,
+	k_simulation_view_establishment_mode_count = 0x6,
+};
+
+class c_simulation_distributed_view;
+class c_simulation_world;
+
+#pragma pack(push,1)
+class c_simulation_view
+{
+	uint8 field_0[2];
 	e_simulation_view_type m_view_type;
-	datum view_datum_index;
-	DWORD m_distributed_view;
-	void* m_world;
-	unsigned int m_view_index;
-	s_machine_identifier machine_id;
-	char gap_1A[2];
-	int m_peer_index;
+	datum m_view_datum_index;
+	c_simulation_distributed_view* m_distributed_view;
+	c_simulation_world* m_world;
+	uint32 m_view_index;
+	s_machine_identifier m_machine_identifier;
+	uint8 gap_1A[2];
+	uint32 m_remote_machine_index;
 	void* m_observer;
-	unsigned int m_observer_channel_index;
-	e_simulation_view_death_reason m_view_death_reason;
-	DWORD m_view_establishment_mode;
-	DWORD field_30;
-	signed int field_34;
-	unsigned int field_38;
-	unsigned int m_channel_index;
-	unsigned int field_40;
-	void* field_44;
-	signed int field_48;
-	signed int field_4C;
-	signed int field_50;
-	signed int field_54;
-	signed int field_58;
-	signed int field_5C;
-	signed int field_60;
-	signed int field_64;
-	signed int field_68;
-	signed int field_6C;
-	signed int field_70;
-	char gap_74;
-	char field_74;
-	char field_76[2];
-	char field_78[4];
-	signed int field_7C;
-	unsigned int field_80;
-	unsigned int field_84;
-	char field_88[8];
-	signed int field_90;
-	LPVOID m_synchronous_catchup_buffer;
-	signed int field_98;
-	int field_9C;
-	signed int field_A0;
-	char gap_A4[8];
-	signed int field_AC;
-	signed int field_B0;
+	uint32 m_observer_channel_index;
+	e_simulation_view_reason m_view_death_reason;
+	e_simulation_view_establishment_mode m_view_establishment_mode;
+	uint32 m_view_establishment_identifier;
+	e_simulation_view_establishment_mode m_remote_establishment_mode;
+	uint32 m_remote_establishment_identifier;
+	uint32 m_channel_index;
+	uint32 m_channel_connection_identifier;
+	void* m_simulation_interface;
+	int32 field_48;
+	int32 field_4C;
+	int32 field_50;
+	int32 field_54;
+	int32 field_58;
+	int32 field_5C;
+	int32 field_60;
+	int32 field_64;
+	int32 field_68;
+	int32 field_6C;
+	int32 field_70;
+	uint8 gap_74;
+	uint8 field_74;
+	uint8 field_76[2];
+	bool m_view_active;
+	uint8 field_78[3];
+	uint32 m_acknowledged_player_mask;
+	int32 m_synchronous_client_action_no;
+	int32 m_synchronous_client_update_no;
+	uint8 field_88[8];
+	int32 m_synchronous_catchup_attempts;
+	void* m_synchronous_catchup_heap;
+	int32 field_98;
+	int32 field_9C;
+	int32 field_A0;
+	uint8 gap_A4[8];
+	int32 field_AC;
+	int32 m_next_action_no;
+
+public:
+	e_simulation_view_type view_type(void) const
+	{
+		return m_view_type;
+	}
+	uint32 get_machine_index(void) const
+	{
+		return m_remote_machine_index;
+	}
+	void get_machine_identifier(s_machine_identifier* out)
+	{
+		csmemcpy(out->machine_identifier, m_machine_identifier.machine_identifier, sizeof(s_machine_identifier));
+	}
 };
 #pragma pack(pop)
 ASSERT_STRUCT_SIZE(c_simulation_view, 0xB4);
@@ -97,3 +126,11 @@ class c_simulation_distributed_view
 	int8 m_simulation_view_telemetry_provider[19616];
 };
 ASSERT_STRUCT_SIZE(c_simulation_distributed_view, 44124);
+
+
+struct s_simulation_world_view_iterator
+{
+	uint32 m_type_mask;
+	datum m_last_view_index;
+};
+ASSERT_STRUCT_SIZE(s_simulation_world_view_iterator, 8);

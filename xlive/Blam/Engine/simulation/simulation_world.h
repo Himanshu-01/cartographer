@@ -40,6 +40,8 @@ enum e_simulation_world_state
 	k_simulation_world_state_count = 0x7,
 };
 
+struct s_simulation_update_node;
+
 class c_simulation_distributed_world
 {
 public:
@@ -86,8 +88,8 @@ class c_simulation_world
 	int32 m_synchronous_client_next_update_number_to_dequeue;
 	int32 m_synchronous_client_latest_update_number_received;
 	int32 m_synchronous_client_queue_length;
-	void* m_synchronous_client_queue_head;
-	void* m_synchronous_client_queue_tail;
+	s_simulation_update_node* m_synchronous_client_queue_head;
+	s_simulation_update_node* m_synchronous_client_queue_tail;
 	char gap_12A8[4];
 
 public:
@@ -122,6 +124,14 @@ public:
 
 	void create_player(datum player_index);
 	void delete_player(datum player_index);
+
+	void update_queue_retrieve_update(simulation_update* update);
+
+	static void iterator_begin(s_simulation_world_view_iterator* iterator, uint32 view_type_mask);
+	bool iterator_next(s_simulation_world_view_iterator* iterator, c_simulation_view** view);
+	c_simulation_view* get_client_view_by_machine_index(uint32 machine_index);
+	c_simulation_view* get_client_view_by_machine_identifier(s_machine_identifier* machine_identifier);
+	c_simulation_view* get_authority_view();
 
 	void queues_update_statistsics()
 	{
@@ -194,7 +204,12 @@ public:
 
 	bool do_we_have_sufficient_updates(void)
 	{
-		return m_synchronous_client_queue_length > 5;
+		return m_synchronous_client_queue_length > 0;
+	}
+
+	void force_immediate_update(void)
+	{
+		m_time_immediate_update = true;
 	}
 };
 ASSERT_STRUCT_SIZE(c_simulation_world, 0x12B0);

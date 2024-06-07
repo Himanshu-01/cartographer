@@ -16,6 +16,6 @@ public:
 	bool __thiscall need_to_generate_updates(void)
 	{
 		bool result = INVOKE_TYPE(0x1D4B42, 0x1C188C, bool(__thiscall*)(c_simulation_watcher*), this);
-		return result || !m_sim_world->simulation_queues_empty();
+		return (result || !m_sim_world->simulation_queues_empty()) && m_sim_world->is_distributed() && m_sim_world->is_authority();
 	}
 };

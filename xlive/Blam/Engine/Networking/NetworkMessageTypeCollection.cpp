@@ -300,6 +300,22 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 			action_number, current_update_number, oos);
 
 	}
+	if (message_type == _view_establishment)
+	{
+		int establishment_mode = *(int*)(packet);
+		const char* establishment_names[] = {
+			"none",
+			"ready_to_connect",
+			"established",
+			"ready_to_join",
+			"joining",
+			"active"
+		};
+		if (VALID_INDEX(establishment_mode, 6))
+			LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] view_establishment.mode = {}  :  {} ", establishment_mode, establishment_names[establishment_mode]);
+		else
+			LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] view_establishment.mode bad mode received {} ", establishment_mode);
+	}
 
 
 	if (!MessageIsCustom(message_type))

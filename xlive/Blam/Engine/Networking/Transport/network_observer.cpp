@@ -143,7 +143,7 @@ observer_channel_send_message_t_T p_observer_channel_message;
 void __stdcall observer_channel_send_message_hook(void* thisx, int session_index, int observer_index, char send_out_of_band, int type, int size, void* data)
 {
 	c_network_observer* obj = (c_network_observer*)thisx;
-	LOG_TRACE_NETWORK(" {} - Sending message: {} to peer index: {}", __FUNCTION__, GetNetworkMessageName(type), NetworkSession::GetPeerIndexFromNetworkAddress(&obj->observer_channels[observer_index].address));
+	LOG_TRACE_NETWORK(" {} - sending message: {} to peer index: {}", __FUNCTION__, GetNetworkMessageName(type), NetworkSession::GetPeerIndexFromNetworkAddress(&obj->observer_channels[observer_index].address));
 
 
 	if (type == _synchronous_update)
@@ -165,6 +165,22 @@ void __stdcall observer_channel_send_message_hook(void* thisx, int session_index
 		LOG_TRACE_NETWORK("[H2MOD-MESSAGE-DESCRIPTION] synchronous_actions.action_number = {} , current_update_number = {} , oos {} ",
 			action_number, current_update_number, oos);
 
+	}
+	if (type == _view_establishment)
+	{
+		int establishment_mode = *(int*)(data);
+		const char* establishment_names[] = {
+			"none",
+			"ready_to_connect",
+			"established",
+			"ready_to_join",
+			"joining",
+			"active"
+		};
+		if (VALID_INDEX(establishment_mode, 6))
+			LOG_TRACE_NETWORK("[H2MOD-MESSAGE-DESCRIPTION] view_establishment.mode = {}  :  {} ", establishment_mode, establishment_names[establishment_mode]);
+		else
+			LOG_TRACE_NETWORK("[H2MOD-MESSAGE-DESCRIPTION] view_establishment.mode bad mode received {} ", establishment_mode);
 	}
 
 	p_observer_channel_message(thisx, session_index, observer_index, send_out_of_band, type, size, data);

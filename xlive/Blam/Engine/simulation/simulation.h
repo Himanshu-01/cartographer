@@ -28,6 +28,14 @@ struct alignas(8) simulation_update
 };
 ASSERT_STRUCT_SIZE(simulation_update, 0x3BD8);
 
+struct s_simulation_update_node
+{
+	simulation_update update;
+	s_simulation_update_node* next;
+	char gap[4];
+};
+ASSERT_STRUCT_SIZE(s_simulation_update_node, 15328);
+
 struct s_simulation_globals
 {
 	bool engine_initialized;

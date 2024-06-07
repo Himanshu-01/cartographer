@@ -1,11 +1,14 @@
 #include "stdafx.h"
 #include "simulation_world.h"
+#include "simulation.h"
 
 #include "simulation_queue_events.h"
 #include "simulation_queue_entities.h"
 #include "simulation_queue_global_events.h"
 
 #include "game/game.h"
+#include "game/game_time.h"
+#include "math/random_math.h"
 #include "saved_games/game_state_procs.h"
 #include "shell/shell_windows.h"
 
@@ -96,7 +99,7 @@ void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* el
 			g_simulation_queues[_simulation_queue_bookkeeping].allocated_count(),
 			g_simulation_queues[_simulation_queue_bookkeeping].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d", 
+		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
 			&g_simulation_queues[_simulation_queue_bookkeeping],
 			g_simulation_queues[_simulation_queue_bookkeeping].queued_count(),
 			g_simulation_queues[_simulation_queue_bookkeeping].queued_size());
@@ -112,9 +115,9 @@ void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* el
 			g_simulation_queues[_simulation_queue].allocated_count(),
 			g_simulation_queues[_simulation_queue].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d", 
-			&g_simulation_queues[_simulation_queue], 
-			g_simulation_queues[_simulation_queue].queued_count(), 
+		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
+			&g_simulation_queues[_simulation_queue],
+			g_simulation_queues[_simulation_queue].queued_count(),
 			g_simulation_queues[_simulation_queue].queued_size());
 	}
 }
@@ -160,8 +163,8 @@ void c_simulation_world::apply_simulation_queue(const c_simulation_queue* queue,
 				break;
 			case _simulation_queue_element_type_gamestates_clear:
 				break;
-			//case _simulation_queue_element_type_sandbox_event:
-				//break;
+				//case _simulation_queue_element_type_sandbox_event:
+					//break;
 			default:
 				// DEBUG unk event type
 				break;
@@ -269,7 +272,7 @@ void c_simulation_world::destroy_world(void)
 	}
 }
 
-void __declspec(naked) jmp_destroy_world() { __asm{ jmp c_simulation_world::destroy_world } }
+void __declspec(naked) jmp_destroy_world() { __asm { jmp c_simulation_world::destroy_world } }
 
 void c_simulation_world::disconnect(void)
 {
@@ -284,8 +287,8 @@ void c_simulation_world::send_player_acknowledgements_not_during_simulation_rese
 	}
 }
 
-void __declspec(naked) jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress() { 
-	__asm { jmp c_simulation_world::send_player_acknowledgements_not_during_simulation_reset_in_progress } 
+void __declspec(naked) jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress() {
+	__asm { jmp c_simulation_world::send_player_acknowledgements_not_during_simulation_reset_in_progress }
 }
 
 void c_simulation_world::queues_initialize()
@@ -318,6 +321,140 @@ void c_simulation_world::delete_player(datum player_index)
 	return;
 }
 
+//typedef void(__thiscall* t_c_simulation_world__update_queue_retrieve_update)(c_simulation_world*, simulation_update*);
+//t_c_simulation_world__update_queue_retrieve_update p_c_simulation_world__update_queue_retrieve_update;
+
+simulation_update last_update;
+void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
+{
+	//INVOKE_TYPE(0x1DCE7C, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
+	if (do_we_have_sufficient_updates())
+	{
+		s_simulation_update_node* update_node = this->m_synchronous_client_queue_head;
+		ASSERT(update_nodee);
+		csmemcpy(update, &update_node->update, sizeof(simulation_update));
+
+		bool v4 = this->m_synchronous_client_queue_tail == update_node;
+		this->m_synchronous_client_queue_head = update_node->next;
+		if (v4)
+			this->m_synchronous_client_queue_tail = nullptr;
+
+
+		network_heap_free_block((uint8*)update_node);
+		--this->m_synchronous_client_queue_length;
+		++this->m_synchronous_client_next_update_number_to_dequeue;
+
+		csmemcpy(&last_update, update, sizeof(simulation_update));
+	}
+	else
+	{
+		LOG_CRITICAL_FUNC("using last update as backup");
+		csmemcpy(update, &last_update, sizeof(simulation_update));
+		update->simulation_in_progress = false;
+
+	}
+
+}
+void __declspec(naked) jmp_update_queue_retrieve_update() {
+	__asm { jmp c_simulation_world::update_queue_retrieve_update }
+}
+
+
+void c_simulation_world::iterator_begin(s_simulation_world_view_iterator * iterator, uint32 view_type_mask)
+{
+	//INVOKE(0x1DBFF9, 0x0, c_simulation_world::iterator_begin, iterator, view_type_mask);
+
+	ASSERT(view_type_mask == NONE || (view_type_mask != 0 && VALID_BITS(view_type_mask, k_simulation_view_type_count)));
+
+	iterator->m_type_mask = view_type_mask;
+	iterator->m_last_view_index = 0;
+}
+
+bool c_simulation_world::iterator_next(s_simulation_world_view_iterator* iterator, c_simulation_view** view)
+{
+	//return INVOKE_TYPE(0x1DC00D, 0x0, bool(__thiscall*)(c_simulation_world*, s_simulation_world_view_iterator*, c_simulation_view**), this, iterator, view);
+	while (iterator->m_last_view_index >= 0)
+	{
+		datum index = iterator->m_last_view_index;
+		if (index >= k_maximum_players)
+			break;
+		
+		c_simulation_view* test_view = this->m_views[index];
+		iterator->m_last_view_index = index + 1;
+
+		//if (v6 && ((1 << LOBYTE(v6->m_view_type)) & iterator->m_type_mask) != 0)
+		if (test_view && TEST_BIT(iterator->m_type_mask, test_view->view_type()))
+		{
+			*view = test_view;
+			return true;
+		}
+	}
+	return false;
+
+}
+
+c_simulation_view* c_simulation_world::get_client_view_by_machine_index(uint32 machine_index)
+{
+	//return INVOKE_TYPE(0x1DCEFC, 0x0, c_simulation_view * (__thiscall*)(c_simulation_world*, uint32), this, machine_index);
+	
+	s_simulation_world_view_iterator iterator;
+	const uint32 client_mask = FLAG(_simulation_view_type_synchronous_to_remote_client) | FLAG(_simulation_view_type_distributed_to_remote_client);
+	iterator_begin(&iterator, client_mask);
+
+	c_simulation_view* test_view;
+	if (!this->iterator_next(&iterator, &test_view))
+		return nullptr;
+
+	while (true)
+	{
+		if (test_view->get_machine_index() == machine_index)
+			break;
+		if (!this->iterator_next(&iterator, &test_view))
+			return nullptr;
+	}
+	return test_view;
+}
+
+c_simulation_view* c_simulation_world::get_client_view_by_machine_identifier(s_machine_identifier* machine_identifier)
+{
+	//return INVOKE_TYPE(0x1DCF5F, 0x0, c_simulation_view * (__thiscall*)(c_simulation_world*, s_machine_identifier*), this, machine_identifier);
+
+	s_simulation_world_view_iterator iterator;
+	const uint32 client_mask = FLAG(_simulation_view_type_synchronous_to_remote_client) | FLAG(_simulation_view_type_distributed_to_remote_client);
+	iterator_begin(&iterator, client_mask);
+
+	c_simulation_view* test_view;
+	if (this->iterator_next(&iterator, &test_view))
+		return nullptr;
+
+	while (true)
+	{
+		s_machine_identifier identifiers;
+		test_view->get_machine_identifier(&identifiers);
+		if (memcmp(identifiers.machine_identifier,machine_identifier->machine_identifier,sizeof(s_machine_identifier)))
+			break;
+		if (!this->iterator_next(&iterator, &test_view))
+			return nullptr;
+	}
+	return test_view;
+
+}
+
+c_simulation_view* c_simulation_world::get_authority_view()
+{
+	//return INVOKE_TYPE(0x1DCED3, 0x0, c_simulation_view * (__thiscall*)(c_simulation_world*), this);
+
+	s_simulation_world_view_iterator iterator;
+	const uint32 authority_mask = FLAG(_simulation_view_type_synchronous_to_remote_authority) | FLAG(_simulation_view_type_distributed_to_remote_authority);
+	iterator_begin(&iterator, authority_mask);
+
+	c_simulation_view* test_view;
+	this->iterator_next(&iterator, &test_view);
+	return test_view;
+}
+
+
+
 
 void simulation_world_apply_patches()
 {
@@ -326,5 +463,6 @@ void simulation_world_apply_patches()
 
 	PatchCall(Memory::GetAddress(0x1AE82A, 0x1A8A84), jmp_reset_world);
 	PatchCall(Memory::GetAddress(0x1DD9FB, 0x1C4EBB), jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress);
+	PatchCall(Memory::GetAddress(0x1DD273), jmp_update_queue_retrieve_update);
 	return;
 }

@@ -55,9 +55,17 @@ bool simulation_starting_up(void)
 void simulation_notify_reset_complete()
 {
     s_simulation_globals* sim_globals = simulation_get_globals();
-    if (!game_is_playback())
+    if (!game_is_playback() && simulation_reset_in_progress())
     {
-        sim_globals->world->send_player_acknowledgements(true);
+        // make sure simulation is still in resetting
+        if (sim_globals->world->exists())
+        {
+            if (!sim_globals->world->is_authority())
+            {
+                // dont need this if we are not authority
+                sim_globals->world->send_player_acknowledgements(true);
+            }
+        }
     }
     sim_globals->simulation_reset_in_progress = false;
 }
