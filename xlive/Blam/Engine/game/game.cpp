@@ -107,6 +107,11 @@ bool game_is_authoritative(void)
 {
 	return game_options_get()->simulation_type != _game_simulation_distributed_client;
 }
+bool game_is_networked(void)
+{
+	return game_options_get()->simulation_type >= _game_simulation_synchronous_client
+		&& game_options_get()->simulation_type <=_game_simulation_distributed_server;
+}
 
 s_game_cluster_bit_vectors* game_get_cluster_activation(void)
 {

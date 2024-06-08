@@ -11,6 +11,8 @@
 #include "objects/objects.h"
 #include "simulation/game_interface/simulation_game_action.h"
 
+s_network_message_synchronous_update g_host_synchronous_message;
+
 s_simulation_globals* simulation_get_globals()
 {
     return Memory::GetAddress<s_simulation_globals*>(0x5178D0, 0x520B60);
@@ -142,16 +144,35 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
     // only during distributed system or server synchronous
     // but not client synchronous
-		// transfer the elements to the
-    if (sim_world->runs_simulation())
+	// transfer the elements to the 
+
+	sim_world->attach_simulation_queues_to_update(
+		update->simulation_in_progress,
+		&simulation_bookkeeping_queue,
+		&game_simulation_queue
+	);
+    if (sim_world->runs_simulation() && !sim_world->is_distributed())
     {
-		sim_world->attach_simulation_queues_to_update(
-			update->simulation_in_progress,
-			&simulation_bookkeeping_queue,
-			&game_simulation_queue
-		);
+        // either local or synchronous authority
+        g_host_synchronous_message.game_simulation_queue.clear();
+        g_host_synchronous_message.simulation_bookkeeping_queue.clear();
+
+        g_host_synchronous_message.game_simulation_queue.duplicate(&game_simulation_queue);
+        g_host_synchronous_message.simulation_bookkeeping_queue.duplicate(&simulation_bookkeeping_queue);
+        csmemcpy(&g_host_synchronous_message.update, update, sizeof(simulation_update));
+
+        if (g_host_synchronous_message.game_simulation_queue.queued_count()
+            || g_host_synchronous_message.simulation_bookkeeping_queue.queued_count())
+        {
+            LOG_TRACE_NETWORK(" {} host has bookkeeping_queue count : {} game_simulation_queue count : {} ", __FUNCTION__, 
+                g_host_synchronous_message.simulation_bookkeeping_queue.queued_count(), g_host_synchronous_message.game_simulation_queue.queued_count());
+        }
+
+
+        // really need a better way to to do this
+        // probably rewrite game_tick() at some point
     }
-    else
+    else if(sim_world->get_world_type() == _simulation_world_type_synchronous_client)
     {
         // if we dont run simulation means we are sychronous-client
         // applying client hacks here
@@ -174,7 +195,11 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
         players_set_machines(update->machine_update.machine_valid_mask, update->machine_update.identifiers);
     }
 
-	sim_world->apply_simulation_queue(&simulation_bookkeeping_queue, update);
+    if (simulation_bookkeeping_queue.queued_count()>0)
+    {
+        LOG_TRACE_NETWORK(" {} simulation_bookkeeping_queue  has count : {} ", __FUNCTION__, simulation_bookkeeping_queue.queued_count());
+        sim_world->apply_simulation_queue(&simulation_bookkeeping_queue, update);
+    }
 
     // Player activation code
     /* Moved so we can activate in the queue
@@ -205,6 +230,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
 	if (game_simulation_queue.queued_count() > 0)
 	{
+        LOG_TRACE_NETWORK(" {} game_simulation_queue  has count : {} ", __FUNCTION__, game_simulation_queue.queued_count());
 		sim_world->apply_simulation_queue(&game_simulation_queue, update);
 
 		// purge any deletion pending object during this update
@@ -278,6 +304,11 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
     return;
 }
 
+s_network_message_synchronous_update* simulation_get_synchronous_message()
+{
+    return &g_host_synchronous_message;
+}
+
 void simulation_apply_patches(void)
 {
     // ### TODO move somewhere else, network related
@@ -293,11 +324,13 @@ void simulation_apply_patches(void)
     PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);
 
 
-    PatchCall(Memory::GetAddress(0x1AE002), synchronous_update_encode);
-    PatchCall(Memory::GetAddress(0x1ED08E), synchronous_update_encode);
-    PatchCall(Memory::GetAddress(0x1AE084), synchronous_update_decode);
-    PatchCall(Memory::GetAddress(0x1ED0A3), synchronous_update_decode);
-
+    //PatchCall(Memory::GetAddress(0x1AE002), synchronous_update_encode); //inside simulation_update_write_to_buffer
+    PatchCall(Memory::GetAddress(0x1DE9A4), synchronous_update_write_to_buffer); //inside view::synchronous_catchup_submit_update
+    PatchCall(Memory::GetAddress(0x1ED08E), synchronous_update_encode); //inside c_network_message_synchronous_update::encode
+    //PatchCall(Memory::GetAddress(0x1AE084), synchronous_update_decode); //inside simulation_update_read_from_buffer
+    PatchCall(Memory::GetAddress(0x1DF3BF), synchronous_update_read_from_buffer); //inside view::synchronous_catchup_send_data
+    PatchCall(Memory::GetAddress(0x1ED0A3), synchronous_update_decode); //inside c_network_message_synchronous_update::decode
+    c_simulation_view::apply_patches();
 
 
     WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);

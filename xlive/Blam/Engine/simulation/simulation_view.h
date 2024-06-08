@@ -1,6 +1,8 @@
 #pragma once
 
 #include "machine_id.h"
+#include "Networking/Transport/network_observer.h"
+#include "memory/ring_buffer.h"
 
 enum e_simulation_view_type : int16
 {
@@ -14,18 +16,18 @@ enum e_simulation_view_type : int16
 
 enum e_simulation_view_reason
 {
-	_simulation_view_death_reason_none = 0x0,
-	_simulation_view_death_reason_disconnected = 0x1,
-	_simulation_view_death_reason_out_of_sync = 0x2,
-	_simulation_view_death_reason_failed_to_join = 0x3,
-	_simulation_view_death_reason_blocking = 0x4,
-	_simulation_view_death_reason_catchup_fail = 0x5,
-	_simulation_view_death_reason_ended = 0x6,
-	_simulation_view_death_reason_mode_error = 0x7,
-	_simulation_view_death_reason_player_error = 0x8,
-	_simulation_view_death_reason_replication_entity = 0x9,
-	_simulation_view_death_reason_replication_event = 0xA,
-	_simulation_view_death_reason_replication_game_results = 0xB,
+	_simulation_view_reason_none = 0x0,
+	_simulation_view_reason_disconnected = 0x1,
+	_simulation_view_reason_out_of_sync = 0x2,
+	_simulation_view_reason_failed_to_join = 0x3,
+	_simulation_view_reason_blocking = 0x4,
+	_simulation_view_reason_catchup_fail = 0x5,
+	_simulation_view_reason_ended = 0x6,
+	_simulation_view_reason_mode_error = 0x7,
+	_simulation_view_reason_player_error = 0x8,
+	_simulation_view_reason_replication_entity = 0x9,
+	_simulation_view_reason_replication_event = 0xA,
+	_simulation_view_reason_replication_game_results = 0xB,
 	k_simulation_view_reason_count = 0xC,
 };
 
@@ -40,8 +42,24 @@ enum e_simulation_view_establishment_mode
 	k_simulation_view_establishment_mode_count = 0x6,
 };
 
+enum e_synchronous_catchup_block_header
+{
+	_synchronous_catchup_join_initiate_block,
+	_synchronous_catchup_gamestate_block,
+	_synchronous_catchup_update_block,
+};
+
+struct simulation_update;
+struct s_network_message_synchronous_update;
 class c_simulation_distributed_view;
 class c_simulation_world;
+
+struct s_synchronous_block_header
+{
+	e_synchronous_catchup_block_header block_type;
+	uint32 block_size;
+};
+ASSERT_STRUCT_SIZE(s_synchronous_block_header, 8);
 
 #pragma pack(push,1)
 class c_simulation_view
@@ -55,7 +73,7 @@ class c_simulation_view
 	s_machine_identifier m_machine_identifier;
 	uint8 gap_1A[2];
 	uint32 m_remote_machine_index;
-	void* m_observer;
+	c_network_observer* m_observer;
 	uint32 m_observer_channel_index;
 	e_simulation_view_reason m_view_death_reason;
 	e_simulation_view_establishment_mode m_view_establishment_mode;
@@ -86,15 +104,19 @@ class c_simulation_view
 	int32 m_synchronous_client_update_no;
 	uint8 field_88[8];
 	int32 m_synchronous_catchup_attempts;
-	void* m_synchronous_catchup_heap;
-	int32 field_98;
-	int32 field_9C;
-	int32 field_A0;
-	uint8 gap_A4[8];
-	int32 field_AC;
+	void* m_synchronous_catchup_buffer;
+	uint32 m_synchronous_catchup_buffer_size;
+	c_ring_stream m_synchronous_catchup_ring_stream;
+	int32 m_synchronous_catchup_buffers_count;
 	int32 m_next_action_no;
 
+	bool synchronous_catchup_submit_update(s_network_message_synchronous_update* update);
+	void synchronous_catchup_send_data();
 public:
+	bool exists() const
+	{
+		m_view_type != _simulation_view_type_none;
+	}
 	e_simulation_view_type view_type(void) const
 	{
 		return m_view_type;
@@ -107,6 +129,31 @@ public:
 	{
 		csmemcpy(out->machine_identifier, m_machine_identifier.machine_identifier, sizeof(s_machine_identifier));
 	}
+	bool get_view_establishment_mode(void) const
+	{
+		return m_view_establishment_mode;
+	}
+	bool synchronous_catchup_in_progress(void) const
+	{
+		return m_synchronous_catchup_buffer !=nullptr;
+	}
+	bool is_dead() const
+	{
+		m_view_death_reason != _simulation_view_reason_none;
+	}
+	bool is_dead(e_simulation_view_reason* out_reason) const
+	{
+		if (out_reason)
+			*out_reason = m_view_death_reason;
+
+		return is_dead();
+	}
+
+	void kill_view(e_simulation_view_reason reason);
+	void dispatch_synchronous_update(simulation_update* host_update);
+	void send_message(int32 message_type, uint32 message_size , void* data, bool out_of_band);
+
+	static void apply_patches();
 };
 #pragma pack(pop)
 ASSERT_STRUCT_SIZE(c_simulation_view, 0xB4);

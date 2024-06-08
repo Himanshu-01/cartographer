@@ -271,8 +271,8 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 
 	if (peer_network_channel->get_network_address(&addr))
 	{
-		LOG_TRACE_NETWORK("{} - Received message: {} from peer index: {}, address: {:x}",
-			__FUNCTION__, GetNetworkMessageName(message_type), NetworkSession::GetPeerIndexFromNetworkAddress(&addr), ntohl(addr.address.ipv4));
+		//LOG_TRACE_NETWORK("{} - Received message: {} from peer index: {}, address: {:x}",
+		//	__FUNCTION__, GetNetworkMessageName(message_type), NetworkSession::GetPeerIndexFromNetworkAddress(&addr), ntohl(addr.address.ipv4));
 	}
 	else
 	{
@@ -285,8 +285,8 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 		int update_no = *(int*)(packet);
 		bool simulation_in_progress = *(bool*)((char*)packet + 4);
 
-		LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_update.update_no = {} , simulation_in_progress = {} ",
-			update_no, simulation_in_progress);
+		//LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_update.update_no = {} , simulation_in_progress = {} ",
+		//	update_no, simulation_in_progress);
 	}
 	if (message_type == _synchronous_actions)
 	{
@@ -296,8 +296,8 @@ void __stdcall handle_channel_message_hook(void* thisx, int network_channel_inde
 		bool oos = *(bool*)((char*)packet + 8);
 
 		
-		LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_actions.action_number = {} , current_update_number = {} , oos {} ",
-			action_number, current_update_number, oos);
+		//LOG_TRACE_NETWORK("[MESSAGE-RECEIVED] synchronous_actions.action_number = {} , current_update_number = {} , oos {} ",
+		//	action_number, current_update_number, oos);
 
 	}
 	if (message_type == _view_establishment)

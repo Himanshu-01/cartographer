@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Networking/memory/networking_memory.h"
-
+#include "memory/bitstream.h"
 #include "H2MOD/GUI/ImGui_Integration/Console/ImGui_ConsoleImpl.h"
 
 #define k_simulation_queue_count_max 4096
@@ -217,4 +217,8 @@ public:
 	void clear();
 
 	void dispose();
+
+	void duplicate(c_simulation_queue* source_queue);
+	void encode(c_bitstream* stream);
+	void decode(c_bitstream* stream);
 };

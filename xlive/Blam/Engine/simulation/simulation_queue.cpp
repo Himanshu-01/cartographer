@@ -49,6 +49,10 @@ void c_simulation_queue::transfer_elements(c_simulation_queue* source_queue)
 	// transefrs data from the source into ours
 
 	int32 queued_count = source_queue->queued_count();
+	if (queued_count > 0)
+	{
+		LOG_TRACE_NETWORK(" {} transfer count : {} ", __FUNCTION__, queued_count);
+	}
 	for (int32 i = 0; i < queued_count; i++)
 	{
 		s_simulation_queue_element* element = NULL;
@@ -138,5 +142,110 @@ void c_simulation_queue::dispose()
 	{
 		clear();
 		m_initialized = false;
+	}
+}
+
+void c_simulation_queue::duplicate(c_simulation_queue* source_queue)
+{
+	// retains source_queue and allocates new data for cloned elements
+	// queue must be initialized before using this	
+
+	int32 queued_count = source_queue->queued_count();
+	if (queued_count > 0)
+	{
+		LOG_TRACE_NETWORK(" {} duplicating elements count : {} ", __FUNCTION__, queued_count);
+	}
+	
+	for (const s_simulation_queue_element* element = source_queue->get_first_element();
+		element != nullptr;
+		element = source_queue->get_next_element(element))
+	{
+		s_simulation_queue_element* clone = nullptr;
+		this->allocate(element->data_size, &clone);
+
+		clone->type = element->type;
+		csmemcpy(clone->data, element->data, element->data_size);
+		this->enqueue(clone);
+	}
+	
+	//for (int32 i = 0; i < queued_count; i++)
+	//{
+	//	s_simulation_queue_element* element = nullptr;
+	//	source_queue->dequeue(&element);
+
+
+	//	s_simulation_queue_element* clone = nullptr;
+	//	this->allocate(element->data_size, &clone);
+
+	//	clone->type = element->type;
+	//	csmemcpy(clone->data, element->data, element->data_size);
+	//	this->enqueue(clone);
+	//	
+
+
+
+	//	////add back to the source
+	//	//source_queue->enqueue(element);
+	//}
+}
+
+void c_simulation_queue::encode(c_bitstream* stream)
+{
+	ASSERT(initialized());
+	ASSERT(stream);
+
+	if (queued_count() || queued_size())
+		LOG_TRACE_NETWORK(" {} encoding count : {}  total size : {}", __FUNCTION__, queued_count(), queued_size());
+
+	stream->write_integer("queue-count", this->queued_count(), 0xC);
+	stream->write_integer("queue-size", this->queued_size(), 0x11);
+
+	for (const s_simulation_queue_element* element = this->get_first_element();
+		element != nullptr;
+		element = this->get_next_element(element))
+	{
+		stream->write_integer("type", element->type, k_simulation_queue_type_encoded_size_in_bits);
+		stream->write_integer("size", element->data_size, k_simulation_queue_payload_encoded_size_in_bits);
+		stream->write_raw_data("data", element->data, CHAR_BITS * element->data_size);
+	}
+}
+
+void c_simulation_queue::decode(c_bitstream* stream)
+{
+	ASSERT(!initialized());
+	ASSERT(stream);
+
+	this->initialize();
+	int32 queue_count = stream->read_integer("queue-count", 0xC);
+	int32 queue_size = stream->read_integer("queue-size", 0x11);
+
+	if (queue_count || queue_size)
+		LOG_TRACE_NETWORK(" {} received count : {}  total size : {}", __FUNCTION__, queue_count, queue_size);
+
+	if (VALID_COUNT(queue_count, k_simulation_queue_count_max))
+	{
+		if (VALID_COUNT(queue_size, k_simulation_queue_size_max))
+		{
+			for (int32 i = 0; i < queue_count; i++)
+			{
+				int16 type = stream->read_integer("type", k_simulation_queue_type_encoded_size_in_bits);
+				uint32 data_size = stream->read_integer("size", k_simulation_queue_payload_encoded_size_in_bits);
+				s_simulation_queue_element* element = nullptr;
+				if (VALID_INDEX(type, k_simulation_queue_element_type_count))
+				{
+					this->allocate(data_size, &element);
+					if (element)
+					{
+						element->type = (e_event_queue_type)type;
+						stream->read_raw_data("data", element->data, CHAR_BITS * data_size);
+						this->enqueue(element);
+					}
+					// else 
+					// allocation failed for this element
+					// should probably add to critical errors
+				}
+			}
+		}
+
 	}
 }

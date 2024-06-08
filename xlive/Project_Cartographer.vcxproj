@@ -404,6 +404,7 @@
     <ClCompile Include="Blam\Engine\memory\lruv_cache.cpp" />
     <ClCompile Include="Blam\Engine\memory\memory_pool.cpp" />
     <ClCompile Include="Blam\Engine\math\real_math.cpp" />
+    <ClCompile Include="Blam\Engine\memory\ring_buffer.cpp" />
     <ClCompile Include="Blam\Engine\memory\rockall_heap_manager.cpp" />
     <ClCompile Include="Blam\Engine\models\render_models.cpp" />
     <ClCompile Include="Blam\Engine\Networking\couch\xsession_manager.cpp" />
@@ -609,6 +610,7 @@
     <ClInclude Include="Blam\Engine\math\real_quantization.h" />
     <ClInclude Include="Blam\Engine\memory\lruv_cache.h" />
     <ClInclude Include="Blam\Engine\memory\memory_pool.h" />
+    <ClInclude Include="Blam\Engine\memory\ring_buffer.h" />
     <ClInclude Include="Blam\Engine\memory\rockall_heap_manager.h" />
     <ClInclude Include="Blam\Engine\memory\static_arrays.h" />
     <ClInclude Include="Blam\Engine\models\models.h" />
@@ -667,6 +669,7 @@
     <ClCompile Include="Blam\Engine\simulation\simulation_queue_events.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_queue_global_events.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_type_collection.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\simulation_view.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_world.cpp" />
     <ClCompile Include="Blam\Engine\sound\sound_manager.cpp" />
     <ClCompile Include="Blam\Engine\structures\cluster_partitions.cpp" />

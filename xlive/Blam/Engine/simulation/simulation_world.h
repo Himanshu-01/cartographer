@@ -41,6 +41,7 @@ enum e_simulation_world_state
 };
 
 struct s_simulation_update_node;
+struct s_network_message_synchronous_update;
 
 class c_simulation_distributed_world
 {
@@ -126,6 +127,7 @@ public:
 	void delete_player(datum player_index);
 
 	void update_queue_retrieve_update(simulation_update* update);
+	bool update_queue_handle_server_update(s_network_message_synchronous_update* host_update);
 
 	static void iterator_begin(s_simulation_world_view_iterator* iterator, uint32 view_type_mask);
 	bool iterator_next(s_simulation_world_view_iterator* iterator, c_simulation_view** view);
@@ -182,6 +184,11 @@ public:
 	{
 		ASSERT(exists());
 		return m_world_state == _simulation_world_state_active;
+	}
+
+	e_simulation_world_type get_world_type() const
+	{
+		return m_world_type;
 	}
 
 	bool simulation_queues_empty()

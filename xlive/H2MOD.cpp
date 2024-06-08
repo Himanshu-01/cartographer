@@ -57,6 +57,7 @@
 #include "units/units.h"
 #include "widgets/cloth.h"
 #include "widgets/liquid.h"
+#include "simulation/simulation_queue_global_events.h"
 
 #include "Blam/Cache/TagGroups/multiplayer_globals_definition.hpp"
 #include "H2MOD/EngineHooks/EngineHooks.h"
@@ -836,8 +837,37 @@ __declspec(naked) void object_function_value_adjust_primary_firing()
 		retn
 	}
 }
+//typedef char(__stdcall* c_sp_pause_screen_list_handle_item_pressed_event_t)(void* thisx, int, int*);
+//c_sp_pause_screen_list_handle_item_pressed_event_t p_c_sp_pause_screen_list_handle_item_pressed_event;
+//void __thiscall GetPauseGameOptions(c_user_interface_widget* this, int a2, _DWORD* a3)
+//void __stdcall observer_channel_send_message_hook(void* thisx, int session_index, int observer_index, char send_out_of_band, int type, int size, void* data)
+void __cdecl main_reset_map_call()
+{
+	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_main_reset_map);
+	LOG_TRACE_FUNC("coop : authority calling event reset_map");
+}
 
-
+void __cdecl main_revert_map_call()
+{
+	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_main_revert_map);
+	LOG_TRACE_FUNC("coop : authority calling event revert_map");
+}
+void __fastcall c_sp_pause_screen_list_handle_item_pressed_event_hook(void *thisx, int _EDX ,int a2, uint16* item_type)
+{
+	LOG_TRACE_FUNC("screen_hook : pause_menu item selected {} ",*item_type);
+	if (simulation_get_globals()->world->exists() && !simulation_get_globals()->world->is_authority())
+	{
+		if (*item_type == 1 || *item_type == 2)
+		{
+			// we are in a networked session (coop - sync or dist any)				
+			LOG_TRACE_FUNC("coop : only authority can call revert or reset map");
+			return;
+		}
+	}
+	
+	//INVOKE_TYPE(0x23EA28, 0, c_sp_pause_screen_list_handle_item_pressed_event_t, thisx, a2, a3);
+	INVOKE_TYPE(0x23EA28, 0x0, void(__thiscall*)(void*, int, uint16*), thisx, a2, item_type);
+}
 void simulation_synchronous_patches()
 {
 	//simulation_build_update : world->m_out_of_sync = 1;
@@ -862,6 +892,21 @@ void simulation_synchronous_patches()
 	//call    user_interface_globals_invoke_pause_screen
 	NopFill(Memory::GetAddress(0x7AE4), 0x5); // prevent pause menu from showing up when not in focus
 
+	// hook sp_pause_screen event handler
+	WriteValue(Memory::GetAddress(0x23EB3F + 3),c_sp_pause_screen_list_handle_item_pressed_event_hook);
+	PatchCall(Memory::GetAddress(0x23E6CA),main_reset_map_call);
+	PatchCall(Memory::GetAddress(0x23EA6D),main_revert_map_call);
+
+	//.text:005ED3AB 68 D8 3B 00 00              push    3BD8h; message_size_maximum
+	//.text:005ED3B0 68 D8 3B 00 00              push    3BD8h; message_size
+	WriteValue<uint32>(Memory::GetAddress(0x1ED3AB + 1), sizeof(s_network_message_synchronous_update));
+	WriteValue<uint32>(Memory::GetAddress(0x1ED3B0 + 1), sizeof(s_network_message_synchronous_update));
+
+	//patching view::synchronous_catchup_send_data
+	//.text:005DF3DF 68 D8 3B 00 00              push    3BD8h
+	WriteValue<uint32>(Memory::GetAddress(0x1DF3DF + 1), sizeof(s_network_message_synchronous_update));
+	//.text:005DF39E 68 D8 3B 00 00              push    3BD8h    
+	WriteValue<uint32>(Memory::GetAddress(0x1DF39E + 1), sizeof(s_network_message_synchronous_update));
 }
 void H2MOD::ApplyHooks() {
 	/* Should store all offsets in a central location and swap the variables based on h2server/halo2.exe*/

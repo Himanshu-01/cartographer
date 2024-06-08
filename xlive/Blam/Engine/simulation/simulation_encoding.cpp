@@ -37,10 +37,9 @@ bool __cdecl simulation_encoding_decode_machines_data(c_bitstream* a1, void* a2)
 	return INVOKE(0x1E0935, 0x0, simulation_encoding_decode_machines_data, a1, a2);
 }
 
-void __cdecl synchronous_update_encode_internal(c_bitstream* stream, simulation_update* update)
+void __cdecl simulation_update_encode(c_bitstream* stream, simulation_update* update)
 {
-	//INVOKE(0x1E0998, 0x0, synchronous_update_encode_internal, stream, update);
-
+	//INVOKE(0x1E0998, 0x0, simulation_update_encode, stream, update);
 
 	stream->write_integer("update-number", update->simulation_time, 0x20);
 
@@ -82,12 +81,12 @@ void __cdecl synchronous_update_encode_internal(c_bitstream* stream, simulation_
 	stream->write_integer("verify-game-time", update->game_time_ticks, 0x20);
 	stream->write_integer("verify-random", update->random_seed, 0x20);
 
+
 }
 
-bool __cdecl synchronous_update_decode_internal(c_bitstream* stream, simulation_update* update)
+bool __cdecl simulation_update_decode(c_bitstream* stream, simulation_update* update)
 {
-	//return INVOKE(0x1E0AA2, 0x0, synchronous_update_decode_internal, stream, update);
-
+	//return INVOKE(0x1E0AA2, 0x0, simulation_update_decode, stream, update);
 
 	bool v2 = 1;
 	update->simulation_time = stream->read_integer("update-number", 0x20);
@@ -137,39 +136,76 @@ bool __cdecl synchronous_update_decode_internal(c_bitstream* stream, simulation_
 	update->flush_gamestate = stream->read_bool("flush-gamestate");
 	update->game_time_ticks = stream->read_integer("verify-game-time", 0x20);
 	update->random_seed = stream->read_integer("verify-random", 0x20);
+
 	return v2
 		&& !stream->error_occured()
-		&& (update->game_time_ticks & 0x80000000) == 0
-		&& (update->simulation_time & 0x80000000) == 0;
+		&& (update->game_time_ticks >= 0)
+		&& (update->simulation_time >= 0);
 
 }
 
-void __cdecl synchronous_update_encode(c_bitstream* stream, simulation_update* update)
+void __cdecl synchronous_update_encode(c_bitstream* stream, s_network_message_synchronous_update* host_update)
 {
-	synchronous_update_encode_internal(stream, update);
-	//INVOKE(0x1E0998, 0x0, synchronous_update_encode_internal, stream, update);
-	//stream->write_bool("simulation_in_progress", update->simulation_in_progress);
+	// really need to rewrite some of the stuffs so i dont have to hook into encode function to transfer queues
+	// 
+	//update->simulation_bookkeeping_queue.transfer_elements(simulation_get_world()->queue_get(_simulation_queue_bookkeeping));
+	//update->game_simulation_queue.transfer_elements(simulation_get_world()->queue_get(_simulation_queue));
+	simulation_update_encode(stream, &host_update->update);
+
+	//added simulation_queue encoding
+	host_update->simulation_bookkeeping_queue.encode(stream);
+	host_update->game_simulation_queue.encode(stream);
 }
 
-bool __cdecl synchronous_update_decode(c_bitstream* stream, simulation_update* update)
+bool __cdecl synchronous_update_decode(c_bitstream* stream, s_network_message_synchronous_update* out_update)
 {
-	bool state = synchronous_update_decode_internal(stream, update);
-	//bool state = INVOKE(0x1E0AA2, 0x0, synchronous_update_decode_internal, stream, update);
-	//if (!state)
-	//{
-	//	LOG_ERROR_FUNC("failed in decoding");
-	//}
-	//update->simulation_in_progress = stream->read_bool("simulation_in_progress");
 
-	//lets not do this
-	//if (!simulation_get_world()->runs_simulation())
-	////{
-	//	time_globals::get()->paused = true;
-	//	if (simulation_get_world()->do_we_have_sufficient_updates())
-	//	{
-	//		time_globals::get()->paused = false;
-	//	}
-	//}
+	bool state = simulation_update_decode(stream, &out_update->update);
+	if (!state)
+	{
+		LOG_CRITICAL_NETWORK("failed in decoding simulation_update");
+	}
+
+	//added simulation_queue decoding
+	//out_update->simulation_bookkeeping_queue.clear();
+	//out_update->game_simulation_queue.clear();
+
+	out_update->simulation_bookkeeping_queue.decode(stream);
+	out_update->game_simulation_queue.decode(stream);
+
 	return state;
 }
 
+
+
+bool __cdecl synchronous_update_read_from_buffer(s_network_message_synchronous_update* message, uint32 data_len, uint8* buffer)
+{
+	//return INVOKE_TYPE(0x1AE03F, 0x0, char(__cdecl*)(s_network_message_synchronous_update*, uint32, uint8*), update, data_len, buffer);
+
+	c_bitstream stream(buffer, data_len);
+	csmemset(message, 0, sizeof(s_network_message_synchronous_update));
+	stream.begin_reading();
+	if (!synchronous_update_decode(&stream, message))
+	{
+		LOG_CRITICAL_NETWORK("failed in decoding synchronous_update");
+		return false;
+	}
+	stream.finish_reading();
+	return true;
+}
+
+bool __cdecl synchronous_update_write_to_buffer(s_network_message_synchronous_update* update, uint32 data_len, uint8* buffer, uint32* out_size)
+{
+	//return INVOKE_TYPE(0x1ADFBA, 0x0, char(__cdecl*)(s_network_message_synchronous_update*, uint32, uint8*, uint32*), update, data_len, buffer, out_size);
+
+	c_bitstream stream(buffer, data_len);
+	stream.begin_writing(k_bitstream_default_alignment);
+	synchronous_update_encode(&stream, update);
+	*out_size = stream.get_space_used_in_bytes();
+	stream.finish_writing(NULL);
+
+	//TODO:  add decode buffer check here for consistency and return false if it fails
+
+	return true;
+
+}

@@ -65,6 +65,16 @@ bool simulation_queue_game_global_event_requires_cutoff(const s_simulation_queue
     return result;
  }
 
+void simulation_global_event_revert_map()
+{
+    LOG_TRACE_FUNC("reverting checkpoint in simulation_queue");
+    main_revert_map();
+}
+void simulation_global_event_reset_map()
+{
+    LOG_TRACE_FUNC("resetting map in simulation_queue");
+    main_reset_map();
+}
 void simulation_queue_game_global_event_apply(const s_simulation_queue_element* element, simulation_update* update)
 {
     e_simulation_queue_global_event_type type;
@@ -81,9 +91,10 @@ void simulation_queue_game_global_event_apply(const s_simulation_queue_element* 
         case _simulation_queue_game_global_event_type_game_won:
             break;
         case _simulation_queue_game_global_event_main_revert_map:
+            simulation_global_event_revert_map();
             break;
         case _simulation_queue_game_global_event_main_reset_map:
-            main_reset_map();
+            simulation_global_event_reset_map();
             //update->flush_gamestate = true;
             break;
         case _simulation_queue_game_global_event_main_save_and_exit_campaign:

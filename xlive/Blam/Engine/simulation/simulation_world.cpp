@@ -201,6 +201,15 @@ void c_simulation_world::initialize_world(int32 a2, int32 a3, int32 a4)
 	if (!is_playback())
 	{
 		queues_initialize();
+
+		if (m_world_type == _simulation_world_type_synchronous_authority)
+		{
+			//only used by synchronous-authority but we will initialize this here
+			s_network_message_synchronous_update* authority_message = simulation_get_synchronous_message();
+			csmemset(&authority_message->update, 0, sizeof(authority_message->update));
+			authority_message->game_simulation_queue.initialize();
+			authority_message->simulation_bookkeeping_queue.initialize();
+		}
 	}
 }
 
@@ -332,15 +341,22 @@ void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 	{
 		s_simulation_update_node* update_node = this->m_synchronous_client_queue_head;
 		ASSERT(update_nodee);
-		csmemcpy(update, &update_node->update, sizeof(simulation_update));
+
+		csmemcpy(update, &update_node->update_message.update, sizeof(simulation_update));
+		// transfer these to c_simulation_world so it can apply them in simulation_apply_before_game
+		this->queue_get(_simulation_queue_bookkeeping)->duplicate(&update_node->update_message.simulation_bookkeeping_queue);
+		this->queue_get(_simulation_queue)->duplicate(&update_node->update_message.game_simulation_queue);
 
 		bool v4 = this->m_synchronous_client_queue_tail == update_node;
 		this->m_synchronous_client_queue_head = update_node->next;
 		if (v4)
 			this->m_synchronous_client_queue_tail = nullptr;
 
-
+		update_node->update_message.simulation_bookkeeping_queue.dispose();
+		update_node->update_message.game_simulation_queue.dispose();
 		network_heap_free_block((uint8*)update_node);
+
+
 		--this->m_synchronous_client_queue_length;
 		++this->m_synchronous_client_next_update_number_to_dequeue;
 
@@ -357,6 +373,36 @@ void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 }
 void __declspec(naked) jmp_update_queue_retrieve_update() {
 	__asm { jmp c_simulation_world::update_queue_retrieve_update }
+}
+
+bool c_simulation_world::update_queue_handle_server_update(s_network_message_synchronous_update* host_update)
+{
+	//return INVOKE_TYPE(0x1DCE0F, 0x0, bool(__thiscall*)(c_simulation_world*, simulation_update*), this, host_update);
+	s_simulation_update_node* update_node = (s_simulation_update_node*)network_heap_allocate_block(sizeof(s_simulation_update_node));
+	if (update_node == nullptr)
+		return false;
+
+	s_simulation_update_node* tail = this->m_synchronous_client_queue_tail;
+	if (tail)
+		tail->next = update_node;
+	else
+		this->m_synchronous_client_queue_head = update_node;
+
+	update_node->next = nullptr;
+
+	++this->m_synchronous_client_queue_length;
+	this->m_synchronous_client_queue_tail = update_node;
+
+	csmemcpy(&update_node->update_message, host_update, sizeof(s_network_message_synchronous_update));
+	//update_node->update_message.game_simulation_queue.duplicate(&host_update->game_simulation_queue);
+	//update_node->update_message.simulation_bookkeeping_queue.duplicate(&host_update->simulation_bookkeeping_queue);
+	
+	this->m_synchronous_client_latest_update_number_received = host_update->update.simulation_time;
+
+	return true;
+}
+void __declspec(naked) jmp_update_queue_handle_server_update() {
+	__asm { jmp c_simulation_world::update_queue_handle_server_update }
 }
 
 
@@ -464,5 +510,6 @@ void simulation_world_apply_patches()
 	PatchCall(Memory::GetAddress(0x1AE82A, 0x1A8A84), jmp_reset_world);
 	PatchCall(Memory::GetAddress(0x1DD9FB, 0x1C4EBB), jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress);
 	PatchCall(Memory::GetAddress(0x1DD273), jmp_update_queue_retrieve_update);
+	PatchCall(Memory::GetAddress(0x1DD464), jmp_update_queue_handle_server_update);
 	return;
 }

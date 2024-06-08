@@ -28,13 +28,25 @@ struct alignas(8) simulation_update
 };
 ASSERT_STRUCT_SIZE(simulation_update, 0x3BD8);
 
-struct s_simulation_update_node
+#define k_orginal_sizeof_s_network_message_synchronous_update 15320
+#pragma pack(push,1)
+struct s_network_message_synchronous_update
 {
 	simulation_update update;
+	c_simulation_queue simulation_bookkeeping_queue;
+	c_simulation_queue game_simulation_queue;
+};
+ASSERT_STRUCT_SIZE(s_network_message_synchronous_update, k_orginal_sizeof_s_network_message_synchronous_update + sizeof(c_simulation_queue) * 2);
+#pragma pack(pop)
+
+#define k_orginal_sizeof_s_simulation_update_node (k_orginal_sizeof_s_network_message_synchronous_update + 8)
+struct s_simulation_update_node
+{
+	s_network_message_synchronous_update update_message;
 	s_simulation_update_node* next;
 	char gap[4];
 };
-ASSERT_STRUCT_SIZE(s_simulation_update_node, 15328);
+ASSERT_STRUCT_SIZE(s_simulation_update_node, k_orginal_sizeof_s_simulation_update_node + sizeof(c_simulation_queue) * 2);
 
 struct s_simulation_globals
 {
@@ -68,5 +80,7 @@ c_simulation_type_collection* simulation_get_type_collection();
 void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
 
 bool __cdecl simulation_get_machine_active_in_game(s_machine_identifier* machine_identifier);
+
+s_network_message_synchronous_update* simulation_get_synchronous_message();
 
 void simulation_apply_patches(void);
