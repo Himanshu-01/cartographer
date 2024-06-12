@@ -25,12 +25,13 @@ c_simulation_world* simulation_get_world()
 
 bool simulation_engine_initialized()
 {
-    return simulation_get_globals()->engine_initialized;
+    return simulation_get_globals()->initialized;
 }
 
-bool simulation_is_paused()
+bool simulation_aborted()
 {
-    return simulation_get_globals()->engine_paused;
+    //return INVOKE(0x1ADD8E, 0x0);  
+    return simulation_engine_initialized() && simulation_get_globals()->aborted;
 }
 
 bool simulation_reset_in_progress()
@@ -42,10 +43,10 @@ bool simulation_starting_up(void)
 {
     bool result = false;
     s_simulation_globals* simulation_globals = simulation_get_globals();
-    if (simulation_globals->engine_initialized)
+    if (simulation_globals->initialized)
     {
         ASSERT(simulation_globals->world);
-        if (!simulation_globals->engine_paused && simulation_globals->world->exists())
+        if (!simulation_globals->aborted && simulation_globals->world->exists())
         {
             result = !simulation_globals->world->is_active();
         }
@@ -103,6 +104,12 @@ void __cdecl simulation_reset()
     }
 }
 
+void simulation_fatal_error(void)
+{
+    //INVOKE(0x1ADEFE, 0x0, simulation_fatal_error);
+    simulation_get_globals()->fatal_error = true;
+}
+
 bool simulation_in_progress()
 {
     bool result = false;
@@ -110,7 +117,7 @@ bool simulation_in_progress()
     if (simulation_engine_initialized()
         && game_in_progress()
         && game_get_active_structure_bsp_index() != NONE
-        && !simulation_is_paused()
+        && !simulation_aborted()
         && simulation_get_world()->is_active())
     {
         result = true;
@@ -176,8 +183,8 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
     {
         // if we dont run simulation means we are sychronous-client
         // applying client hacks here
-        random_math_set_seed(update->random_seed);
-        time_globals::get()->tick_count = update->game_time_ticks;
+        //random_math_set_seed(update->random_seed);
+        //time_globals::get()->tick_count = update->game_time_ticks;
         // "if it works it works" 
     }
 
@@ -254,7 +261,53 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
 void __cdecl simulation_build_update(simulation_update* update)
 {
-    INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+    //INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+
+    ASSERT(simulation_engine_initialized());
+    if (simulation_aborted())
+    {
+        LOG_ERROR_NETWORK("simulation aborted inside game update!");
+    }
+    ASSERT(game_in_progress());
+    ASSERT(update);
+
+    s_simulation_globals* globals = simulation_get_globals();
+    memset(update, 0, sizeof(simulation_update));
+    globals->world->build_update(update);
+
+
+    bool go_oos = false;
+
+    if ((!globals->world->is_authority() || globals->world->is_playback())
+        && (!globals->world->is_distributed() || globals->world->is_playback())
+        && !globals->world->is_out_of_sync())
+    {
+
+        if (update->simulation_time != globals->world->get_next_update_number())
+        {
+            //"simulation:global: OUT OF SYNC, update number differs, update [#%d] != next [#%d]",
+            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, update number differs, update [#{}] != next [#{}]", update->simulation_time, globals->world->get_next_update_number());
+            go_oos = true;
+        }
+
+        if (update->game_time_ticks != globals->world->get_time())
+        {
+            //simulation:global: OUT OF SYNC, update time differs, update [#%d] time [%d] != local time %d"
+            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, update time differs, update [#{}] time [{}] != local time {}", update->simulation_time, update->game_time_ticks, globals->world->get_time());
+            go_oos = true;
+        }
+        if (update->random_seed != random_math_get_seed())
+        {
+            //simulation:global: OUT OF SYNC, random seed differs, update [#%d] time [%d] seed [0x%08X] (local seed [0x%08X])"
+            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, random seed differs, update [#{}] time [{}] seed [0x{:08X}] (local seed [0x{:08X}])", update->simulation_time, update->game_time_ticks, update->random_seed, random_math_get_seed());
+            go_oos = true;
+        }
+    }
+    if (go_oos)
+    {
+        globals->world->go_out_of_sync();
+    }
+
     return;
 }
 
@@ -269,7 +322,7 @@ void __cdecl simulation_update_pregame(void)
     simulation_update update;
     s_simulation_globals* globals = simulation_get_globals();
 
-    if (globals->engine_initialized && game_in_progress() && !simulation_is_paused())
+    if (globals->initialized && game_in_progress() && !simulation_aborted())
     {
         if (globals->simulation_watcher->need_to_generate_updates())
         {
@@ -304,6 +357,11 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
     return;
 }
 
+c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index)
+{
+    return INVOKE(0x1ADF06, 0x0, simulation_get_remote_view_by_channel, channel_index);
+}
+
 s_network_message_synchronous_update* simulation_get_synchronous_message()
 {
     return &g_host_synchronous_message;
@@ -320,6 +378,7 @@ void simulation_apply_patches(void)
     simulation_game_action_apply_patches();
 
     PatchCall(Memory::GetAddress(0x39D73, 0xC0F8), simulation_update_pregame);
+    PatchCall(Memory::GetAddress(0x4A4D5, 0), simulation_build_update); //hook for logging oos
     PatchCall(Memory::GetAddress(0x4A4DF, 0x4375D), simulation_apply_before_game);
     PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);
 

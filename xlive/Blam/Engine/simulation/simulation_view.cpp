@@ -43,6 +43,13 @@ void c_simulation_view::synchronous_catchup_send_data()
 	INVOKE_TYPE(0x1DF2E7, 0x0, void(__thiscall*)(c_simulation_view*), this);
 }
 
+const char* c_simulation_view::get_view_description(void)
+{
+	static_string64 buffer;
+	sprintf(buffer.get_buffer(), "v%d/m%d/%s", m_view_index, m_remote_machine_index, "unknown");
+	return buffer.get_string();
+}
+
 void c_simulation_view::dispatch_synchronous_update(simulation_update* host_update)
 {
 	//INVOKE_TYPE(0x1DFB6C, 0x0, void(__thiscall*)(c_simulation_view*, simulation_update*), this, host_update);
@@ -98,6 +105,202 @@ void c_simulation_view::send_message(int32 message_type, uint32 message_size, vo
 	}
 }
 
+void c_simulation_view::go_out_of_sync(void)
+{
+	ASSERT(exists());
+	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_client);
+	ASSERT(m_world != nullptr);
+
+	//simulation:view: view %s is OUT OF SYNC at update/time [#%d]/[#%d]
+	LOG_CRITICAL_NETWORK("simulation:view: view {} is OUT OF SYNC at update/time [#{}]/[#{}]",
+		get_view_description(),
+		m_world->get_next_update_number(),
+		m_world->get_time());
+
+	kill_view(_simulation_view_reason_out_of_sync);
+}
+
+bool c_simulation_view::handle_synchronous_update(const s_network_message_synchronous_update* update)
+{
+	//return INVOKE_TYPE(0x1DE7FB, 0x0, bool(__thiscall*)(c_simulation_view*, const s_network_message_synchronous_update*), this, update);
+
+
+	ASSERT(exists());
+	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_authority);
+	ASSERT(m_world != nullptr);
+	ASSERT(update != nullptr);
+
+	if (m_world->time_running())
+	{
+		return m_world->handle_synchronous_update(update);
+	}
+
+	return false;
+
+
+}
+
+bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update_no, bool is_out_of_sync, uint32 user_flags, player_action const* actions)
+{
+	//return INVOKE_TYPE(0x1DFB08, 0x0, char(__thiscall*)(c_simulation_view*, int32, int32, char, int, player_action const*), this, action_no, update_no, is_out_of_sync, user_flags, actions);
+
+	ASSERT(exists());
+	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_client);
+	ASSERT(m_world != nullptr);
+
+	if (is_out_of_sync)
+	{
+		go_out_of_sync();
+		return true;
+	}
+
+	else if (action_no >= m_synchronous_client_action_no
+		&& update_no >= m_synchronous_client_update_no)
+	{
+		if (update_no < m_world->get_next_update_number())
+		{
+			if (m_world->is_active())
+			{
+				m_synchronous_client_action_no = action_no;
+				m_synchronous_client_update_no = update_no;
+				m_world->handle_synchronous_client_actions(&m_machine_identifier, user_flags, actions);
+			}
+			else
+			{
+				//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d], world not active
+				LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}], world not active",
+					get_view_description(),
+					action_no,
+					update_no);
+			}
+		}
+		else
+		{
+			//simulation:view: view[% s] synchronous-actions discarded action / update[#%d] / [#%d] in the future (update/time [#%d]/[#%d])",
+			LOG_CRITICAL_NETWORK("simulation:view: view[{}] synchronous-actions discarded action / update[#{}] / [#{}] in the future (update/time [#{}]/[#{}])",
+				get_view_description(),
+				action_no,
+				update_no,
+				m_world->get_next_update_number(),
+				m_world->get_time());
+		}
+		return true;
+	}
+	else
+	{
+		//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d] < most recent [#%d]/[#%d]
+		LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}] < most recent [#{}]/[#{}]",
+			get_view_description(),
+			action_no,
+			update_no,
+			m_synchronous_client_action_no,
+			m_synchronous_client_update_no);
+	}
+
+	return false;
+}
+
+bool c_simulation_view::handle_synchronous_join(int32 next_update_number)
+{
+	//return INVOKE_TYPE(0x1DFA64, 0x0, char(__thiscall*)(c_simulation_view*, int), this,next_update_number);
+
+	ASSERT(exists());
+	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_authority);
+	ASSERT(m_world != nullptr);
+	ASSERT(next_update_number >= 0);
+
+
+	if (m_world->get_state() == _simulation_world_state_joining
+		&& !m_world->synchronous_gamestate_write_in_progress())
+	{
+		if (m_world->synchronous_gamestate_write_start())
+		{
+			//"simulation:view: synchronous-join received at #%d (currently  #%d)"
+			LOG_CRITICAL_NETWORK("simulation:view: synchronous-join received at #{} (currently  #{})",
+				next_update_number,
+				m_world->get_time());
+
+			m_world->time_start(next_update_number);
+			m_world->time_set_immediate_update(true);
+
+			return true;
+		}
+		else
+		{
+			//"simulation:view: synchronous-join unable to begin gamestate write"
+			LOG_CRITICAL_NETWORK("simulation:view: synchronous-join unable to begin gamestate write");
+			kill_view(_simulation_view_reason_catchup_fail);
+
+		}
+	}
+	else
+	{
+		//"simulation:view: synchronous-join rejected, world is in state #%d (gamestate-write %s)"
+		char* state = m_world->synchronous_gamestate_write_in_progress() ? "in-progress" : "not-in-progress";
+		LOG_CRITICAL_NETWORK("simulation:view: synchronous-join rejected, world is in state #{} (gamestate-write {})",
+			m_world->get_state(),
+			state);
+
+	}
+
+	return false;
+}
+
+bool c_simulation_view::handle_synchronous_gamestate(int32 gamestate_offset, int32 message_gamestate_size, void* gamestate_data)
+{
+	//return INVOKE_TYPE(0x1DFAB6, 0x0, char(__thiscall*)(c_simulation_view*, int32, int32, void*), this, gamestate_offset, message_gamestate_size, gamestate_data);
+
+	ASSERT(exists());
+	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_authority);
+	ASSERT(m_world != nullptr);
+
+
+	bool success = false;
+	if (!m_world->synchronous_gamestate_write_in_progress())
+	{
+		//"simulation:view: synchronous-gamestate rejected, world has no gamestate-write in progress (state #%d)"
+		LOG_CRITICAL_NETWORK("simulation:view: synchronous-gamestate rejected, world has no gamestate-write in progress (state #{})",
+			m_world->get_state());
+
+		return false;
+	}
+
+	if (message_gamestate_size <= 0)
+	{
+		success = m_world->synchronous_gamestate_decompress_and_load(gamestate_offset);
+		if (success)
+		{
+			//"simulation:world:gamestate: successfully decompressed gamestate (%d -> %d bytes, time #%d)",
+			LOG_CRITICAL_NETWORK("simulation:world:gamestate: successfully decompressed gamestate ({} -> {} bytes, time #{})",
+				gamestate_offset,
+				123456, // just a filler
+				m_world->get_time());
+		}
+		else
+		{
+			//"simulation:world:gamestate: gamestate didn't decompress successfully");
+			LOG_CRITICAL_NETWORK("simulation:world:gamestate: gamestate didn't decompress successfully");
+		}
+	}
+	else
+	{
+		success = m_world->synchronous_gamestate_write_chunk(gamestate_offset, message_gamestate_size, gamestate_data);
+
+		if(!success)
+		{
+			//"simulation:view: synchronous-gamestate block %d@%d rejected, gamestate write has failed",
+			LOG_CRITICAL_NETWORK("simulation:view: synchronous-gamestate block {}@{} rejected, gamestate write has failed",
+				message_gamestate_size,
+				gamestate_offset);
+		}
+	}
+
+	if (success)
+		return true;
+
+	kill_view(_simulation_view_reason_catchup_fail);
+	return false;
+}
 
 void c_simulation_view::apply_patches()
 {

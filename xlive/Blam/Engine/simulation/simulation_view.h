@@ -49,6 +49,7 @@ enum e_synchronous_catchup_block_header
 	_synchronous_catchup_update_block,
 };
 
+struct player_action;
 struct simulation_update;
 struct s_network_message_synchronous_update;
 class c_simulation_distributed_view;
@@ -112,6 +113,7 @@ class c_simulation_view
 
 	bool synchronous_catchup_submit_update(s_network_message_synchronous_update* update);
 	void synchronous_catchup_send_data();
+	const char* get_view_description(void);
 public:
 	bool exists() const
 	{
@@ -129,9 +131,13 @@ public:
 	{
 		csmemcpy(out->machine_identifier, m_machine_identifier.machine_identifier, sizeof(s_machine_identifier));
 	}
-	bool get_view_establishment_mode(void) const
+	e_simulation_view_establishment_mode get_view_establishment_mode(void) const
 	{
 		return m_view_establishment_mode;
+	}
+	uint32 get_view_establishment_identifier(void) const
+	{
+		return m_view_establishment_identifier;
 	}
 	bool synchronous_catchup_in_progress(void) const
 	{
@@ -152,7 +158,14 @@ public:
 	void kill_view(e_simulation_view_reason reason);
 	void dispatch_synchronous_update(simulation_update* host_update);
 	void send_message(int32 message_type, uint32 message_size , void* data, bool out_of_band);
-
+	void go_out_of_sync(void);
+	
+	bool handle_synchronous_update(const s_network_message_synchronous_update* update);
+	bool handle_synchronous_actions(int32 action_no, int32 update_no, bool is_out_of_sync, uint32 user_flags, player_action const* actions);
+	bool handle_synchronous_join(int32 next_update_number);
+	bool handle_synchronous_gamestate(int32 gamestate_offset, int32 message_gamestate_size, void* gamestate_data);
+	
+	
 	static void apply_patches();
 };
 #pragma pack(pop)

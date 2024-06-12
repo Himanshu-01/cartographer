@@ -231,10 +231,27 @@ void c_simulation_world::delete_all_actors(void)
 
 void c_simulation_world::update_queue_reset(void)
 {
-	typedef void(__thiscall* update_queue_reset_t)(c_simulation_world*);
-	INVOKE_TYPE(0x1DCDC3, 0x1C4277, update_queue_reset_t, this);
+	//typedef void(__thiscall* update_queue_reset_t)(c_simulation_world*);	
+	//INVOKE_TYPE(0x1DCDC3, 0x1C4277, update_queue_reset_t, this);
+
+	//need to reimplement this because sizeof(s_simulation_update_node) changed
+
+	for (s_simulation_update_node const* node = m_synchronous_client_queue_head;
+		node != nullptr;
+		node = node->next
+		)
+	{
+		network_heap_free_block((uint8*)node);
+	}
+	this->m_synchronous_client_queue_head = nullptr;
+	this->m_synchronous_client_queue_tail = nullptr;
+	this->m_synchronous_client_queue_length = NULL;
+	this->m_synchronous_client_next_update_number_to_dequeue = NULL;
+	this->m_synchronous_client_latest_update_number_received = NONE;
+
 	return;
 }
+void __declspec(naked) jmp_update_queue_reset() { __asm { jmp c_simulation_world::update_queue_reset } }
 
 void c_simulation_world::reset_world(void)
 {
@@ -330,6 +347,17 @@ void c_simulation_world::delete_player(datum player_index)
 	return;
 }
 
+int32 c_simulation_world::get_time(void) const
+{
+	ASSERT(exists());
+	return time_globals::get_game_time();
+}
+
+void c_simulation_world::build_update(simulation_update* update)
+{
+	INVOKE_TYPE(0x1DD1DF, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
+}
+
 //typedef void(__thiscall* t_c_simulation_world__update_queue_retrieve_update)(c_simulation_world*, simulation_update*);
 //t_c_simulation_world__update_queue_retrieve_update p_c_simulation_world__update_queue_retrieve_update;
 
@@ -375,7 +403,7 @@ void __declspec(naked) jmp_update_queue_retrieve_update() {
 	__asm { jmp c_simulation_world::update_queue_retrieve_update }
 }
 
-bool c_simulation_world::update_queue_handle_server_update(s_network_message_synchronous_update* host_update)
+bool c_simulation_world::update_queue_handle_server_update(const s_network_message_synchronous_update* host_update)
 {
 	//return INVOKE_TYPE(0x1DCE0F, 0x0, bool(__thiscall*)(c_simulation_world*, simulation_update*), this, host_update);
 	s_simulation_update_node* update_node = (s_simulation_update_node*)network_heap_allocate_block(sizeof(s_simulation_update_node));
@@ -403,6 +431,133 @@ bool c_simulation_world::update_queue_handle_server_update(s_network_message_syn
 }
 void __declspec(naked) jmp_update_queue_handle_server_update() {
 	__asm { jmp c_simulation_world::update_queue_handle_server_update }
+}
+
+int32 c_simulation_world::time_get_available(bool* match_remote_time)
+{
+	return INVOKE_TYPE(0x1DD2F6, 0x0, int32(__thiscall*)(c_simulation_world*, bool*), this, match_remote_time);
+}
+
+bool c_simulation_world::handle_synchronous_update(const s_network_message_synchronous_update* update)
+{
+	//return INVOKE_TYPE(0x1DD406, 0x0, bool(__thiscall*)(c_simulation_world*, const s_network_message_synchronous_update*), this, update);
+
+	int32 next_update_no = update_queue_get_next_expected_update_number();
+	if(synchronous_gamestate_write_in_progress())
+	{
+		//"simulation:world: OUT OF SYNC: server update arrived while gamestate transfer was incomplete"
+		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC : server update arrived while gamestate transfer was incomplete ");
+		go_out_of_sync();
+		return false;
+	}
+
+	if (update->update.simulation_time < next_update_no)
+	{
+		//"simulation:world: synchronous-update discarded (expected #%ld, got old #%ld)",
+		LOG_CRITICAL_NETWORK("simulation:world: synchronous-update discarded (expected #{}, got old #{}) ", next_update_no, update->update.simulation_time);
+		return false;
+	}
+
+	if(update->update.simulation_time != next_update_no)
+	{
+		//"simulation:world: OUT OF SYNC: missed a server update (expected #%ld, got #%ld)",
+		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: missed a server update (expected #{}, got #{})", next_update_no, update->update.simulation_time);
+		go_out_of_sync();
+		return false;
+	}
+
+	if (!is_active() && !m_time_immediate_update)
+	{
+		//"simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state %d)",
+		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state {})", get_state());
+		go_out_of_sync();
+		return false;
+	}
+
+	if (!update_queue_handle_server_update(update))
+	{
+		//"simulation:world: synchronous-update #%ld couldn't be inserted into update queue"
+		LOG_CRITICAL_NETWORK("simulation:world: synchronous-update #{} couldn't be inserted into update queue", update->update.simulation_time);
+		simulation_fatal_error();
+	}
+
+	if (m_time_immediate_update)
+	{
+		bool match_remote_time;
+		//"simulation:world: processing immediate updates (%d at time #%d)",
+		LOG_CRITICAL_NETWORK("simulation:world: processing immediate updates({} at update #{} time #{})", time_get_available(&match_remote_time), get_next_update_number(), get_time());
+
+		while (game_in_progress()
+			&& !simulation_aborted()
+			&& !m_out_of_sync
+			&& time_get_available(&match_remote_time) > 0)
+		{
+
+			game_tick();
+		}
+	}
+	return true;
+}
+
+void c_simulation_world::handle_synchronous_client_actions(s_machine_identifier const* remote_machine_identifier, uint32 user_flags, player_action const* action)
+{
+	INVOKE_TYPE(0x1DCC3B, 0x0, void(__thiscall*)(void*, s_machine_identifier const*, uint32, player_action const*), this, remote_machine_identifier, user_flags, action);
+}
+
+
+void c_simulation_world::time_start(int32 next_update_number)
+{
+	INVOKE_TYPE(0x1DD2C8, 0x0, void(__thiscall*)(c_simulation_world*, int32), this, next_update_number);
+}
+
+void c_simulation_world::time_set_immediate_update(bool update_immediately)
+{
+	INVOKE_TYPE(0x1DD350, 0x0, void(__thiscall*)(c_simulation_world*, bool), this, update_immediately);
+}
+
+bool c_simulation_world::synchronous_gamestate_write_start(void)
+{
+	return INVOKE_TYPE(0x1DCCEF, 0x0, bool(__thiscall*)(c_simulation_world*), this);
+}
+
+bool c_simulation_world::synchronous_gamestate_decompress_and_load(int32 gamestate_offset)
+{
+	if (!synchronous_gamestate_write_in_progress())
+	{
+		LOG_CRITICAL_NETWORK("simulation:world:gamestate: no gamestate transfer in progress, can't decompress");
+		return false;
+	}
+
+	if (m_synchronous_gamestate_write_progress != gamestate_offset)
+	{
+		LOG_CRITICAL_NETWORK("simulation:world:gamestate: can't decompress, haven't received all compressed gamestate yet ({} != expected {} bytes)",
+			m_synchronous_gamestate_write_progress,
+			gamestate_offset);
+		return false;
+	}
+
+	return INVOKE_TYPE(0x1DD8C5, 0x0, bool(__thiscall*)(c_simulation_world*, int32), this, gamestate_offset);
+}
+
+bool c_simulation_world::synchronous_gamestate_write_chunk(int32 gamestate_offset, int32 gamestate_size, void* gamestate_data)
+{
+	if (!synchronous_gamestate_write_in_progress())
+	{
+		LOG_CRITICAL_NETWORK("simulation:world:gamestate: no gamestate transfer in progress, ignoring block offset/size {}/{}",
+			gamestate_offset,
+			gamestate_size);
+		return false;
+	}
+	else if (m_synchronous_gamestate_write_progress != gamestate_offset)
+	{
+		LOG_CRITICAL_NETWORK("simulation:world:gamestate: out-of-order gamestate offset/size {}/{} != expected {}",
+			gamestate_offset,
+			gamestate_size,
+			m_synchronous_gamestate_write_progress);
+		return false;
+	}
+
+	return INVOKE_TYPE(0x1DCD21, 0x0, bool(__thiscall*)(c_simulation_world*, int32, int32, void*), this, gamestate_offset, gamestate_size, gamestate_data);
 }
 
 
@@ -510,6 +665,11 @@ void simulation_world_apply_patches()
 	PatchCall(Memory::GetAddress(0x1AE82A, 0x1A8A84), jmp_reset_world);
 	PatchCall(Memory::GetAddress(0x1DD9FB, 0x1C4EBB), jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress);
 	PatchCall(Memory::GetAddress(0x1DD273), jmp_update_queue_retrieve_update);
-	PatchCall(Memory::GetAddress(0x1DD464), jmp_update_queue_handle_server_update);
+	//PatchCall(Memory::GetAddress(0x1DD464), jmp_update_queue_handle_server_update);
+	PatchCall(Memory::GetAddress(0x1DDC58), jmp_update_queue_reset); //initialize_world
+	PatchCall(Memory::GetAddress(0x1DDAC7), jmp_update_queue_reset); //change_state_active
+	PatchCall(Memory::GetAddress(0x1DDA28), jmp_update_queue_reset); //change_state_internal
+	PatchCall(Memory::GetAddress(0x1DD2D9), jmp_update_queue_reset); //time_start
+	//PatchCall(Memory::GetAddress(0x1DD147), jmp_update_queue_reset); //reset_world not needed we already do this
 	return;
 }

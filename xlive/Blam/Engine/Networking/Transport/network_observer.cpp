@@ -277,7 +277,7 @@ bool __thiscall c_network_observer::channel_should_send_packet_hook(
 	if (observer_index == -1)
 		return false;
 
-	s_network_channel* network_channel = s_network_channel::get(network_channel_index);
+	c_network_channel* network_channel = c_network_channel::get(network_channel_index);
 	s_observer_channel* observer_channel = &this->observer_channels[observer_index];
 
 	// we modify the network channel paramters to force the network tickrate

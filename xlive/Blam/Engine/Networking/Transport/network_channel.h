@@ -29,11 +29,14 @@ enum e_network_channel_closure_reason
 
 enum e_network_channel_state
 {
+	_network_channel_state_none = 0,
 	_network_channel_state_2 = 2,
-	_network_channel_state_5 = 5,
+	_network_channel_state_connecting = 3,
+	_network_channel_state_established = 4,
+	_network_channel_state_connected = 5,
 };
 
-struct alignas(8) s_network_channel
+struct alignas(8) c_network_channel
 {
 	void* network_link;
 	void* network_message_gateway;
@@ -77,12 +80,12 @@ struct alignas(8) s_network_channel
 	int64 field_E0;
 	int8 gap[10];
 
-	static s_network_channel* get(int32 channel_index);
+	static c_network_channel* get(int32 channel_index);
 	bool get_network_address(network_address* address_out);
 
 	bool has_simulation_interface() const { return simulation_interface != NULL; }
 	bool is_simulation_authority() const { return has_simulation_interface() && *(bool*)((uint8*)simulation_interface + 48); }
-	bool is_channel_state_5() const { return channel_state == _network_channel_state_5; }
+	bool connected() const { return channel_state == _network_channel_state_connected; }
 };
-ASSERT_STRUCT_SIZE(s_network_channel, 248);
+ASSERT_STRUCT_SIZE(c_network_channel, 248);
 

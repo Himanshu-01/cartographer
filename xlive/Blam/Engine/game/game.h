@@ -83,6 +83,7 @@ bool game_is_playback(void);
 bool game_is_authoritative(void);
 bool game_is_networked(void);
 s_game_cluster_bit_vectors* game_get_cluster_activation(void);
+void __cdecl game_tick(void);
 
 // Setup default player data in the game options structure
 void game_options_setup_default_players(int player_count, s_game_options* game_options);

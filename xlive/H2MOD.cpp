@@ -37,6 +37,7 @@
 #include "main/main_game.h"
 #include "main/main_render.h"
 #include "Networking/NetworkMessageTypeCollection.h"
+#include "Networking/messages/network_message_handler.h"
 #include "Networking/Transport/transport.h"
 #include "objects/damage.h"
 #include "units/bipeds.h"
@@ -870,6 +871,9 @@ void __fastcall c_sp_pause_screen_list_handle_item_pressed_event_hook(void *this
 }
 void simulation_synchronous_patches()
 {
+	/*
+	removing oos patches
+
 	//simulation_build_update : world->m_out_of_sync = 1;
 	//1DBF69
 	NopFill(Memory::GetAddress(0x1DBF69), 4);
@@ -885,6 +889,8 @@ void simulation_synchronous_patches()
 	//if (update->update_number != next_update_no
 	//	|| this->m_world_state != _simulation_world_state_active && !this->m_time_immediate_update)
 	NopFill(Memory::GetAddress(0x1DD44D), 0x14);
+	
+	*/
 
 
 	WriteValue<BYTE>(Memory::GetAddress(0x23EC55 + 1), 0);	// Prevent the game from pausing during the game
@@ -907,6 +913,11 @@ void simulation_synchronous_patches()
 	WriteValue<uint32>(Memory::GetAddress(0x1DF3DF + 1), sizeof(s_network_message_synchronous_update));
 	//.text:005DF39E 68 D8 3B 00 00              push    3BD8h    
 	WriteValue<uint32>(Memory::GetAddress(0x1DF39E + 1), sizeof(s_network_message_synchronous_update));
+
+
+
+	//apply hooks to message c_network_message_handler::handle_channel_message
+	c_network_message_handler::apply_patches();
 }
 void H2MOD::ApplyHooks() {
 	/* Should store all offsets in a central location and swap the variables based on h2server/halo2.exe*/

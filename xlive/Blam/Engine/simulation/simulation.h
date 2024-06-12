@@ -50,9 +50,9 @@ ASSERT_STRUCT_SIZE(s_simulation_update_node, k_orginal_sizeof_s_simulation_updat
 
 struct s_simulation_globals
 {
-	bool engine_initialized;
+	bool initialized;
 	bool fatal_error;
-	bool engine_paused;
+	bool aborted;
 	int32 field_4;
 	bool simulation_invalidate;
 	bool simulation_reset_pending;
@@ -68,10 +68,12 @@ c_simulation_world* simulation_get_world();
 s_simulation_globals* simulation_get_globals();
 
 void simulation_reset();
+void simulation_fatal_error(void);
 bool simulation_reset_in_progress();
 bool simulation_starting_up(void);
 void simulation_notify_reset_complete();
 
+bool simulation_aborted();
 bool simulation_in_progress();
 void simulation_destroy_update(void);
 bool simulation_query_object_is_predicted(datum object_datum);
@@ -80,7 +82,7 @@ c_simulation_type_collection* simulation_get_type_collection();
 void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
 
 bool __cdecl simulation_get_machine_active_in_game(s_machine_identifier* machine_identifier);
-
+c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index);
 s_network_message_synchronous_update* simulation_get_synchronous_message();
 
 void simulation_apply_patches(void);
