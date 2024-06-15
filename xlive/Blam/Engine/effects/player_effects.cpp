@@ -183,3 +183,27 @@ void __cdecl render_screen_flash(int32 player_index, s_screen_flash* screen_flas
     INVOKE(0xA408F, 0x0, render_screen_flash, player_index, screen_flash);
     return;
 }
+
+
+typedef void(__cdecl* impulsive_melee_damage_response_t)(uint32 a1, uint32 a2, uint32 a3, uint32 a4, uint32 a5, uint32 a6, uint32 a7);
+impulsive_melee_damage_response_t p_impulsive_melee_damage_response;
+
+
+void __cdecl player_effects_cause_impulsive_melee_damage_response_hook(uint32 a1, uint32 a2, uint32 a3, uint32 a4, uint32 a5, uint32 a6, uint32 a7)
+{
+    //disable global seed usage in player_effects_cause_impulsive_melee_damage_response
+    random_seed_disallow_use(_random_seed_in_player_effects_impulsive_melee);
+    //player_effects_cause_impulsive_melee_damage_response(a1, a2, a3, a4, a5, a6, a7);
+    p_impulsive_melee_damage_response(a1, a2, a3, a4, a5, a6, a7);
+    random_seed_allow_use();
+}
+
+void player_effect_patches()
+{
+    //PatchCall(Memory::GetAddress(0x13A965), player_effects_cause_impulsive_melee_damage_response_hook);
+    //PatchCall(Memory::GetAddress(0x1435B8), player_effects_cause_impulsive_melee_damage_response_hook); // unit_cause_player_melee_attack 
+    //PatchCall(Memory::GetAddress(0xA4BC3), player_effects_cause_impulsive_melee_damage_response_hook);  // unit_damage_aftermath_apply
+    //PatchCall(Memory::GetAddress(0x177AC3), player_effects_cause_impulsive_melee_damage_response_hook); 
+
+    DETOUR_ATTACH(p_impulsive_melee_damage_response, Memory::GetAddress<impulsive_melee_damage_response_t>(0xA4BC3,0), player_effects_cause_impulsive_melee_damage_response_hook);
+}

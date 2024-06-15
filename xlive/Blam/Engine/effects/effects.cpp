@@ -4,6 +4,7 @@
 #include "interface/first_person_weapons.h"
 #include "main/interpolator.h"
 #include "objects/objects.h"
+#include "math/random_math.h"
 
 s_data_array* get_effects_table()
 {
@@ -118,7 +119,22 @@ __declspec(naked) void effect_datum_get_node_matrix_relative_or_origin_to_cdecl(
 }
 
 
+void __cdecl effects_update(void)
+{
+    INVOKE(0xAB24A, 0x0, effects_update);
+}
+
+void __cdecl effects_update_hook(void)
+{
+    //disable global seed usage in effects_update
+    random_seed_disallow_use(_random_seed_in_effects_update);
+    effects_update();
+    random_seed_allow_use();
+}
+
+
 void effects_apply_patches()
 {
     WriteJmpTo(Memory::GetAddress(0xA69A4), effect_datum_get_node_matrix_relative_or_origin_to_cdecl);
+    PatchCall(Memory::GetAddress(0x4A546), effects_update_hook);    // hook into game_tick() 
 }

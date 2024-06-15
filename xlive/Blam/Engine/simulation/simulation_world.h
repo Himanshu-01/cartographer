@@ -127,6 +127,7 @@ public:
 	void delete_player(datum player_index);
 
 	int32 get_time(void) const;
+	void go_out_of_sync(void);
 
 	void build_update(simulation_update* update);
 	void update_queue_retrieve_update(simulation_update* update);
@@ -206,6 +207,7 @@ public:
 		ASSERT(exists());
 		if (!is_authority() || is_playback())
 			return m_out_of_sync;
+		return false;
 	}
 
 	e_simulation_world_type get_world_type(void) const
@@ -268,10 +270,7 @@ public:
 		m_time_immediate_update = true;
 	}
 
-	void go_out_of_sync(void)
-	{
-		m_out_of_sync = true;
-	}
+	
 };
 ASSERT_STRUCT_SIZE(c_simulation_world, 0x12B0);
 

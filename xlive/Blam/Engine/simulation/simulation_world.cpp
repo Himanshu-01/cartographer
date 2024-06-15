@@ -654,8 +654,11 @@ c_simulation_view* c_simulation_world::get_authority_view()
 	return test_view;
 }
 
-
-
+void c_simulation_world::go_out_of_sync(void)
+{
+	LOG_CRITICAL_NETWORK("simulation:world: going out of sync at next-update #{}", get_next_update_number());
+	m_out_of_sync = true;
+}
 
 void simulation_world_apply_patches()
 {

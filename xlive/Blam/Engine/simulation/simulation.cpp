@@ -137,6 +137,11 @@ void __cdecl simulation_process_input(uint32 player_action_mask, const player_ac
     return;
 }
 
+void __cdecl simulation_start()
+{
+    INVOKE(0x1ADCE3, 0x0, simulation_start);
+}
+
 c_simulation_type_collection* simulation_get_type_collection()
 {
     return c_simulation_type_collection::get();
@@ -144,6 +149,10 @@ c_simulation_type_collection* simulation_get_type_collection()
 
 void __cdecl simulation_apply_before_game(simulation_update* update)
 {
+    // allow global seed usage inside game_tick
+    // TODO : rewrite game_tick
+    random_seed_allow_use();
+
     c_simulation_queue simulation_bookkeeping_queue, game_simulation_queue;
     c_simulation_world* sim_world = simulation_get_world();
 
@@ -259,6 +268,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
     return;
 }
 
+uint8 desync_counter=0;
 void __cdecl simulation_build_update(simulation_update* update)
 {
     //INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
@@ -296,16 +306,24 @@ void __cdecl simulation_build_update(simulation_update* update)
             LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, update time differs, update [#{}] time [{}] != local time {}", update->simulation_time, update->game_time_ticks, globals->world->get_time());
             go_oos = true;
         }
-        if (update->random_seed != random_math_get_seed())
+        if (update->random_seed != get_random_seed())
         {
             //simulation:global: OUT OF SYNC, random seed differs, update [#%d] time [%d] seed [0x%08X] (local seed [0x%08X])"
-            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, random seed differs, update [#{}] time [{}] seed [0x{:08X}] (local seed [0x{:08X}])", update->simulation_time, update->game_time_ticks, update->random_seed, random_math_get_seed());
+            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, random seed differs, update [#{}] time [{}] seed [0x{:08X}] (local seed [0x{:08X}])", update->simulation_time, update->game_time_ticks, update->random_seed, get_random_seed());
             go_oos = true;
         }
     }
     if (go_oos)
     {
-        globals->world->go_out_of_sync();
+        if (++desync_counter > 5)
+        {
+            LOG_CRITICAL_NETWORK("simulation:global: we have failed to sync after [{}] tries , aborting now!!)", desync_counter);
+            globals->world->go_out_of_sync();
+        }
+
+        // doesnt really help much
+        set_random_seed(update->random_seed);
+        time_globals::get()->tick_count = update->game_time_ticks;
     }
 
     return;
@@ -328,6 +346,7 @@ void __cdecl simulation_update_pregame(void)
         {
             simulation_build_update(&update);
             simulation_apply_before_game(&update);
+            random_seed_disallow_use(_random_seed_in_simulation_update_pregame);
             simulation_update_aftermath(&update);
         }
         else

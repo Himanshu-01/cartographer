@@ -431,6 +431,11 @@ void __cdecl players_update_activation(void)
     return;
 }
 
+void __cdecl player_set_unit_index(datum player_index, datum unit_index)
+{
+    INVOKE(0x556BE, 0x0, player_set_unit_index, player_index, unit_index);
+}
+
 void players_apply_patches(void)
 {
     // Change the validation for player_appearance_valid to use the updated k_player_character_type_count constant

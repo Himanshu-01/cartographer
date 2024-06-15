@@ -9,6 +9,7 @@
 #include "H2MOD/Modules/Shell/Config.h"
 #include "H2MOD/Tags/TagInterface.h"
 #include "objects/light_definitions.h"
+#include "effects/effects_definitions.h"
 
 // ### TODO Cleanup
 extern bool g_xbox_tickrate_enabled;
@@ -183,6 +184,24 @@ namespace TagFixes
 		}
 	}
 
+
+	void effects_disable_determinism()
+	{
+		auto effect_tags = tags::find_tags(_tag_group_effect);
+		for (auto& effect_tag : effect_tags)
+		{
+			effect_definition* effect_tag_definition = tags::get_tag<_tag_group_effect, effect_definition>(effect_tag.first);
+			if (effect_tag_definition != nullptr)
+			{
+				if (TEST_BIT(effect_tag_definition->flags,_effect_must_be_deterministic_bit))
+				{
+					LOG_DEBUG_GAME("found deterministic bit set on tag {} ", effect_tag.second);
+					SET_FLAG(effect_tag_definition->flags, _effect_must_be_deterministic_bit, false);
+				}
+			}
+		}
+	}
+
 	void OnMapLoad()
 	{
 		if (!Memory::IsDedicatedServer()) 
@@ -199,6 +218,9 @@ namespace TagFixes
 			{
 				light_framerate_killer();
 			}
+			// nope this doesnt work either
+			// breaks game eventually
+			//effects_disable_determinism();
 		}
 		if (!g_xbox_tickrate_enabled)
 		{

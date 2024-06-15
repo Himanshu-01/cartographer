@@ -2,6 +2,7 @@
 #include "random_math.h"
 
 #include "random_direction_table.h"
+#include "game/game_time.h"
 
 // More info:
 // https://en.wikipedia.org/wiki/Linear_congruential_generator
@@ -31,34 +32,43 @@
 #define REAL_RANDOM(seed) (DIV_BY_MAX_MASK_REAL * SEED_HIWORD(seed))
 #define REAL_RANDOM_RANGE(seed, lower_bound, delta) ((lower_bound) + (delta) * REAL_RANDOM(seed))
 
+#pragma intrinsic(_ReturnAddress)
+
+int32 g_deterministic_seed_allowed_usages = 0;
+
 s_random_math* random_math_get_globals()
 {
 	return *Memory::GetAddress<s_random_math**>(0x4A8280, 0x4D2500);
 }
 
-uint32 random_math_get_seed()
+uint32 get_random_seed()
 {
-	return random_math_get_globals()->seed;
+	return random_math_get_globals()->global_seed;
 }
 
-uint32 random_math_get_random_number()
+uint32 get_local_random_seed()
 {
-	return random_math_get_globals()->random_number;
+	return random_math_get_globals()->local_seed;
+}
+
+uint32* get_random_seed_address()
+{
+	return &random_math_get_globals()->global_seed;
 }
 
 uint32* get_local_random_seed_address()
 {
-	return &random_math_get_globals()->random_number;
+	return &random_math_get_globals()->local_seed;
 }
 
-void random_math_set_seed(uint32 seed)
+void set_random_seed(uint32 seed)
 {
-	random_math_get_globals()->seed = seed;
+	random_math_get_globals()->global_seed = seed;
 }
 
-void random_math_set_random_number(uint32 random_number)
+void set_local_random_seed(uint32 seed)
 {
-	random_math_get_globals()->random_number = random_number;
+	random_math_get_globals()->local_seed = seed;
 }
 
 real32 _real_random_range(uint32* seed, real32 lower_bound, real32 upper_bound)
@@ -84,4 +94,106 @@ real_vector3d* _random_direction3d(uint32* seed, const char* type, char* file, i
 	int32 index = _random_range(seed, 0, k_random_direction_table_size);
 	*direction = g_random_direction_table[index];
 	return direction;
+}
+
+const char* random_seed_disallow_calls[] =
+{
+	"effects_update",
+	"fp_weapons_update",
+	"game_initialize_for_new_map",
+	"game_initialize_for_new_structure_bsp",
+	"game_start",
+	"game_create_objects",
+	"game_create_missing_objects",
+	"game_create_ai",
+	"game_engine_prepare_change_team",
+	"player_effects_impulsive_melee",
+	"simulation_update_pregame",
+};
+
+
+
+uint32 caller_address = 0;
+
+static void __cdecl random_math_log_bad_access(void)
+{
+	if (g_deterministic_seed_allowed_usages <= 0)
+	{
+		caller_address -= Memory::GetAddress();
+		LOG_CRITICAL_NETWORK("someone is using the global random number generator when they shouldn't be at 0x{:X}  time [{}]", caller_address , time_globals::get_game_time());
+
+
+		//return get_local_random_seed_address();
+		//__asm
+		//{
+		//	mov		eax , get_local_random_seed_address
+		//	retn
+		//}
+	}
+	//return get_random_seed_address();
+	//__asm
+	//{
+	//	mov		eax, get_random_seed_address
+	//	retn
+	//}
+}
+
+__declspec(naked) uint32* get_random_seed_address_hook()
+{
+	__asm
+	{
+		// grab caller_address
+		mov     eax, [esp]
+		mov     caller_address, eax
+		call    random_math_log_bad_access
+		//retn
+
+		//// original code
+		call	random_math_get_globals
+		retn
+	}
+}
+
+void random_seed_allow_use()
+{
+	++g_deterministic_seed_allowed_usages;
+}
+
+void random_seed_disallow_use(e_random_seed_calls caller)
+{
+	if (g_deterministic_seed_allowed_usages <= 0)
+	{
+		//"unmatched call to random_seed_disallow() somewhere",
+		LOG_CRITICAL_NETWORK("unmatched call to random_seed_disallow() at {} , value : {} time [{}]", random_seed_disallow_calls[caller],g_deterministic_seed_allowed_usages, time_globals::get_game_time());
+	}
+	else
+	{
+		--g_deterministic_seed_allowed_usages;
+	}
+}
+
+void random_math_apply_patches()
+{
+	// hooking into deterministic random no generator
+	WriteJmpTo(Memory::GetAddress(0x5908F), get_random_seed_address_hook);
+
+	// patch game_sound_deterministic_pick_permutation to use global seed
+	// these use deterministic-seed in h3
+	PatchCall(Memory::GetAddress(0xA57AB), get_random_seed_address_hook);
+	PatchCall(Memory::GetAddress(0xA5892), get_random_seed_address_hook);
+
+	// patch animation function to force use local_seed_address only
+	//  breaks game dont use
+	// PatchCall(Memory::GetAddress(0xF6E00), get_local_random_seed_address);
+	
+
+	// path effect_tag_get_random_seed to always use local_seed
+	// breaks game eventually
+	// PatchCall(Memory::GetAddress(0xA750B), get_local_random_seed_address);	
+	
+	// path effect_object_accelerate to use local_seed
+	// breaks game very fast dont use
+	//PatchCall(Memory::GetAddress(0xA8784), get_local_random_seed_address);
+
+
 }

@@ -910,6 +910,12 @@ void __cdecl objects_purge_deleted_objects(void)
 	}
 }
 
+void __cdecl object_kill_instantly(datum object_index, bool a2, bool a3, bool a4, void* damage_owner)
+{
+	INVOKE(0x17B56A, 0x0, object_kill_instantly, object_index, a2, a3, a4, damage_owner);
+}
+
+
 void __cdecl objects_post_update()
 {
 	object_globals_get()->objects_updating = true;

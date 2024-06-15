@@ -171,3 +171,7 @@ bool __cdecl game_engine_get_change_colors(s_player_profile* player_profile, e_g
 bool __cdecl game_engine_variant_cleanup(uint16* flags);
 
 void __cdecl game_engine_player_activated(datum player_index);
+
+void __cdecl game_engine_game_starting(void);
+
+void game_engine_apply_patches(void);

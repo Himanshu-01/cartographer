@@ -918,6 +918,9 @@ void simulation_synchronous_patches()
 
 	//apply hooks to message c_network_message_handler::handle_channel_message
 	c_network_message_handler::apply_patches();
+	random_math_apply_patches();
+	player_effect_patches();
+	game_engine_apply_patches();
 }
 void H2MOD::ApplyHooks() {
 	/* Should store all offsets in a central location and swap the variables based on h2server/halo2.exe*/

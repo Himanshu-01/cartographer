@@ -270,7 +270,7 @@ void __cdecl game_update(int32 desired_ticks, real32* elapsed_game_dt)
 	return;
 }
 
-void game_info_initialize_for_new_map(s_game_options* options)
+void game_instance_initialize_for_new_map_(s_game_options* options)
 {
 	s_main_game_globals* game_globals = get_main_game_globals();
 
@@ -281,7 +281,7 @@ void game_info_initialize_for_new_map(s_game_options* options)
 	{
 		game_engine_variant_cleanup(&game_globals->options.game_variant.variant_flag);
 	}
-	random_math_set_seed(game_globals->options.random_seed);
+	set_random_seed(game_globals->options.random_seed);
 	game_globals->game_is_lost = false;
 	game_globals->game_is_finished = false;
 	game_globals->pvs_object_is_set = 0;
@@ -295,8 +295,10 @@ void __cdecl game_initialize_for_new_map(s_game_options* options)
 
 	halo_interpolator_clear_buffers();
 	real_math_reset_precision();
+	random_seed_allow_use();
+
 	game_globals->initializing = true;
-	game_info_initialize_for_new_map(options);
+	game_instance_initialize_for_new_map_(options);
 
 	s_game_systems* g_game_systems = get_game_systems();
 	for (uint32 i = 0; i < 70; i++)
@@ -308,8 +310,64 @@ void __cdecl game_initialize_for_new_map(s_game_options* options)
 	}
 	game_globals->initializing = false;
 	game_globals->map_active = true;
+
+	random_seed_disallow_use(_random_seed_in_game_initialize_for_new_map);
 }
 
+void __cdecl game_initialize_for_new_structure_bsp(void)
+{
+	random_seed_allow_use();
+	INVOKE(0x48BE0, 0x0, game_initialize_for_new_structure_bsp);
+	random_seed_disallow_use(_random_seed_in_game_initialize_for_new_structure_bsp);
+}
+
+void __cdecl game_load_launch_parameters(void)
+{
+	INVOKE(0x49BF7, 0x0, game_load_launch_parameters);
+}
+
+void __cdecl game_create_missing_objects(void)
+{
+	random_seed_allow_use();
+	INVOKE(0x48CC8, 0x0, game_create_missing_objects);
+	random_seed_disallow_use(_random_seed_in_game_create_missing_objects);
+}
+
+void __cdecl game_create_objects(void)
+{
+	random_seed_allow_use();
+	INVOKE(0x48CA5, 0x0, game_create_objects);
+	random_seed_disallow_use(_random_seed_in_game_create_objects);
+}
+
+//void __cdecl game_create_players(void)
+//{
+//	INVOKE(0x49EBF, 0x0, game_create_players);
+//}
+
+void __cdecl game_create_ai(void)
+{
+	random_seed_allow_use();
+	INVOKE(0x48C95, 0x0, game_create_ai);
+	random_seed_disallow_use(_random_seed_in_game_create_ai);
+}
+
+void __cdecl game_start(void)
+{
+	s_main_game_globals* game_globals = get_main_game_globals();
+	game_globals->game_in_progress = true;
+
+	simulation_start();
+	random_seed_allow_use();
+	game_engine_game_starting();
+	game_load_launch_parameters();
+	random_seed_disallow_use(_random_seed_in_game_start);
+}
+
+//void __cdecl game_dispose_from_old_map(void)
+//{
+//	INVOKE(0x49E1B, 0x0, game_dispose_from_old_map);
+//}
 
 typedef void(__cdecl* game_frame_t)(real32);
 game_frame_t p_game_frame;
@@ -325,6 +383,20 @@ void game_apply_pre_winmain_patches(void)
 {
 	PatchCall(Memory::GetAddress(0x86BE, 0x1EB86), game_initialize_for_new_map);
 	PatchCall(Memory::GetAddress(0x9802, 0x1FAED), game_initialize_for_new_map);
+	PatchCall(Memory::GetAddress(0x27C7A, 0), game_initialize_for_new_structure_bsp);
+	
+	PatchCall(Memory::GetAddress(0x86E1, 0), game_start);
+	PatchCall(Memory::GetAddress(0x9825, 0), game_start);
+
+	PatchCall(Memory::GetAddress(0x86C3, 0), game_create_objects);
+	PatchCall(Memory::GetAddress(0x9807, 0), game_create_objects);
+	PatchCall(Memory::GetAddress(0x6CC33, 0), game_create_objects);
+
+	PatchCall(Memory::GetAddress(0x1DE445, 0), game_create_missing_objects);
+
+	PatchCall(Memory::GetAddress(0x86E6, 0), game_create_ai);
+	PatchCall(Memory::GetAddress(0x982A, 0), game_create_ai);
+
 	PatchCall(Memory::GetAddress(0x39D2A, 0xC0C0), game_update);
 	PatchCall(Memory::GetAddress(0x39E42, 0xBA4F), game_initialize);
 

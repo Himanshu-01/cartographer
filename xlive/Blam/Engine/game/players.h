@@ -275,4 +275,6 @@ uint32 player_appearance_required_bits(void);
 // Validate player configuration
 void __cdecl player_validate_configuration(datum player_index, s_player_properties* configuration_data);
 
+void __cdecl player_set_unit_index(datum player_index, datum unit_index);
+
 void players_apply_patches(void);

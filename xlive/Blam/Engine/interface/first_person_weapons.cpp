@@ -965,8 +965,22 @@ void first_persoon_apply_interpolation_patches()
     PatchCall(Memory::GetAddress(0x195EDA), first_person_weapon_build_models);
 }
 
+void __cdecl first_person_weapons_update(void)
+{
+    INVOKE(0x22B371, 0x0, first_person_weapons_update);
+}
+
+void __cdecl first_person_weapons_update_hook(void)
+{
+    // disable game_tick global seed usage here before calling first_person_weapons_update
+    // TODO : rewrite game_tick
+    random_seed_disallow_use(_random_seed_in_fp_weapons_update);
+    first_person_weapons_update();
+}
+
 void first_person_weapons_apply_patches(void)
 {
     first_persoon_apply_interpolation_patches();
+    PatchCall(Memory::GetAddress(0x4A58A), first_person_weapons_update_hook);   //hook into game_tick()
 	return;
 }

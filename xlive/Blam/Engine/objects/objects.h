@@ -304,3 +304,5 @@ int16 __cdecl object_get_markers_by_string_id(datum object_index, string_id mark
 void objects_apply_patches(void);
 
 void __cdecl objects_purge_deleted_objects(void);
+
+void __cdecl object_kill_instantly(datum object_index, bool a2, bool a3, bool a4, void* damage_owner);

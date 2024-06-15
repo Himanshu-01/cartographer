@@ -39,7 +39,9 @@ enum e_effect_event_flag : int32
 
 enum e_effect_flags : int32
 {
-    _deleted_when_attachment_deactivates = FLAG(0)
+    _deleted_when_attachment_deactivates_bit = 0,
+    _effect_flags_bit_1,
+    _effect_must_be_deterministic_bit,
 };
 
 // max count: k_maximum_effect_accelerations_per_event_count 32
@@ -118,7 +120,8 @@ ASSERT_STRUCT_SIZE(effect_event_definition, 0x38);
 
 struct effect_definition
 {
-    e_effect_flags flags;
+    //e_effect_flags flags;
+    uint32 flags;
     int16 loop_start_event;
     int16 unk_6;
     real32 unk_runtime_float;

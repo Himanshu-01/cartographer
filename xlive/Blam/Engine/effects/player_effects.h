@@ -148,3 +148,6 @@ void player_effect_apply_camera_effect_matrix(int32 user_index, real_matrix4x3* 
 
 // Render screen flash
 void __cdecl render_screen_flash(int32 player_index, s_screen_flash* screen_flash);
+
+
+void player_effect_patches();
