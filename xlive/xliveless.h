@@ -31,6 +31,7 @@ extern h2log *network_log;
 extern h2log *console_log;
 extern h2log *onscreendebug_log;
 extern h2log *voice_log;
+extern h2log * rng_math_log;
 
 #define CHECK_PTR(check, expression) \
 do \

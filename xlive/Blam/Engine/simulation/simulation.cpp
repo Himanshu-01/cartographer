@@ -11,6 +11,10 @@
 #include "objects/objects.h"
 #include "simulation/game_interface/simulation_game_action.h"
 
+
+#define GAME_STATE_ALLOCATION_SIZE 0x3FE000
+#define GAME_STATE_ALLOCATION_BASE 0x30000000
+
 s_network_message_synchronous_update g_host_synchronous_message;
 
 s_simulation_globals* simulation_get_globals()
@@ -147,6 +151,7 @@ c_simulation_type_collection* simulation_get_type_collection()
     return c_simulation_type_collection::get();
 }
 
+void simulation_record_and_apply_state(simulation_update* update);
 void __cdecl simulation_apply_before_game(simulation_update* update)
 {
     // allow global seed usage inside game_tick
@@ -196,6 +201,8 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
         //time_globals::get()->tick_count = update->game_time_ticks;
         // "if it works it works" 
     }
+
+    simulation_record_and_apply_state(update);
 
     for (int32 i = 0; i < k_maximum_players; i++)
     {
@@ -257,6 +264,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
     if (update->flush_gamestate)
     {
+        LOG_CRITICAL_NETWORK("simulation:global: trying to flush gamestate world type {}", sim_world->get_world_type());
         simulation_get_globals()->world->gamestate_flush_immediate();
     }
 
@@ -269,6 +277,10 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 }
 
 uint8 desync_counter=0;
+bool debugging_last_tick = false;
+simulation_update debug_update;
+uint8* g_debug_gamestate_buffer = nullptr;
+
 void __cdecl simulation_build_update(simulation_update* update)
 {
     //INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
@@ -282,7 +294,15 @@ void __cdecl simulation_build_update(simulation_update* update)
     ASSERT(update);
 
     s_simulation_globals* globals = simulation_get_globals();
-    memset(update, 0, sizeof(simulation_update));
+    csmemset(update, 0, sizeof(simulation_update));
+
+    if (debugging_last_tick)
+    {
+        LOG_CRITICAL_NETWORK("simulation:global:debug inside simulation_build_update , maybe we ran more than 1 tick!!!");
+        ASSERT(false);
+        return;
+    }
+
     globals->world->build_update(update);
 
 
@@ -292,6 +312,9 @@ void __cdecl simulation_build_update(simulation_update* update)
         && (!globals->world->is_distributed() || globals->world->is_playback())
         && !globals->world->is_out_of_sync())
     {
+
+        //set_random_seed(update->random_seed);
+        //time_globals::get()->tick_count = update->game_time_ticks;
 
         if (update->simulation_time != globals->world->get_next_update_number())
         {
@@ -322,18 +345,82 @@ void __cdecl simulation_build_update(simulation_update* update)
     }
     if (go_oos)
     {
-        if (++desync_counter > 5)
-        {
+        //if (++desync_counter > 5)
+        //{
             LOG_CRITICAL_NETWORK("simulation:global: we have failed to sync after [{}] tries , aborting now!!)", desync_counter);
             globals->world->go_out_of_sync();
-        }
+            
 
-        // doesnt really help much
-        set_random_seed(update->random_seed);
-        time_globals::get()->tick_count = update->game_time_ticks;
+        //    desync_counter = 0;
+        //}
+
+        //// doesnt really help much
+        //set_random_seed(update->random_seed);
+        //time_globals::get()->tick_count = update->game_time_ticks;
     }
 
     return;
+}
+
+void simulation_record_and_apply_state(simulation_update* update)
+{
+    s_simulation_globals* globals = simulation_get_globals();
+    if(globals->world->is_out_of_sync())
+    {
+        LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed on client");
+        random_math_dump_call_stack();
+        
+        LOG_CRITICAL_NETWORK("simulation:global:debug we are pausing the game.. waiting on you to start debugging");
+        time_globals::get()->paused = true;
+        debugging_last_tick = true;
+
+        //break the game here wait on debugger to resume
+        ASSERT(false);
+
+
+        typedef void(__cdecl game_state_call_before_load_procs)(int context);
+        auto p_game_state_call_before_load_procs = Memory::GetAddress<game_state_call_before_load_procs*>(0x8C245);
+
+        typedef void(__cdecl game_state_call_after_load_procs)(int context);
+        auto p_game_state_call_after_load_procs = Memory:: GetAddress<game_state_call_after_load_procs*>(0x8C269);
+
+        LOG_CRITICAL_NETWORK("simulation:global:debug reverting gamestate");
+        ASSERT(g_debug_gamestate_buffer);
+
+        p_game_state_call_before_load_procs(0);
+        csmemcpy((void*)GAME_STATE_ALLOCATION_BASE, g_debug_gamestate_buffer, GAME_STATE_ALLOCATION_SIZE);
+        p_game_state_call_after_load_procs(0);
+
+        csmemcpy(update, &debug_update, sizeof(simulation_update));
+        time_globals::get()->paused = false;
+
+        LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
+    }
+    else
+    {
+        typedef void(__cdecl game_state_call_before_save_procs)(int context);
+        auto p_game_state_call_before_save_procs = Memory::GetAddress<game_state_call_before_save_procs*>(0x8C21B);
+
+        typedef void(__cdecl game_state_call_after_save_procs__)(int context);
+        auto p_game_state_call_after_save_procs = Memory::GetAddress<game_state_call_after_save_procs__*>(0x8C23F);
+
+        if (g_debug_gamestate_buffer == nullptr)
+        {
+            LOG_CRITICAL_NETWORK("simulation:global:debug initializing save memory");
+            g_debug_gamestate_buffer = new uint8[GAME_STATE_ALLOCATION_SIZE];
+        }
+        else
+        {
+            ASSERT(g_debug_gamestate_buffer);
+            p_game_state_call_before_save_procs(0);
+            csmemcpy(g_debug_gamestate_buffer, (void*)GAME_STATE_ALLOCATION_BASE, GAME_STATE_ALLOCATION_SIZE);
+            p_game_state_call_after_save_procs(0);
+
+            csmemcpy(&debug_update, update, sizeof(simulation_update));
+            
+        }
+        
+    }
 }
 
 void __cdecl simulation_update_aftermath(simulation_update* update)

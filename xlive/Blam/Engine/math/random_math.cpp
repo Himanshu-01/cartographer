@@ -4,6 +4,8 @@
 #include "random_direction_table.h"
 #include "game/game_time.h"
 
+#include <stack>
+
 // More info:
 // https://en.wikipedia.org/wiki/Linear_congruential_generator
 // https://www.cec.uchile.cl/cinetica/pcordero/MC_libros/NumericalRecipesinC.pdf
@@ -121,9 +123,10 @@ const char* random_seed_disallow_calls[] =
 	"simulation_update_pregame",
 };
 
+extern bool debugging_last_tick;
+std::stack<std::pair<uint32,uint32>> return_addresses;
 
 
-uint32 caller_address = 0;
 
 static void __cdecl random_math_log_bad_access(DWORD ret_address)
 {
@@ -134,19 +137,13 @@ static void __cdecl random_math_log_bad_access(DWORD ret_address)
 	}
 
 
-		//return get_local_random_seed_address();
-		//__asm
-		//{
-		//	mov		eax , get_local_random_seed_address
-		//	retn
-		//}
+
+	return_addresses.push({ time_globals::get_game_time(), ret_address });
+
+	if (debugging_last_tick)
+	{
+		LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_address);
 	}
-	//return get_random_seed_address();
-	//__asm
-	//{
-	//	mov		eax, get_random_seed_address
-	//	retn
-	//}
 }
 
 __declspec(naked) uint32* get_random_seed_address_hook()
@@ -182,6 +179,19 @@ void random_seed_disallow_use(e_random_seed_calls caller)
 	{
 		--g_deterministic_seed_allowed_usages;
 	}
+}
+
+void random_math_dump_call_stack()
+{
+	LOG_TRACE(rng_math_log, "Dumping random_math call stack started");
+	while (!return_addresses.empty())
+	{
+		auto top = return_addresses.top();
+		LOG_TRACE(rng_math_log, "tick {}  offset 0x{:X}", top.first, top.second);
+		return_addresses.pop();
+
+	}
+	LOG_TRACE(rng_math_log, "finished dumping call stack session");
 }
 
 void random_math_apply_patches()

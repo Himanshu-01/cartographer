@@ -234,13 +234,6 @@ void __cdecl game_update(int32 desired_ticks, real32* elapsed_game_dt)
 	{
 		while (!main_events_pending())
 		{
-			if (simulation_get_world()->exists() && !simulation_get_world()->is_distributed() && !simulation_get_world()->runs_simulation())
-			{
-				if (simulation_get_world()->is_active() && !simulation_get_world()->do_we_have_sufficient_updates())
-				{
-					return;
-				}
-			}	
 
 				halo_interpolator_update_begin();
 				if(!game_is_ui_shell())

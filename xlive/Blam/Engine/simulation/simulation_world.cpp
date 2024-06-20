@@ -368,7 +368,7 @@ void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 	if (do_we_have_sufficient_updates())
 	{
 		s_simulation_update_node* update_node = this->m_synchronous_client_queue_head;
-		ASSERT(update_nodee);
+		ASSERT(update_node);
 
 		csmemcpy(update, &update_node->update_message.update, sizeof(simulation_update));
 		// transfer these to c_simulation_world so it can apply them in simulation_apply_before_game
@@ -492,7 +492,6 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 			&& !m_out_of_sync
 			&& time_get_available(&match_remote_time) > 0)
 		{
-
 			game_tick();
 		}
 	}

@@ -43,6 +43,9 @@ h2log *console_log = nullptr;
 // Voice chat logger
 h2log* voice_log = nullptr;
 
+// math logger
+h2log* rng_math_log = nullptr;
+
 DWORD H2BaseAddr = NULL;
 bool H2IsDediServer = false;
 
@@ -350,7 +353,9 @@ void InitH2Startup() {
 	h2mod_log = h2log::create("H2MOD", prepareLogFileName(L"h2mod"), H2Config_debug_log, H2Config_debug_log_level);
 	LOG_DEBUG_GAME(DLL_VERSION_STR);
 	network_log = h2log::create("Network", prepareLogFileName(L"h2network"), H2Config_debug_log, H2Config_debug_log_level);
-	LOG_DEBUG_NETWORK(DLL_VERSION_STR);
+	LOG_DEBUG_NETWORK(DLL_VERSION_STR);	
+	rng_math_log = h2log::create("Random", prepareLogFileName(L"h2random"), H2Config_debug_log, H2Config_debug_log_level);
+	LOG_DEBUG(rng_math_log, DLL_VERSION_STR);
 #if COMPILE_WITH_VOICE
 	voice_log = h2log::create("Voice", prepareLogFileName(L"voicechat"), H2Config_debug_log, H2Config_debug_log_level);
 	LOG_DEBUG(voice_log, DLL_VERSION_STR);

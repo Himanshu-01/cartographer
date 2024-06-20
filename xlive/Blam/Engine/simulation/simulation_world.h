@@ -169,7 +169,7 @@ public:
 	bool is_playback() const
 	{
 		// todo: re-add once destroy_world function is re-written
-		ASSERT(exists());
+		//ASSERT(exists());
 		return false;
 	}
 
