@@ -71,6 +71,16 @@ void set_local_random_seed(uint32 seed)
 	random_math_get_globals()->local_seed = seed;
 }
 
+void seed_iterate_until_point(uint32 seed, uint32 seed_point, int32* out_seed_increment_count)
+{
+	*out_seed_increment_count = 0;
+	while (seed != seed_point)
+	{
+		seed = RANDOM_NEW_SEED(seed);
+		(*out_seed_increment_count)++;
+	}
+}
+
 real32 _real_random_range(uint32* seed, real32 lower_bound, real32 upper_bound)
 {
 	*seed = RANDOM_NEW_SEED(*seed);
@@ -115,12 +125,13 @@ const char* random_seed_disallow_calls[] =
 
 uint32 caller_address = 0;
 
-static void __cdecl random_math_log_bad_access(void)
+static void __cdecl random_math_log_bad_access(DWORD ret_address)
 {
+	ret_address -= Memory::GetAddress();
 	if (g_deterministic_seed_allowed_usages <= 0)
 	{
-		caller_address -= Memory::GetAddress();
-		LOG_CRITICAL_NETWORK("someone is using the global random number generator when they shouldn't be at 0x{:X}  time [{}]", caller_address , time_globals::get_game_time());
+		LOG_CRITICAL_NETWORK("someone is using the global random number generator when they shouldn't be at 0x{:X}  time [{}]", (void*)ret_address, time_globals::get_game_time());
+	}
 
 
 		//return get_local_random_seed_address();
@@ -144,11 +155,12 @@ __declspec(naked) uint32* get_random_seed_address_hook()
 	{
 		// grab caller_address
 		mov     eax, [esp]
-		mov     caller_address, eax
+		push	eax
 		call    random_math_log_bad_access
+		add esp, 4
 		//retn
 
-		//// original code
+		// original code
 		call	random_math_get_globals
 		retn
 	}

@@ -254,8 +254,8 @@ void game_globals_apply_tag_patches(s_game_options* options)
 {
 	if (options->game_mode == _game_mode_multiplayer)
 	{
-		game_globals_add_new_player_representations();
-		game_globals_remove_singleplayer_representation();
+		//game_globals_add_new_player_representations();
+		//game_globals_remove_singleplayer_representation();
 	}
 	return;
 }

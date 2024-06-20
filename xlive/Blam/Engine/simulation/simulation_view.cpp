@@ -43,11 +43,9 @@ void c_simulation_view::synchronous_catchup_send_data()
 	INVOKE_TYPE(0x1DF2E7, 0x0, void(__thiscall*)(c_simulation_view*), this);
 }
 
-const char* c_simulation_view::get_view_description(void)
+void c_simulation_view::get_view_description(static_string64* out_description)
 {
-	static_string64 buffer;
-	sprintf(buffer.get_buffer(), "v%d/m%d/%s", m_view_index, m_remote_machine_index, "unknown");
-	return buffer.get_string();
+	sprintf(out_description->get_buffer(), "v%d/m%d/%s", m_view_index, m_remote_machine_index, "unknown");
 }
 
 void c_simulation_view::dispatch_synchronous_update(simulation_update* host_update)
@@ -67,8 +65,7 @@ void c_simulation_view::dispatch_synchronous_update(simulation_update* host_upda
 
 	if (m_view_establishment_mode == _simulation_view_establishment_mode_active)
 	{
-
-		//if (m_observer_channel_index != 0xFFFFFFFF) {
+		//if (m_observer_channel_index != NONE) {
 		//	m_observer->send_message(2, m_observer_channel_index, false, _synchronous_update, sizeof(s_network_message_synchronous_update), &packet);
 		//	//LOG_TRACE_FUNC("sent");
 		//}
@@ -111,9 +108,12 @@ void c_simulation_view::go_out_of_sync(void)
 	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_client);
 	ASSERT(m_world != nullptr);
 
+	static_string64 view_description;
+	get_view_description(&view_description);
+
 	//simulation:view: view %s is OUT OF SYNC at update/time [#%d]/[#%d]
 	LOG_CRITICAL_NETWORK("simulation:view: view {} is OUT OF SYNC at update/time [#{}]/[#{}]",
-		get_view_description(),
+		view_description.get_buffer(),
 		m_world->get_next_update_number(),
 		m_world->get_time());
 
@@ -148,6 +148,9 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 	ASSERT(view_type() == _simulation_view_type_synchronous_to_remote_client);
 	ASSERT(m_world != nullptr);
 
+	static_string64 view_description;
+	get_view_description(&view_description);
+
 	if (is_out_of_sync)
 	{
 		go_out_of_sync();
@@ -169,7 +172,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 			{
 				//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d], world not active
 				LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}], world not active",
-					get_view_description(),
+					view_description.get_buffer(),
 					action_no,
 					update_no);
 			}
@@ -178,7 +181,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 		{
 			//simulation:view: view[% s] synchronous-actions discarded action / update[#%d] / [#%d] in the future (update/time [#%d]/[#%d])",
 			LOG_CRITICAL_NETWORK("simulation:view: view[{}] synchronous-actions discarded action / update[#{}] / [#{}] in the future (update/time [#{}]/[#{}])",
-				get_view_description(),
+				view_description.get_buffer(),
 				action_no,
 				update_no,
 				m_world->get_next_update_number(),
@@ -190,7 +193,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 	{
 		//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d] < most recent [#%d]/[#%d]
 		LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}] < most recent [#{}]/[#{}]",
-			get_view_description(),
+			view_description.get_buffer(),
 			action_no,
 			update_no,
 			m_synchronous_client_action_no,

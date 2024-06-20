@@ -469,7 +469,7 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	if (!is_active() && !m_time_immediate_update)
 	{
 		//"simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state %d)",
-		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state {})", get_state());
+		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state {})", (int32)get_state());
 		go_out_of_sync();
 		return false;
 	}

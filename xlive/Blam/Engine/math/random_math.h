@@ -37,6 +37,8 @@ void set_local_random_seed(uint32 random_number);
 
 real32 _real_random_range(uint32* seed, real32 lower_bound, real32 upper_bound);
 
+void seed_iterate_until_point(uint32 seed, uint32 seed_point, int32* out_seed_increment_count);
+
 int16 _random_integer(uint32* seed);
 
 int16 _random_range(uint32* seed, int16 lower_bound, int16 upper_bound);
@@ -45,5 +47,6 @@ real_vector3d* _random_direction3d(uint32* seed, const char* type, char* file, i
 
 void random_seed_allow_use();
 void random_seed_disallow_use(e_random_seed_calls);
+void random_math_dump_call_stack();
 
 void random_math_apply_patches();

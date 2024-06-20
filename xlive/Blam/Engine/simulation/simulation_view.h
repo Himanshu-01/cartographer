@@ -4,6 +4,8 @@
 #include "Networking/Transport/network_observer.h"
 #include "memory/ring_buffer.h"
 
+#include "cseries/cseries_strings.h"
+
 enum e_simulation_view_type : int16
 {
 	_simulation_view_type_none = 0x0,
@@ -113,11 +115,11 @@ class c_simulation_view
 
 	bool synchronous_catchup_submit_update(s_network_message_synchronous_update* update);
 	void synchronous_catchup_send_data();
-	const char* get_view_description(void);
+	void get_view_description(static_string64* out_description);
 public:
 	bool exists() const
 	{
-		m_view_type != _simulation_view_type_none;
+		return m_view_type != _simulation_view_type_none;
 	}
 	e_simulation_view_type view_type(void) const
 	{
@@ -145,7 +147,7 @@ public:
 	}
 	bool is_dead() const
 	{
-		m_view_death_reason != _simulation_view_reason_none;
+		return m_view_death_reason != _simulation_view_reason_none;
 	}
 	bool is_dead(e_simulation_view_reason* out_reason) const
 	{

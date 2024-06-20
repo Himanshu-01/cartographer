@@ -309,7 +309,14 @@ void __cdecl simulation_build_update(simulation_update* update)
         if (update->random_seed != get_random_seed())
         {
             //simulation:global: OUT OF SYNC, random seed differs, update [#%d] time [%d] seed [0x%08X] (local seed [0x%08X])"
-            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, random seed differs, update [#{}] time [{}] seed [0x{:08X}] (local seed [0x{:08X}])", update->simulation_time, update->game_time_ticks, update->random_seed, get_random_seed());
+            int32 seed_off_index;
+            seed_iterate_until_point(get_random_seed(), update->random_seed, &seed_off_index);
+            LOG_CRITICAL_NETWORK("simulation:global: OUT OF SYNC, random seed differs, update [#{}] time [{}] seed [0x{:08X}] (local seed [0x{:08X}]), seed off by: {}", 
+                update->simulation_time, 
+                update->game_time_ticks, 
+                update->random_seed, 
+                get_random_seed(),
+                seed_off_index);
             go_oos = true;
         }
     }
