@@ -3,6 +3,7 @@
 #include "simulation.h"
 #include "Networking/Transport/network_observer.h"
 #include "Networking/NetworkMessageTypeCollection.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 
 
 void c_simulation_view::kill_view(e_simulation_view_reason reason)
@@ -48,13 +49,13 @@ void c_simulation_view::get_view_description(static_string64* out_description)
 	sprintf(out_description->get_buffer(), "v%d/m%d/%s", m_view_index, m_remote_machine_index, "unknown");
 }
 
-void c_simulation_view::dispatch_synchronous_update(simulation_update* host_update)
+void c_simulation_view::dispatch_synchronous_update(struct simulation_update* host_update)
 {
 	//INVOKE_TYPE(0x1DFB6C, 0x0, void(__thiscall*)(c_simulation_view*, simulation_update*), this, host_update);
 	s_network_message_synchronous_update packet;
 	s_network_message_synchronous_update* authority_message = simulation_get_synchronous_message();
 	//packet = authority_message;
-	csmemcpy(&packet.update, &authority_message->update, sizeof(simulation_update));
+	csmemcpy(&packet.update, &authority_message->update, sizeof(struct simulation_update));
 	packet.simulation_bookkeeping_queue.duplicate(&authority_message->simulation_bookkeeping_queue);
 	packet.game_simulation_queue.duplicate(&authority_message->game_simulation_queue);
 

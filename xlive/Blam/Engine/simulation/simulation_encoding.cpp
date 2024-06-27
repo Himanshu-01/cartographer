@@ -2,6 +2,7 @@
 #include "simulation_encoding.h"
 #include "simulation.h"
 #include "game/game_time.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 
 //typedef simulation_update s_network_message_synchronous_update;
 

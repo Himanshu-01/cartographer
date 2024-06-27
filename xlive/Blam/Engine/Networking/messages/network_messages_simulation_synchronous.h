@@ -1,5 +1,7 @@
 #pragma once
 #include "game/player_control.h"
+#include "simulation/simulation.h"
+#include "simulation/simulation_queue.h"
 
 struct s_network_message_synchronous_actions
 {
@@ -24,3 +26,23 @@ struct s_network_message_synchronous_gamestate
 	int32 gamestate_size;
 };
 ASSERT_STRUCT_SIZE(s_network_message_synchronous_gamestate, 8);
+
+#define k_orginal_sizeof_s_network_message_synchronous_update 15320
+#pragma pack(push,1)
+struct s_network_message_synchronous_update
+{
+	struct simulation_update update;
+	c_simulation_queue simulation_bookkeeping_queue;
+	c_simulation_queue game_simulation_queue;
+};
+ASSERT_STRUCT_SIZE(s_network_message_synchronous_update, k_orginal_sizeof_s_network_message_synchronous_update + sizeof(c_simulation_queue) * 2);
+#pragma pack(pop)
+
+#define k_orginal_sizeof_s_simulation_update_node (k_orginal_sizeof_s_network_message_synchronous_update + 8)
+struct s_simulation_update_node
+{
+	s_network_message_synchronous_update update_message;
+	s_simulation_update_node* next;
+	char gap[4];
+};
+ASSERT_STRUCT_SIZE(s_simulation_update_node, k_orginal_sizeof_s_simulation_update_node + sizeof(c_simulation_queue) * 2);

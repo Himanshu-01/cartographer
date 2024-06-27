@@ -338,6 +338,12 @@
     <ClCompile Include="Blam\Engine\simulation\simulation_view.cpp" />
     <ClCompile Include="Blam\Engine\memory\ring_buffer.cpp" />
     <ClCompile Include="Blam\Engine\Networking\messages\network_message_handler.cpp" />
+    <ClCompile Include="Blam\Engine\debug\debug_determinism.cpp" />
+    <ClCompile Include="Blam\Engine\debug\debug_simulation_globals.cpp" />
+    <ClCompile Include="Blam\Engine\cseries\debug_memory.cpp" />
+    <ClCompile Include="Blam\Engine\debug\debug_update.cpp" />
+    <ClCompile Include="Blam\Engine\memory\data_compress.cpp" />
+    <ClCompile Include="Blam\Engine\debug\debug_gamestate.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\miniupnpc\include\miniupnpc\codelength.h" />
@@ -935,6 +941,13 @@
     <ClInclude Include="Blam\Engine\memory\ring_buffer.h" />
     <ClInclude Include="Blam\Engine\Networking\messages\network_message_handler.h" />
     <ClInclude Include="Blam\Engine\Networking\messages\network_messages_simulation_synchronous.h" />
+    <ClInclude Include="Blam\Engine\debug\debug_simulation_globals.h" />
+    <ClInclude Include="Blam\Engine\debug\debug_determinism.h" />
+    <ClInclude Include="Blam\Engine\debug\debug_update.h" />
+    <ClInclude Include="Blam\Engine\debug\debug_gamestate.h" />
+    <ClInclude Include="Blam\Engine\cseries\debug_memory.h" />
+    <ClInclude Include="Blam\Engine\debug\debug_simulation_constants.h" />
+    <ClInclude Include="Blam\Engine\memory\data_compress.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />

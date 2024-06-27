@@ -28,25 +28,6 @@ struct alignas(8) simulation_update
 };
 ASSERT_STRUCT_SIZE(simulation_update, 0x3BD8);
 
-#define k_orginal_sizeof_s_network_message_synchronous_update 15320
-#pragma pack(push,1)
-struct s_network_message_synchronous_update
-{
-	simulation_update update;
-	c_simulation_queue simulation_bookkeeping_queue;
-	c_simulation_queue game_simulation_queue;
-};
-ASSERT_STRUCT_SIZE(s_network_message_synchronous_update, k_orginal_sizeof_s_network_message_synchronous_update + sizeof(c_simulation_queue) * 2);
-#pragma pack(pop)
-
-#define k_orginal_sizeof_s_simulation_update_node (k_orginal_sizeof_s_network_message_synchronous_update + 8)
-struct s_simulation_update_node
-{
-	s_network_message_synchronous_update update_message;
-	s_simulation_update_node* next;
-	char gap[4];
-};
-ASSERT_STRUCT_SIZE(s_simulation_update_node, k_orginal_sizeof_s_simulation_update_node + sizeof(c_simulation_queue) * 2);
 
 struct s_simulation_globals
 {
@@ -67,23 +48,25 @@ ASSERT_STRUCT_SIZE(s_simulation_globals, 24);
 c_simulation_world* simulation_get_world();
 s_simulation_globals* simulation_get_globals();
 
-void simulation_reset();
-void simulation_fatal_error(void);
-bool simulation_reset_in_progress();
 bool simulation_starting_up(void);
-void simulation_notify_reset_complete();
-
+bool simulation_reset_in_progress();
 bool simulation_aborted();
 bool simulation_in_progress();
-void simulation_destroy_update(void);
 bool simulation_query_object_is_predicted(datum object_datum);
-c_simulation_type_collection* simulation_get_type_collection();
-
-void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
-void __cdecl simulation_start(void);
-
 bool __cdecl simulation_get_machine_active_in_game(s_machine_identifier* machine_identifier);
+
+
+void simulation_reset();
+void simulation_fatal_error(void);
+void simulation_notify_reset_complete();
+void simulation_destroy_update(void);
+void __cdecl simulation_start(void);
+void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
+
+c_simulation_type_collection* simulation_get_type_collection();
 c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index);
+
+
 s_network_message_synchronous_update* simulation_get_synchronous_message();
 
 void simulation_apply_patches(void);

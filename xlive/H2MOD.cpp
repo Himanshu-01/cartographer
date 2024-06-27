@@ -37,6 +37,7 @@
 #include "main/main_game.h"
 #include "main/main_render.h"
 #include "Networking/NetworkMessageTypeCollection.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 #include "Networking/messages/network_message_handler.h"
 #include "Networking/Transport/transport.h"
 #include "objects/damage.h"

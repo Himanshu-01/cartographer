@@ -11,6 +11,7 @@
 #include "math/random_math.h"
 #include "saved_games/game_state_procs.h"
 #include "shell/shell_windows.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 
 // TODO verify if these buffers get saturated quickly
 // if that's the case, increse the buffer size
@@ -380,6 +381,7 @@ void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 		if (v4)
 			this->m_synchronous_client_queue_tail = nullptr;
 
+		//free the sim_queues here after duplication
 		update_node->update_message.simulation_bookkeeping_queue.dispose();
 		update_node->update_message.game_simulation_queue.dispose();
 		network_heap_free_block((uint8*)update_node);
@@ -422,6 +424,7 @@ bool c_simulation_world::update_queue_handle_server_update(const s_network_messa
 	this->m_synchronous_client_queue_tail = update_node;
 
 	csmemcpy(&update_node->update_message, host_update, sizeof(s_network_message_synchronous_update));
+	//no need to duplicate sim_queues here as the allocated queue can be reused (does not get freed my message_handler)
 	//update_node->update_message.game_simulation_queue.duplicate(&host_update->game_simulation_queue);
 	//update_node->update_message.simulation_bookkeeping_queue.duplicate(&host_update->simulation_bookkeeping_queue);
 	

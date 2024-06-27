@@ -3,6 +3,13 @@
 
 // TODO create an extended version of s_file_reference that supports MAX_PATH and wide strings
 
+//internal
+void __cdecl file_check_for_errors(void)
+{
+	INVOKE(0x63273, 0x0, file_check_for_errors);
+}
+
+
 s_file_reference* file_reference_create_from_path(s_file_reference* file_reference, const utf8* path, bool path_is_directory)
 {
 	typedef s_file_reference* (__cdecl* file_reference_create_from_path_t)(s_file_reference*, const utf8*, bool);
@@ -45,11 +52,27 @@ bool file_read(s_file_reference* file_reference, uint32 bytes_to_read, bool supp
 	return p_file_read(file_reference, bytes_to_read, suppress_errors, data_buffer);
 }
 
+bool file_read_from_position(s_file_reference* file_reference, uint32 lDistanceToMove, uint32 bytes_to_read, bool suppress_errors, void* data_buffer)
+{
+	ASSERT(data_buffer);
+
+	return file_set_position(file_reference, lDistanceToMove, suppress_errors)
+		&& file_read(file_reference, bytes_to_read, suppress_errors, data_buffer);
+}
+
 bool file_write(s_file_reference* file_reference, uint32 data_size, void* data)
 {
 	typedef bool(__cdecl* file_write_t)(s_file_reference*, uint32, void*);
 	auto p_file_write = Memory::GetAddress<file_write_t>(0x63CBC, 0x65F98);
 	return p_file_write(file_reference, data_size, data);
+}
+
+bool file_write_to_position(s_file_reference* file_reference, uint32 lDistanceToMove, uint32 data_size, void* data)
+{
+	ASSERT(data);
+
+	return file_set_position(file_reference, lDistanceToMove, false)
+		&& file_write(file_reference, data_size, data);
 }
 
 bool file_get_size(s_file_reference* file_reference, uint32* size)
@@ -96,6 +119,35 @@ bool file_set_hidden(s_file_reference* file_reference, bool hidden)
 	typedef bool(__cdecl* file_set_hidden_t)(s_file_reference*, bool);
 	auto p_file_set_hidden = Memory::GetAddress<file_set_hidden_t>(0x63545, 0x65845);
 	return p_file_set_hidden(file_reference, hidden);
+}
+
+bool file_set_position(s_file_reference* file_reference, uint32 lDistanceToMove, bool suppress_errors)
+{
+	//return INVOKE(0x63B9A, 0x0, file_set_position, file_reference,lDistanceToMove,suppress_errors);
+
+	if (file_reference->api_result == lDistanceToMove)
+		return true;
+
+	DWORD result = SetFilePointer(file_reference->handle, lDistanceToMove, NULL, FILE_BEGIN);
+	file_reference->api_result = result;
+
+	if (result == INVALID_SET_FILE_POINTER && !suppress_errors)
+	{
+		file_check_for_errors();
+	}
+
+	return result != INVALID_SET_FILE_POINTER;
+}
+
+bool file_exists(s_file_reference* file_reference)
+{
+	return INVOKE(0x637AD, 0x0, file_exists, file_reference);
+}
+
+
+bool file_create_parent_directories_if_not_present(s_file_reference* file_reference)
+{
+	return INVOKE(0x8C531, 0x0, file_create_parent_directories_if_not_present, file_reference);
 }
 
 bool compress_file_to_zip(zipFile zip_file, s_file_reference* file_to_add, const char* path_in_zip)

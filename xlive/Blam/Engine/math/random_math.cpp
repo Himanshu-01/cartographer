@@ -3,8 +3,8 @@
 
 #include "random_direction_table.h"
 #include "game/game_time.h"
+#include "debug/debug_determinism.h"
 
-#include <stack>
 
 // More info:
 // https://en.wikipedia.org/wiki/Linear_congruential_generator
@@ -123,11 +123,6 @@ const char* random_seed_disallow_calls[] =
 	"simulation_update_pregame",
 };
 
-extern bool debugging_last_tick;
-std::stack<std::pair<uint32,uint32>> return_addresses;
-
-
-
 static void __cdecl random_math_log_bad_access(DWORD ret_address)
 {
 	ret_address -= Memory::GetAddress();
@@ -136,14 +131,8 @@ static void __cdecl random_math_log_bad_access(DWORD ret_address)
 		LOG_CRITICAL_NETWORK("someone is using the global random number generator when they shouldn't be at 0x{:X}  time [{}]", (void*)ret_address, time_globals::get_game_time());
 	}
 
+	//debug_random_record_call_entry(ret_address);
 
-
-	return_addresses.push({ time_globals::get_game_time(), ret_address });
-
-	if (debugging_last_tick)
-	{
-		LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_address);
-	}
 }
 
 __declspec(naked) uint32* get_random_seed_address_hook()
@@ -181,18 +170,6 @@ void random_seed_disallow_use(e_random_seed_calls caller)
 	}
 }
 
-void random_math_dump_call_stack()
-{
-	LOG_TRACE(rng_math_log, "Dumping random_math call stack started");
-	while (!return_addresses.empty())
-	{
-		auto top = return_addresses.top();
-		LOG_TRACE(rng_math_log, "tick {}  offset 0x{:X}", top.first, top.second);
-		return_addresses.pop();
-
-	}
-	LOG_TRACE(rng_math_log, "finished dumping call stack session");
-}
 
 void random_math_apply_patches()
 {

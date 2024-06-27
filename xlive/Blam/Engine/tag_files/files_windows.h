@@ -66,8 +66,17 @@ On failure, if hide_errors_from_user is set to false an error is displayed to th
 */
 bool file_read(s_file_reference* file_reference, uint32 bytes_to_read, bool suppress_errors, void* data_buffer);
 
+/*
+On success the data read is written to data_buffer and the function returns true
+On failure, if suppress_errors is set to false an error is displayed to the user and false is returned, if the number of bytes read doesn't match the requested amount ERROR_HANDLE_EOF is set
+*/
+bool file_read_from_position(s_file_reference* file_reference, uint32 lDistanceToMove, uint32 bytes_to_read, bool suppress_errors, void* data_buffer);
+
 /* Returns success */
 bool file_write(s_file_reference* file_reference, uint32 data_size, void* data);
+
+/* Returns success */
+bool file_write_to_position(s_file_reference* file_reference, uint32 lDistanceToMove, uint32 data_size, void* data);
 
 /* */
 bool file_get_size(s_file_reference* file_reference, uint32* size);
@@ -83,6 +92,15 @@ bool file_read_only(s_file_reference* file_reference, bool read_only);
 
 /* */
 bool file_set_hidden(s_file_reference* file_reference, bool hidden);
+
+/* */
+bool file_set_position(s_file_reference* file_reference, uint32 lDistanceToMove, bool suppress_errors);
+
+/* */
+bool file_exists(s_file_reference* file_reference);
+
+/* */
+bool file_create_parent_directories_if_not_present(s_file_reference* file_reference);
 
 // Add a file to a zip file using zlib
 // zip_file: zip file we want to add the file to

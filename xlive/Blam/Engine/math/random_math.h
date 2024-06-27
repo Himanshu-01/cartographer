@@ -47,6 +47,5 @@ real_vector3d* _random_direction3d(uint32* seed, const char* type, char* file, i
 
 void random_seed_allow_use();
 void random_seed_disallow_use(e_random_seed_calls);
-void random_math_dump_call_stack();
 
 void random_math_apply_patches();

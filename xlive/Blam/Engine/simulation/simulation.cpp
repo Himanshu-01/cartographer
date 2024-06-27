@@ -10,6 +10,7 @@
 #include "game/game_time.h"
 #include "objects/objects.h"
 #include "simulation/game_interface/simulation_game_action.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 
 
 #define GAME_STATE_ALLOCATION_SIZE 0x3FE000
@@ -89,6 +90,7 @@ void simulation_reset_immediate()
     // simulation_queue_gamestates_delete_insert();
     simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_notify_reset_complete);
 }
+
 
 void __cdecl simulation_reset()
 {
@@ -202,7 +204,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
         // "if it works it works" 
     }
 
-    simulation_record_and_apply_state(update);
+    //simulation_record_and_apply_state(update);
 
     for (int32 i = 0; i < k_maximum_players; i++)
     {
@@ -264,8 +266,8 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
     if (update->flush_gamestate)
     {
-        LOG_CRITICAL_NETWORK("simulation:global: trying to flush gamestate world type {}", sim_world->get_world_type());
-        simulation_get_globals()->world->gamestate_flush_immediate();
+        //LOG_CRITICAL_NETWORK("simulation:global: trying to flush gamestate world type {}", sim_world->get_world_type());
+        //simulation_get_globals()->world->gamestate_flush_immediate();
     }
 
 	// destroy the update exactly after we applied the queues to the gamestate
@@ -368,7 +370,7 @@ void simulation_record_and_apply_state(simulation_update* update)
     if(globals->world->is_out_of_sync())
     {
         LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed on client");
-        random_math_dump_call_stack();
+        //random_math_dump_call_stack();
         
         LOG_CRITICAL_NETWORK("simulation:global:debug we are pausing the game.. waiting on you to start debugging");
         time_globals::get()->paused = true;
