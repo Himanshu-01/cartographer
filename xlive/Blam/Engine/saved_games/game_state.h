@@ -37,3 +37,5 @@ void* __cdecl game_state_malloc(const char* name, const char* description, uint3
 
 // returns pointer to gamestate_allocation_base_address
 void* __cdecl game_state_get_buffer_address(uint32* buffer_size);
+
+void game_state_apply_patches();

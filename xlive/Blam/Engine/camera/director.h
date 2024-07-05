@@ -12,3 +12,9 @@ enum e_director_mode : int32
 };
 
 int32 __cdecl director_get_perspective(int32 user_index);
+bool director_in_scripted_camera();
+
+void __cdecl director_initialize_for_new_map();
+void __cdecl director_script_camera(bool script_camera);
+
+void director_apply_patches();

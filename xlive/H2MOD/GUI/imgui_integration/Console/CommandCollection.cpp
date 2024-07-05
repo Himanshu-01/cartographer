@@ -89,8 +89,13 @@ std::vector<ConsoleCommand*> CommandCollection::commandTable = {
 	new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect),
 	new ConsoleCommand("force_coop", "force sp coop on map load (true/false)", 1, 1, CommandCollection::coop),
 	new ConsoleCommand("change_protocol", "change network protocol (0,1,2)", 1, 1, CommandCollection::protocol),
-	new ConsoleCommand("debug_save_test", "write test", 0, 0, CommandCollection::debug_save),
-	new ConsoleCommand("debug_load_test", "read test", 0, 0, CommandCollection::debug_load)
+	new ConsoleCommand("debug_save_test", "write test", 0, 0, CommandCollection::debug_save_test),
+	new ConsoleCommand("debug_load_test", "read test", 0, 0, CommandCollection::debug_load_test),
+	new ConsoleCommand("debug_pause", "set game pause/unpause", 1, 1, CommandCollection::debug_pause),
+	new ConsoleCommand("debug_simuation_name", "set name for debug simulation_file", 1, 1, CommandCollection::debug_simuation_name),
+	new ConsoleCommand("debug_simuation_start", "start recording debug simulation data", 0, 0, CommandCollection::debug_simuation_start),
+	new ConsoleCommand("debug_simuation_launch", "launch into debug simulation replay", 0, 0, CommandCollection::debug_simuation_launch),
+
 };
 
 void CommandCollection::InitializeCommandsMap()
@@ -927,16 +932,16 @@ int CommandCollection::coop(const std::vector<std::string>& tokens, ConsoleComma
 {
 
 	ConsoleLog* output = cbData.strOutput;
-	ComVar<int> context;
+	ComVar<bool> context;
 	std::string exception;
 
-	if (!context.SetValFromStr(tokens[1], 0, exception))
-	{
-		output->Output(StringFlag_None, command_error_bad_arg);
-		output->Output(StringFlag_None, "	%s", exception.c_str());
-		return 0;
-	}
-	
+	//if (!context.SetValFromStr(tokens[1], 0, exception))
+	//{
+	//	output->Output(StringFlag_None, command_error_bad_arg);
+	//	output->Output(StringFlag_None, "	%s", exception.c_str());
+	//	return 0;
+	//}
+	//
 
 	force_coop = context.GetVal();
 
@@ -990,17 +995,68 @@ int CommandCollection::protocol(const std::vector<std::string>& tokens, ConsoleC
 	return 0;
 }
 
-int CommandCollection::debug_save(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+int CommandCollection::debug_save_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
-	debug_simulation_initialize();
-	debug_simulation_gamestate_write_test();
+	//debug_simulation_initialize();
+	//debug_simulation_gamestate_write_test();
+
+	debug_simulation_write_debug_file();
 	return 0;
 }
 
-int CommandCollection::debug_load(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+int CommandCollection::debug_load_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
 {
-	debug_simulation_initialize();
-	debug_simulation_gamestate_read_test();
+	//debug_simulation_initialize();
+	//debug_simulation_gamestate_read_test();
+
+	debug_simulation_read_debug_file();
+	return 0;
+}
+
+int CommandCollection::debug_pause(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	ConsoleLog* output = cbData.strOutput;
+	ComVar<bool> pauseInput;
+	std::string exception;
+
+
+	if (!pauseInput.SetValFromStr(tokens[1], 0, exception))
+	{
+		output->Output(StringFlag_None, command_error_bad_arg);
+		output->Output(StringFlag_None, "	%s", exception.c_str());
+		return 0;
+	}
+
+	debug_simulation_pause(pauseInput.GetVal());
+
+	return 0;
+}
+
+int CommandCollection::debug_simuation_name(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	ConsoleLog* output = cbData.strOutput;
+	std::string arg = tokens[1];
+
+	if (arg.length() >= 32)
+	{
+		output->Output(StringFlag_None, "name length should not be more than 32 characters");
+		return 0;
+	}
+
+	debug_simulation_set_name(arg.c_str());
+	return 0;
+}
+
+int CommandCollection::debug_simuation_start(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+
+	debug_simulation_start_recording();
+	return 0;
+}
+
+int CommandCollection::debug_simuation_launch(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	debug_simulation_launch_replay();
 	return 0;
 }
 

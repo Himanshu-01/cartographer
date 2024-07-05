@@ -2,6 +2,7 @@
 #include "debug_determinism.h"
 #include "debug_simulation_globals.h"
 #include "game/game_time.h"
+#include "Networking/Session/NetworkSession.h"
 #include <stack>
 
 
@@ -23,7 +24,7 @@ void debug_random_record_clear()
 
 void debug_random_dump_call_stack()
 {
-	LOG_TRACE(rng_math_log, "Dumping random_math call stack started");
+	LOG_TRACE(rng_math_log, "Dumping random_math call stack started , is_host :", NetworkSession::LocalPeerIsSessionHost());
 	while (!return_addresses.empty())
 	{
 		auto top = return_addresses.top();

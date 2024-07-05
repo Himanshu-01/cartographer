@@ -6,6 +6,7 @@
 #include "simulation_queue_entities.h"
 #include "simulation_queue_global_events.h"
 
+#include "debug/debug_simulation_globals.h"
 #include "game/game.h"
 #include "game/game_time.h"
 #include "math/random_math.h"
@@ -34,6 +35,9 @@ c_simulation_queue* c_simulation_world::queue_get(e_simulation_queue_type type) 
 
 void c_simulation_world::simulation_queue_allocate(e_event_queue_type type, int32 size, s_simulation_queue_element** out_allocated_elem)
 {
+	if (is_playback())
+		return;
+
 	*out_allocated_elem = NULL;
 
 	if (TEST_FLAG(FLAG(type), _simulation_queue_element_type_bookkeeping))
@@ -90,17 +94,20 @@ void c_simulation_world::simulation_queue_free(s_simulation_queue_element* eleme
 
 void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* element)
 {
+	if (is_playback())
+		return;
+
 	if (TEST_FLAG(FLAG(element->type), _simulation_queue_element_type_bookkeeping))
 	{
 		// player event, player update, gamestate clear
 		queue_get(_simulation_queue_bookkeeping)->enqueue(element);
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
+		SIM_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
 			&g_simulation_queues[_simulation_queue_bookkeeping],
 			g_simulation_queues[_simulation_queue_bookkeeping].allocated_count(),
 			g_simulation_queues[_simulation_queue_bookkeeping].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
+		SIM_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
 			&g_simulation_queues[_simulation_queue_bookkeeping],
 			g_simulation_queues[_simulation_queue_bookkeeping].queued_count(),
 			g_simulation_queues[_simulation_queue_bookkeeping].queued_size());
@@ -111,12 +118,12 @@ void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* el
 
 		queue_get(_simulation_queue)->enqueue(element);
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
+		SIM_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
 			&g_simulation_queues[_simulation_queue],
 			g_simulation_queues[_simulation_queue].allocated_count(),
 			g_simulation_queues[_simulation_queue].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
+		SIM_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
 			&g_simulation_queues[_simulation_queue],
 			g_simulation_queues[_simulation_queue].queued_count(),
 			g_simulation_queues[_simulation_queue].queued_size());
@@ -131,7 +138,7 @@ void c_simulation_world::apply_simulation_queue(const c_simulation_queue* queue,
 
 		while (element != NULL)
 		{
-			SIM_EVENT_QUEUE_DBG("appying element: %08X, type: %d to gamestate",
+			SIM_QUEUE_DBG("appying element: %08X, type: %d to gamestate",
 				element,
 				element->type);
 
@@ -191,6 +198,13 @@ void c_simulation_world::queues_clear()
 	{
 		queue_get((e_simulation_queue_type)i)->clear();
 	}
+}
+
+bool c_simulation_world::is_playback() const
+{
+	// todo: re-add once destroy_world function is re-written
+	//ASSERT(exists());
+	return debug_simulation_active() && debug_simulation_is_replaying();
 }
 
 typedef void(__thiscall* t_c_simulation_world__initialize_world)(c_simulation_world*, int32, int32, int32);
@@ -366,7 +380,7 @@ simulation_update last_update;
 void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 {
 	//INVOKE_TYPE(0x1DCE7C, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
-	if (do_we_have_sufficient_updates())
+	if (update_queue_length()>0)
 	{
 		s_simulation_update_node* update_node = this->m_synchronous_client_queue_head;
 		ASSERT(update_node);
@@ -394,7 +408,7 @@ void c_simulation_world::update_queue_retrieve_update(simulation_update* update)
 	}
 	else
 	{
-		LOG_CRITICAL_FUNC("using last update as backup");
+		LOG_CRITICAL_SIM("{}(): using last update as backup", __FUNCTION__);
 		csmemcpy(update, &last_update, sizeof(simulation_update));
 		update->simulation_in_progress = false;
 
@@ -424,7 +438,7 @@ bool c_simulation_world::update_queue_handle_server_update(const s_network_messa
 	this->m_synchronous_client_queue_tail = update_node;
 
 	csmemcpy(&update_node->update_message, host_update, sizeof(s_network_message_synchronous_update));
-	//no need to duplicate sim_queues here as the allocated queue can be reused (does not get freed my message_handler)
+	//no need to duplicate sim_queues here as the allocated queue can be reused (does not get freed by message_handler or gateway)
 	//update_node->update_message.game_simulation_queue.duplicate(&host_update->game_simulation_queue);
 	//update_node->update_message.simulation_bookkeeping_queue.duplicate(&host_update->simulation_bookkeeping_queue);
 	
@@ -438,8 +452,36 @@ void __declspec(naked) jmp_update_queue_handle_server_update() {
 
 int32 c_simulation_world::time_get_available(bool* match_remote_time)
 {
-	return INVOKE_TYPE(0x1DD2F6, 0x0, int32(__thiscall*)(c_simulation_world*, bool*), this, match_remote_time);
+	//return INVOKE_TYPE(0x1DD2F6, 0x0, int32(__thiscall*)(c_simulation_world*, bool*), this, match_remote_time);
+
+	int32 available_time = NONE; 
+
+	*match_remote_time = 0;
+	if (!m_time_running)
+		return available_time;
+
+	available_time = INT32_MAX;
+
+	if (debug_simulation_active() && debug_simulation_is_replaying())
+	{
+		available_time = update_queue_get_available_updates();
+	}
+	else
+	{
+		if (get_world_type() == _simulation_world_type_synchronous_authority)
+		{
+			available_time = synchronous_authority_get_maximum_updates();
+		}
+		else if (get_world_type() == _simulation_world_type_synchronous_client)
+		{
+			available_time = update_queue_get_available_updates();
+			*match_remote_time = true;
+		}
+	}
+
+	return available_time;
 }
+
 
 bool c_simulation_world::handle_synchronous_update(const s_network_message_synchronous_update* update)
 {
@@ -449,7 +491,7 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	if(synchronous_gamestate_write_in_progress())
 	{
 		//"simulation:world: OUT OF SYNC: server update arrived while gamestate transfer was incomplete"
-		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC : server update arrived while gamestate transfer was incomplete ");
+		LOG_CRITICAL_SIM("simulation:world: OUT OF SYNC : server update arrived while gamestate transfer was incomplete ");
 		go_out_of_sync();
 		return false;
 	}
@@ -457,14 +499,14 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	if (update->update.simulation_time < next_update_no)
 	{
 		//"simulation:world: synchronous-update discarded (expected #%ld, got old #%ld)",
-		LOG_CRITICAL_NETWORK("simulation:world: synchronous-update discarded (expected #{}, got old #{}) ", next_update_no, update->update.simulation_time);
+		LOG_CRITICAL_SIM("simulation:world: synchronous-update discarded (expected #{}, got old #{}) ", next_update_no, update->update.simulation_time);
 		return false;
 	}
 
 	if(update->update.simulation_time != next_update_no)
 	{
 		//"simulation:world: OUT OF SYNC: missed a server update (expected #%ld, got #%ld)",
-		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: missed a server update (expected #{}, got #{})", next_update_no, update->update.simulation_time);
+		LOG_CRITICAL_SIM("simulation:world: OUT OF SYNC: missed a server update (expected #{}, got #{})", next_update_no, update->update.simulation_time);
 		go_out_of_sync();
 		return false;
 	}
@@ -472,7 +514,7 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	if (!is_active() && !m_time_immediate_update)
 	{
 		//"simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state %d)",
-		LOG_CRITICAL_NETWORK("simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state {})", (int32)get_state());
+		LOG_CRITICAL_SIM("simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state {})", (int32)get_state());
 		go_out_of_sync();
 		return false;
 	}
@@ -480,7 +522,7 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	if (!update_queue_handle_server_update(update))
 	{
 		//"simulation:world: synchronous-update #%ld couldn't be inserted into update queue"
-		LOG_CRITICAL_NETWORK("simulation:world: synchronous-update #{} couldn't be inserted into update queue", update->update.simulation_time);
+		LOG_CRITICAL_SIM("simulation:world: synchronous-update #{} couldn't be inserted into update queue", update->update.simulation_time);
 		simulation_fatal_error();
 	}
 
@@ -488,7 +530,7 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 	{
 		bool match_remote_time;
 		//"simulation:world: processing immediate updates (%d at time #%d)",
-		LOG_CRITICAL_NETWORK("simulation:world: processing immediate updates({} at update #{} time #{})", time_get_available(&match_remote_time), get_next_update_number(), get_time());
+		LOG_CRITICAL_SIM("simulation:world: processing immediate updates({} at update #{} time #{})", time_get_available(&match_remote_time), get_next_update_number(), get_time());
 
 		while (game_in_progress()
 			&& !simulation_aborted()
@@ -504,6 +546,16 @@ bool c_simulation_world::handle_synchronous_update(const s_network_message_synch
 void c_simulation_world::handle_synchronous_client_actions(s_machine_identifier const* remote_machine_identifier, uint32 user_flags, player_action const* action)
 {
 	INVOKE_TYPE(0x1DCC3B, 0x0, void(__thiscall*)(void*, s_machine_identifier const*, uint32, player_action const*), this, remote_machine_identifier, user_flags, action);
+}
+
+int32 c_simulation_world::synchronous_authority_get_maximum_updates()
+{
+	return INVOKE_TYPE(0x1DC421, 0x0, int32(__thiscall*)(c_simulation_world*), this);
+}
+
+int32 c_simulation_world::update_queue_get_available_updates() const
+{
+	return m_synchronous_client_latest_update_number_received - m_synchronous_client_next_update_number_to_dequeue + 1;
 }
 
 
@@ -526,13 +578,13 @@ bool c_simulation_world::synchronous_gamestate_decompress_and_load(int32 gamesta
 {
 	if (!synchronous_gamestate_write_in_progress())
 	{
-		LOG_CRITICAL_NETWORK("simulation:world:gamestate: no gamestate transfer in progress, can't decompress");
+		LOG_CRITICAL_SIM("simulation:world:gamestate: no gamestate transfer in progress, can't decompress");
 		return false;
 	}
 
 	if (m_synchronous_gamestate_write_progress != gamestate_offset)
 	{
-		LOG_CRITICAL_NETWORK("simulation:world:gamestate: can't decompress, haven't received all compressed gamestate yet ({} != expected {} bytes)",
+		LOG_CRITICAL_SIM("simulation:world:gamestate: can't decompress, haven't received all compressed gamestate yet ({} != expected {} bytes)",
 			m_synchronous_gamestate_write_progress,
 			gamestate_offset);
 		return false;
@@ -545,14 +597,14 @@ bool c_simulation_world::synchronous_gamestate_write_chunk(int32 gamestate_offse
 {
 	if (!synchronous_gamestate_write_in_progress())
 	{
-		LOG_CRITICAL_NETWORK("simulation:world:gamestate: no gamestate transfer in progress, ignoring block offset/size {}/{}",
+		LOG_CRITICAL_SIM("simulation:world:gamestate: no gamestate transfer in progress, ignoring block offset/size {}/{}",
 			gamestate_offset,
 			gamestate_size);
 		return false;
 	}
 	else if (m_synchronous_gamestate_write_progress != gamestate_offset)
 	{
-		LOG_CRITICAL_NETWORK("simulation:world:gamestate: out-of-order gamestate offset/size {}/{} != expected {}",
+		LOG_CRITICAL_SIM("simulation:world:gamestate: out-of-order gamestate offset/size {}/{} != expected {}",
 			gamestate_offset,
 			gamestate_size,
 			m_synchronous_gamestate_write_progress);
@@ -658,7 +710,7 @@ c_simulation_view* c_simulation_world::get_authority_view()
 
 void c_simulation_world::go_out_of_sync(void)
 {
-	LOG_CRITICAL_NETWORK("simulation:world: going out of sync at next-update #{}", get_next_update_number());
+	LOG_CRITICAL_SIM("simulation:world: going out of sync at next-update #{}", get_next_update_number());
 	m_out_of_sync = true;
 }
 

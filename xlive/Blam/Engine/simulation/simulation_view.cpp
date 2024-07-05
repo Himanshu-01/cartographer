@@ -60,9 +60,9 @@ void c_simulation_view::dispatch_synchronous_update(struct simulation_update* ho
 	packet.game_simulation_queue.duplicate(&authority_message->game_simulation_queue);
 
 	if (packet.game_simulation_queue.queued_count() > 0)
-		LOG_TRACE_NETWORK(" {} game_simulation_queue  has count : {} ", __FUNCTION__, packet.game_simulation_queue.queued_count());
+		LOG_TRACE_SIM(" {} game_simulation_queue  has count : {} ", __FUNCTION__, packet.game_simulation_queue.queued_count());
 	if (packet.simulation_bookkeeping_queue.queued_count() > 0)
-		LOG_TRACE_NETWORK(" {} simulation_bookkeeping_queue has count : {} ", __FUNCTION__, packet.simulation_bookkeeping_queue.queued_count());
+		LOG_TRACE_SIM(" {} simulation_bookkeeping_queue has count : {} ", __FUNCTION__, packet.simulation_bookkeeping_queue.queued_count());
 
 	if (m_view_establishment_mode == _simulation_view_establishment_mode_active)
 	{
@@ -113,7 +113,7 @@ void c_simulation_view::go_out_of_sync(void)
 	get_view_description(&view_description);
 
 	//simulation:view: view %s is OUT OF SYNC at update/time [#%d]/[#%d]
-	LOG_CRITICAL_NETWORK("simulation:view: view {} is OUT OF SYNC at update/time [#{}]/[#{}]",
+	LOG_CRITICAL_SIM("simulation:view: view {} is OUT OF SYNC at update/time [#{}]/[#{}]",
 		view_description.get_buffer(),
 		m_world->get_next_update_number(),
 		m_world->get_time());
@@ -155,6 +155,8 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 	if (is_out_of_sync)
 	{
 		go_out_of_sync();
+		// if client is oos , tell host to go oos as well
+		this->m_world->go_out_of_sync();
 		return true;
 	}
 
@@ -172,7 +174,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 			else
 			{
 				//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d], world not active
-				LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}], world not active",
+				LOG_CRITICAL_SIM("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}], world not active",
 					view_description.get_buffer(),
 					action_no,
 					update_no);
@@ -181,7 +183,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 		else
 		{
 			//simulation:view: view[% s] synchronous-actions discarded action / update[#%d] / [#%d] in the future (update/time [#%d]/[#%d])",
-			LOG_CRITICAL_NETWORK("simulation:view: view[{}] synchronous-actions discarded action / update[#{}] / [#{}] in the future (update/time [#{}]/[#{}])",
+			LOG_CRITICAL_SIM("simulation:view: view[{}] synchronous-actions discarded action / update[#{}] / [#{}] in the future (update/time [#{}]/[#{}])",
 				view_description.get_buffer(),
 				action_no,
 				update_no,
@@ -193,7 +195,7 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 	else
 	{
 		//simulation:view: view %s synchronous-actions discarded action/update [#%d]/[#%d] < most recent [#%d]/[#%d]
-		LOG_CRITICAL_NETWORK("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}] < most recent [#{}]/[#{}]",
+		LOG_CRITICAL_SIM("simulation:view: view {} synchronous-actions discarded action/update [#{}]/[#{}] < most recent [#{}]/[#{}]",
 			view_description.get_buffer(),
 			action_no,
 			update_no,
@@ -220,7 +222,7 @@ bool c_simulation_view::handle_synchronous_join(int32 next_update_number)
 		if (m_world->synchronous_gamestate_write_start())
 		{
 			//"simulation:view: synchronous-join received at #%d (currently  #%d)"
-			LOG_CRITICAL_NETWORK("simulation:view: synchronous-join received at #{} (currently  #{})",
+			LOG_CRITICAL_SIM("simulation:view: synchronous-join received at #{} (currently  #{})",
 				next_update_number,
 				m_world->get_time());
 
@@ -232,7 +234,7 @@ bool c_simulation_view::handle_synchronous_join(int32 next_update_number)
 		else
 		{
 			//"simulation:view: synchronous-join unable to begin gamestate write"
-			LOG_CRITICAL_NETWORK("simulation:view: synchronous-join unable to begin gamestate write");
+			LOG_CRITICAL_SIM("simulation:view: synchronous-join unable to begin gamestate write");
 			kill_view(_simulation_view_reason_catchup_fail);
 
 		}
@@ -241,7 +243,7 @@ bool c_simulation_view::handle_synchronous_join(int32 next_update_number)
 	{
 		//"simulation:view: synchronous-join rejected, world is in state #%d (gamestate-write %s)"
 		char* state = m_world->synchronous_gamestate_write_in_progress() ? "in-progress" : "not-in-progress";
-		LOG_CRITICAL_NETWORK("simulation:view: synchronous-join rejected, world is in state #{} (gamestate-write {})",
+		LOG_CRITICAL_SIM("simulation:view: synchronous-join rejected, world is in state #{} (gamestate-write {})",
 			m_world->get_state(),
 			state);
 
@@ -263,7 +265,7 @@ bool c_simulation_view::handle_synchronous_gamestate(int32 gamestate_offset, int
 	if (!m_world->synchronous_gamestate_write_in_progress())
 	{
 		//"simulation:view: synchronous-gamestate rejected, world has no gamestate-write in progress (state #%d)"
-		LOG_CRITICAL_NETWORK("simulation:view: synchronous-gamestate rejected, world has no gamestate-write in progress (state #{})",
+		LOG_CRITICAL_SIM("simulation:view: synchronous-gamestate rejected, world has no gamestate-write in progress (state #{})",
 			m_world->get_state());
 
 		return false;
@@ -275,7 +277,7 @@ bool c_simulation_view::handle_synchronous_gamestate(int32 gamestate_offset, int
 		if (success)
 		{
 			//"simulation:world:gamestate: successfully decompressed gamestate (%d -> %d bytes, time #%d)",
-			LOG_CRITICAL_NETWORK("simulation:world:gamestate: successfully decompressed gamestate ({} -> {} bytes, time #{})",
+			LOG_CRITICAL_SIM("simulation:world:gamestate: successfully decompressed gamestate ({} -> {} bytes, time #{})",
 				gamestate_offset,
 				123456, // just a filler
 				m_world->get_time());
@@ -283,7 +285,7 @@ bool c_simulation_view::handle_synchronous_gamestate(int32 gamestate_offset, int
 		else
 		{
 			//"simulation:world:gamestate: gamestate didn't decompress successfully");
-			LOG_CRITICAL_NETWORK("simulation:world:gamestate: gamestate didn't decompress successfully");
+			LOG_CRITICAL_SIM("simulation:world:gamestate: gamestate didn't decompress successfully");
 		}
 	}
 	else
@@ -293,7 +295,7 @@ bool c_simulation_view::handle_synchronous_gamestate(int32 gamestate_offset, int
 		if(!success)
 		{
 			//"simulation:view: synchronous-gamestate block %d@%d rejected, gamestate write has failed",
-			LOG_CRITICAL_NETWORK("simulation:view: synchronous-gamestate block {}@{} rejected, gamestate write has failed",
+			LOG_CRITICAL_SIM("simulation:view: synchronous-gamestate block {}@{} rejected, gamestate write has failed",
 				message_gamestate_size,
 				gamestate_offset);
 		}

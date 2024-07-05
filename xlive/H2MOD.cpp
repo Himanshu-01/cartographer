@@ -3,6 +3,7 @@
 
 #include "camera/dead_camera.h"
 #include "camera/observer.h"
+#include "camera/director.h"
 #include "cartographer/discord/discord_interface.h"
 #include "cartographer/tag_fixes/tag_fixes.h"
 #include "cutscene/cinematics.h"
@@ -48,6 +49,7 @@
 #include "rasterizer/dx9/rasterizer_dx9_water.h"
 #include "render/render.h"
 #include "saved_games/game_state_procs.h"
+#include "saved_games/game_state.h"
 #include "simulation/simulation.h"
 #include "simulation/simulation_entity_database.h"
 #include "simulation/simulation_players.h"
@@ -1034,7 +1036,9 @@ void H2MOD::ApplyHooks() {
 		rasterizer_dx9_water_apply_patches();
 
 		cinematics_apply_patches();
+		director_apply_patches();
 		game_time_apply_patches();
+		game_state_apply_patches();
 		game_state_procs_apply_patches();
 		apply_particle_update_patches();
 		apply_dead_camera_patches();

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "debug_update.h"
+#include "game/game_options.h"
 #include "cseries/cseries_strings.h"
 #include "tag_files/files_windows.h"
 
@@ -9,6 +10,7 @@ enum e_simulation_debug_chunk_type
 	_debug_chunk_gamestate,
 	_debug_chunk_update,
 	_debug_chunk_random, //maybe someday
+	k_simulation_debug_chunk_types,
 };
 
 
@@ -20,8 +22,12 @@ struct s_simulation_debug_globals
 	bool record_random;
 	bool record_gamestate;
 	bool record_update;
+	bool recorded_gamestate;
 
 	bool replay_started;
+	bool replay_has_gamestate;
+	bool replay_applied_gamestate;
+	s_game_options film_options;
 
 	bool writing_file;
 	bool reading_file;
@@ -33,8 +39,9 @@ struct s_simulation_debug_globals
 	uint8* gamestate_write_buffer;
 	c_debug_update_queue update_queue;
 
-	c_static_string260 save_location;
+	c_static_string260 save_directory;
 	s_file_reference save_file;
+	static_string32 save_file_name;
 };
 
 
@@ -79,7 +86,8 @@ struct s_simulation_debug_file_header
 	
 	//dont need this
 	//game saves already contain this data
-	//s_game_state_header game_state_header;
+	//edit : actually need a game_options backup if no gamesave is there
+	s_game_options debug_game_options;
 
 	uint32 debug_chunks_count;
 
@@ -105,8 +113,10 @@ bool debug_simulation_recording_allows_random();
 bool debug_simulation_recording_allows_update();
 bool debug_simulation_is_replaying();
 bool debug_simulation_replay_has_updates();
-bool debug_simulation_read_file(static_string32* name);
-bool debug_simulation_write_file(static_string32* name);
+bool debug_simulation_replay_has_gamesave();
+bool debug_simulation_retrieve_updates();
+int32 debug_simulation_replay_update_queue_length();
+
 
 
 void debug_simulation_initialize();
@@ -115,6 +125,12 @@ void debug_simulation_dispose();
 void debug_simulation_start_recording();
 void debug_simulation_stop_recording();
 void debug_simulation_stop_replay();
+void debug_simulation_pause(bool);
+void debug_simulation_launch_replay();
+void debug_simulation_set_name(const char* name);
+void debug_simulation_notify_oos();
+void debug_simulation_read_debug_file();
+void debug_simulation_write_debug_file();
 extern s_simulation_debug_globals g_simulation_debug_globals;
 
 void debug_simulation_gamestate_write_test();

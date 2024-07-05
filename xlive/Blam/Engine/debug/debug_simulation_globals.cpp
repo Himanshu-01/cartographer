@@ -2,9 +2,14 @@
 #include "debug_simulation_globals.h"
 #include "debug_simulation_constants.h"
 #include "debug_gamestate.h"
+#include "debug_determinism.h"
 #include "cseries/cseries_strings.h"
 #include "cseries/debug_memory.h"
+#include "game/game_time.h"
+#include "main/main_game.h"
 #include "saved_games/game_state.h"
+#include "simulation/simulation.h"
+#include "Networking/messages/network_messages_simulation_synchronous.h"
 
 #include "version_git.h"
 #include "Util/filesys.h"
@@ -15,11 +20,13 @@
 s_simulation_debug_globals g_simulation_debug_globals;
 
 //internal forward declaration
-bool debug_simulation_write_file_internal(static_string32* name);
+bool debug_simulation_write_file_internal(void);
+bool debug_simulation_read_file_internal(void);
 bool debug_simulation_verify_header_internal(s_simulation_debug_file_header* header);
+bool debug_simulation_fetch_updates_internal(int32 remaining_updates, int32* updates_read_out);
 void debug_simulation_generate_default_header_internal(s_simulation_debug_file_header* header);
 void debug_simulation_create_folders_internal();
-
+void debug_simulation_timestamp_internal(static_string32* timestamp);
 
 
 //public code
@@ -65,46 +72,114 @@ bool debug_simulation_replay_has_updates()
 	return debug_simulation_active() && g_simulation_debug_globals.update_queue.queued_count() > 0;
 }
 
-bool debug_simulation_read_file(static_string32* name)
+bool debug_simulation_replay_has_gamesave()
 {
-	return false;
+	ASSERT(debug_simulation_active());
+	return debug_simulation_active() && g_simulation_debug_globals.replay_has_gamestate;
 }
 
-bool debug_simulation_write_file(static_string32* name)
+bool debug_simulation_retrieve_updates()
 {
-	if (debug_simulation_active() && debug_simulation_is_recording())
+	ASSERT(debug_simulation_active());
+	ASSERT(debug_simulation_is_replaying());
+
+	int32 updates_left_to_read = debug_simulation_replay_update_queue_length();
+	int32 updates_read = 0;
+	bool result= debug_simulation_fetch_updates_internal(updates_left_to_read, &updates_read);
+	LOG_TRACE_SIM("{} - updates_left_to_read : {} , read out : {} , result = {} ", __FUNCTION__, updates_left_to_read, updates_read, result);
+	return result;
+}
+
+int32 debug_simulation_replay_update_queue_length()
+{
+	ASSERT(debug_simulation_active());
+	return g_simulation_debug_globals.update_queue.queued_count();
+}
+
+void debug_simulation_read_debug_file()
+{
+	bool result = false;
+	game_time_set_paused(true);
+	if (debug_simulation_active())
 	{
 		debug_simulation_stop_recording();
-		g_simulation_debug_globals.writing_file = true;
-		if (debug_simulation_write_file_internal(name))
+		debug_simulation_stop_replay();
+		debug_update_queue_clear();
+		g_simulation_debug_globals.reading_file = true;
+		if (debug_simulation_read_file_internal())
 		{
 			// success
-			return true;
+			result = true;
 		}
 		else
 		{
 			// error occured
-			return false;
+			result = false;
 		}
 	}
 
 
-	if (!debug_simulation_active() || debug_simulation_is_replaying())
+	if (!result)
 	{
 		//  bad state
-		//  not supported when replaying
+		//  not supported when writing
+		LOG_ERROR_SIM("simulation:global:debug cannot read_debug_file in current state, active : {} , record : {} , replay {} , reading {} , writing {} ",
+			debug_simulation_active(),
+			debug_simulation_is_recording(),
+			debug_simulation_is_replaying(),
+			g_simulation_debug_globals.reading_file,
+			g_simulation_debug_globals.writing_file);
+	}
+}
 
+void debug_simulation_write_debug_file()
+{
+	bool result = false;
+	game_time_set_paused(true);
+	if (debug_simulation_active() && debug_simulation_is_recording())
+	{
+		debug_simulation_stop_recording();
+
+		g_simulation_debug_globals.writing_file = true;
+		if (debug_simulation_write_file_internal())
+		{
+			// success
+			result = true;
+		}
+		else
+		{
+			// error occured
+			result = false;
+		}
 	}
 
-	return false;
+
+	if (!result)
+	{
+		//  bad state
+		//  not supported when replaying or reading
+		LOG_ERROR_SIM("simulation:global:debug cannot write_debug_file in current state, active : {} , record : {} , replay {} , reading {} , writing {} ",
+			debug_simulation_active(),
+			debug_simulation_is_recording(),
+			debug_simulation_is_replaying(),
+			g_simulation_debug_globals.reading_file,
+			g_simulation_debug_globals.writing_file);
+
+	}
 }
 
 
 
 void debug_simulation_initialize()
 {
+	LOG_DEBUG_SIM("simulation:global:debug initialized");
+
 	g_simulation_debug_globals.initialized = true;
 	debug_simulation_create_folders_internal();
+
+	debug_gamestate_memory_initialize();
+
+	debug_update_queue_initialize_for_load();
 }
 
 void debug_simulation_clear()
@@ -117,13 +192,9 @@ void debug_simulation_clear()
 		g_simulation_debug_globals.writing_file = false;
 		g_simulation_debug_globals.reading_file = false;
 
-		if (g_simulation_debug_globals.gamestate_write_buffer)
-		{
-			debug_free(g_simulation_debug_globals.gamestate_write_buffer);
-			g_simulation_debug_globals.gamestate_write_buffer = nullptr;
-		}
-		g_simulation_debug_globals.update_queue.clear();
-
+		debug_gamestate_memory_clear();
+		debug_update_queue_clear();
+		debug_random_record_clear();
 		// maybe check save_file is being used and close it ??
 
 	}
@@ -134,7 +205,7 @@ void debug_simulation_dispose()
 	if (g_simulation_debug_globals.initialized)
 	{
 		debug_simulation_clear();
-		g_simulation_debug_globals.update_queue.dispose();
+		debug_update_queue_dispose();
 
 		g_simulation_debug_globals.initialized = false;
 	}
@@ -142,14 +213,17 @@ void debug_simulation_dispose()
 
 void debug_simulation_start_recording()
 {
+	LOG_INFO_SIM("simulation:global:debug starting simulation recording");
 	g_simulation_debug_globals.recording_started = true;
 	g_simulation_debug_globals.record_gamestate = true;
 	g_simulation_debug_globals.record_random = true;
 	g_simulation_debug_globals.record_update = true;
+	g_simulation_debug_globals.recorded_gamestate = false;
 }
 
 void debug_simulation_stop_recording()
 {
+	LOG_DEBUG_SIM("simulation:global:debug stopping active recording");
 	g_simulation_debug_globals.recording_started = false;
 	g_simulation_debug_globals.record_gamestate = false;
 	g_simulation_debug_globals.record_random = false;
@@ -159,19 +233,98 @@ void debug_simulation_stop_recording()
 
 void debug_simulation_stop_replay()
 {
+	LOG_DEBUG_SIM("simulation:global:debug stopping active replay");
 	g_simulation_debug_globals.replay_started = false;
 	g_simulation_debug_globals.current_replaying_tick = NONE;
 	g_simulation_debug_globals.target_replaying_tick = NONE;
 }
 
+void debug_simulation_pause(bool pause)
+{
+	char* state = pause ? "pausing" :"un-pausing";
+	LOG_DEBUG_SIM("simulation:global:debug {} active game ", state);
+	game_time_set_paused(pause);
+}
+
+void debug_simulation_launch_replay()
+{
+	//  simulation_end();
+	//	grab header
+	//	main_game_change
+	if (!debug_simulation_active() || debug_simulation_is_recording())
+		return;
+
+	//cache_file_map_clear_all_failures();
+	debug_simulation_stop_replay();
+	simulation_end();
+
+	LOG_INFO_SIM("simulation:global:debug launching film playback : {}{}",
+		g_simulation_debug_globals.save_file_name.get_string(),
+		K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
+
+	//s_game_state_header header;
+	//if(debug_gamestate_read_header(&header))
+	//{
+	//	LOG_INFO_SIM("simulation:global:debug  on scenario : {} ",
+	//		header.scenario_name.get_string());
+
+	//	g_simulation_debug_globals.replay_started = true;
+	//	g_simulation_debug_globals.replay_applied_gamestate = false;
+	//	main_game_change(&header.options);
+	//}
+	//else
+	//{
+		LOG_WARNING_SIM("simulation:global:debug found no gamestate header, using film options..");
+		LOG_INFO_SIM(L"simulation:global:debug on scenario : {} ",
+			g_simulation_debug_globals.film_options.scenario_path.get_string());
+
+		g_simulation_debug_globals.replay_started = true;
+		g_simulation_debug_globals.replay_applied_gamestate = false;
+
+		//g_simulation_debug_globals.film_options.players[0].player_valid = true;
+		//g_simulation_debug_globals.film_options.players[0].player_left_game = false;
+
+		//force synchronous_client to act as synchronous_server
+		//doing this so i dont have to rewrite c_simulation_world::update()
+		if (g_simulation_debug_globals.film_options.simulation_type == _game_simulation_synchronous_client)
+			g_simulation_debug_globals.film_options.simulation_type = _game_simulation_synchronous_server;
+
+		main_game_change(&g_simulation_debug_globals.film_options);
+	//}
+
+}
+
+void debug_simulation_set_name(const char* name)
+{
+	if (!debug_simulation_active())
+	{
+		LOG_ERROR_SIM("{} - failed to set debug simulation file name!", __FUNCTION__);
+	}
+
+	g_simulation_debug_globals.save_file_name.set(name);
+	LOG_DEBUG_SIM("debug simulation file name set to {} ", name);
+}
+
+void debug_simulation_notify_oos()
+{
+	if (!debug_simulation_active() || !debug_simulation_is_recording())
+		return;
+
+	LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed");
+	debug_random_dump_call_stack();
+
+	debug_simulation_stop_recording();
+}
+
 void debug_simulation_gamestate_write_test()
 {
 	c_static_string260 save_file_path;
-	save_file_path.set(g_simulation_debug_globals.save_location.get_string());
-	save_file_path.append("test.dfilm");
+	save_file_path.set(g_simulation_debug_globals.save_directory.get_string());
+	save_file_path.append("test");
+	save_file_path.append(K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
 
 
-	LOG_ERROR_GAME("{} - starting to create debug simulation file! {}", __FUNCTION__, save_file_path.get_string());
+	LOG_ERROR_SIM("{} - starting to create debug simulation file! {}", __FUNCTION__, save_file_path.get_string());
 
 	file_reference_create_from_path(&g_simulation_debug_globals.save_file, save_file_path.get_string(), false);
 	e_file_open_error open_file_error_code = _file_open_error_unknown;
@@ -181,12 +334,12 @@ void debug_simulation_gamestate_write_test()
 	{
 		if (!file_open(&g_simulation_debug_globals.save_file, _permission_write_bit, &open_file_error_code))
 		{
-			LOG_ERROR_GAME("{} - failed to open debug simulation file for write , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
+			LOG_ERROR_SIM("{} - failed to open debug simulation file for write , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
 		}
 	}
 	else
 	{
-		LOG_ERROR_GAME("{} - failed to create debug simulation file!", __FUNCTION__);
+		LOG_ERROR_SIM("{} - failed to create debug simulation file!", __FUNCTION__);
 
 	}
 
@@ -203,14 +356,14 @@ void debug_simulation_gamestate_write_test()
 		if (total_write_chunks > K_SIMULATION_DEBUG_MAX_GAMESTATES + K_SIMULATION_DEBUG_MAX_UPDATES)
 		{
 			//warning
-			LOG_WARNING_GAME("{} - total no of chunks exceed our expectations , count :{}", __FUNCTION__, total_write_chunks);
+			LOG_WARNING_SIM("{} - total no of chunks exceed our expectations , count :{}", __FUNCTION__, total_write_chunks);
 		}
 
 		debug_file_header.debug_chunks_count = total_write_chunks;
 
 		if (g_simulation_debug_globals.gamestate_write_buffer == nullptr)
 		{
-			LOG_TRACE_GAME("{} - using runtime gamestate as write_buffer", __FUNCTION__);
+			LOG_TRACE_SIM("{} - using runtime gamestate as write_buffer", __FUNCTION__);
 			g_simulation_debug_globals.gamestate_write_buffer = (uint8*)game_state_get_buffer_address(nullptr);
 		}
 		//
@@ -219,13 +372,13 @@ void debug_simulation_gamestate_write_test()
 		uint8* gamestate_temporary_buffer = debug_malloc(K_SIMULATION_DEBUG_GAMESTATE_COMPRESSED_FILE_SIZE);
 		if (!debug_gamestate_write_compressed_gamestate_to_buffer(gamestate_temporary_buffer, K_SIMULATION_DEBUG_GAMESTATE_COMPRESSED_FILE_SIZE, &out_gamestate_chunk_size))
 		{
-			LOG_ERROR_GAME("{} - failed to compress gamestate!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to compress gamestate!", __FUNCTION__);
 			//success = false;
 		}
 
 		if (g_simulation_debug_globals.gamestate_write_buffer == game_state_get_buffer_address(nullptr))
 		{
-			LOG_TRACE_GAME("{} - clearing write_buffer", __FUNCTION__);
+			LOG_TRACE_SIM("{} - clearing write_buffer", __FUNCTION__);
 			g_simulation_debug_globals.gamestate_write_buffer = nullptr;
 		}
 		debug_file_header.game_saves_count++;
@@ -244,7 +397,7 @@ void debug_simulation_gamestate_write_test()
 
 		if (!file_write(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_file_header), &debug_file_header))
 		{
-			LOG_ERROR_GAME("{} - failed to write header to simulation debug file!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to write header to simulation debug file!", __FUNCTION__);
 			//success = false;
 		}
 		write_offset += sizeof(s_simulation_debug_file_header);
@@ -252,7 +405,7 @@ void debug_simulation_gamestate_write_test()
 
 		if (!file_write(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_chunk), &gamestate_chunk))
 		{
-			LOG_ERROR_GAME("{} - failed to write gamestate debug chunk header to simulation debug file!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to write gamestate debug chunk header to simulation debug file!", __FUNCTION__);
 			//success = false;
 		}
 		write_offset += sizeof(s_simulation_debug_chunk);
@@ -260,7 +413,7 @@ void debug_simulation_gamestate_write_test()
 
 		if (!file_write(&g_simulation_debug_globals.save_file, out_gamestate_chunk_size, gamestate_temporary_buffer))
 		{
-			LOG_ERROR_GAME("{} - failed to write compressed gamestate chunk to simulation debug file!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to write compressed gamestate chunk to simulation debug file!", __FUNCTION__);
 			//success = false;
 		}
 		write_offset += out_gamestate_chunk_size;
@@ -271,7 +424,7 @@ void debug_simulation_gamestate_write_test()
 
 		if (!file_set_eof(&g_simulation_debug_globals.save_file))
 		{
-			LOG_ERROR_GAME("{} - failed to set simulation debug file size!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to set simulation debug file size!", __FUNCTION__);
 			//success = false;
 		}
 
@@ -286,11 +439,12 @@ void debug_simulation_gamestate_read_test()
 {
 
 	c_static_string260 save_file_path;
-	save_file_path.set(g_simulation_debug_globals.save_location.get_string());
-	save_file_path.append("test.dfilm");
+	save_file_path.set(g_simulation_debug_globals.save_directory.get_string());
+	save_file_path.append("test");
+	save_file_path.append(K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
 
 
-	LOG_ERROR_GAME("{} - start reading debug simulation file! {}", __FUNCTION__, save_file_path.get_string());
+	LOG_ERROR_SIM("{} - start reading debug simulation file! {}", __FUNCTION__, save_file_path.get_string());
 
 	file_reference_create_from_path(&g_simulation_debug_globals.save_file, save_file_path.get_string(), false);
 	e_file_open_error open_file_error_code = _file_open_error_unknown;
@@ -298,7 +452,7 @@ void debug_simulation_gamestate_read_test()
 
 	if (!file_open(&g_simulation_debug_globals.save_file, _permission_read_bit, &open_file_error_code))
 	{
-		LOG_ERROR_GAME("{} - failed to open debug simulation file for read , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
+		LOG_ERROR_SIM("{} - failed to open debug simulation file for read , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
 	}	
 
 
@@ -311,14 +465,14 @@ void debug_simulation_gamestate_read_test()
 		// first we read the header
 		if (!file_read(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_file_header), true, &debug_file_header))
 		{
-			LOG_ERROR_GAME("{} - failed to read debug simulation file header!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to read debug simulation file header!", __FUNCTION__);
 			file_close(&g_simulation_debug_globals.save_file);
 			return;
 		}
 
 		if (!debug_simulation_verify_header_internal(&debug_file_header))
 		{
-			LOG_ERROR_GAME("{} - failed to verify debug simulation file header!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to verify debug simulation file header!", __FUNCTION__);
 			file_close(&g_simulation_debug_globals.save_file);
 			return;
 		}
@@ -334,20 +488,20 @@ void debug_simulation_gamestate_read_test()
 			for (uint8 i = 0; i < debug_file_header.debug_chunks_count; i++)
 			{
 				s_simulation_debug_chunk* current_chunk = debug_chunks;
-				if (file_read_from_position(&g_simulation_debug_globals.save_file, read_offset, sizeof(s_simulation_debug_file_header), true, current_chunk))
+				if (file_read_from_position(&g_simulation_debug_globals.save_file, read_offset, sizeof(s_simulation_debug_chunk), true, current_chunk))
 				{
-					LOG_TRACE_GAME(" - - > reading debug chunk type : {} size : 0x{:08X} offset : 0x{:08X} ", current_chunk->chunk_type, current_chunk->chunk_size, current_chunk->file_offset);
+					LOG_TRACE_SIM(" - - > reading debug chunk type : {} size : 0x{:08X} offset : 0x{:08X} ", current_chunk->chunk_type, current_chunk->chunk_size, current_chunk->file_offset);
 					
 					if(current_chunk->chunk_type==_debug_chunk_gamestate)
 					{
-						LOG_TRACE_GAME(" - - > found gamestate chunk size : 0x{:08X} offset : 0x{:08X}", current_chunk->chunk_size, current_chunk->file_offset);
+						LOG_TRACE_SIM(" - - > found gamestate chunk size : 0x{:08X} offset : 0x{:08X}", current_chunk->chunk_size, current_chunk->file_offset);
 						gamestate_chunk_count++;
 						last_gamestate_chunk_header = current_chunk;
 					}
 				}
 				else
 				{
-					LOG_TRACE_GAME(" - - > reading chunk failure at count {} ", i);
+					LOG_TRACE_SIM(" - - > reading chunk failure at count {} ", i);
 				}
 				read_offset += sizeof(s_simulation_debug_chunk);
 				current_chunk++;
@@ -355,7 +509,7 @@ void debug_simulation_gamestate_read_test()
 
 			if (gamestate_chunk_count > K_SIMULATION_DEBUG_MAX_GAMESTATES)
 			{
-				LOG_TRACE_GAME("{} - warning debug simulation file has too many gamestate chunks count :{} , expected : {}", __FUNCTION__, gamestate_chunk_count, K_SIMULATION_DEBUG_MAX_GAMESTATES);
+				LOG_TRACE_SIM("{} - warning debug simulation file has too many gamestate chunks count :{} , expected : {}", __FUNCTION__, gamestate_chunk_count, K_SIMULATION_DEBUG_MAX_GAMESTATES);
 			}
 
 			if (gamestate_chunk_count > 0)
@@ -364,21 +518,21 @@ void debug_simulation_gamestate_read_test()
 				uint8* gamestate_compressed_buffer = debug_malloc(last_gamestate_chunk_header->chunk_size);
 				if (file_read_from_position(&g_simulation_debug_globals.save_file, last_gamestate_chunk_header->file_offset, last_gamestate_chunk_header->chunk_size, true, gamestate_compressed_buffer))
 				{
-					LOG_TRACE_GAME("{} - successfully read gamestate data from save file ", __FUNCTION__);
+					LOG_TRACE_SIM("{} - successfully read gamestate data from save file ", __FUNCTION__);
 
 					if (g_simulation_debug_globals.gamestate_write_buffer == nullptr)
 					{
 						uint32 gamestate_buffer_size = NULL;
 						game_state_get_buffer_address(&gamestate_buffer_size);
 
-						LOG_TRACE_GAME("{} - simulation:debug:gamestate initializing save memory for reading ", __FUNCTION__);
+						LOG_TRACE_SIM("{} - simulation:debug:gamestate initializing save memory for reading ", __FUNCTION__);
 						g_simulation_debug_globals.gamestate_write_buffer = debug_malloc(gamestate_buffer_size);
 					}
 
 					uint32 out_decompressed_size = NULL;
 					if (!debug_gamestate_read_compressed_gamestate_from_buffer(gamestate_compressed_buffer, last_gamestate_chunk_header->chunk_size, &out_decompressed_size))
 					{
-						LOG_ERROR_GAME("{} - failed to decompress gamestate!", __FUNCTION__);
+						LOG_ERROR_SIM("{} - failed to decompress gamestate!", __FUNCTION__);
 						//success = false;
 					}
 
@@ -388,7 +542,7 @@ void debug_simulation_gamestate_read_test()
 
 					if(g_simulation_debug_globals.gamestate_write_buffer)
 					{
-						LOG_TRACE_GAME("{} - clearing write_buffer 0x{:X} ", __FUNCTION__ , (uint32)g_simulation_debug_globals.gamestate_write_buffer);
+						LOG_TRACE_SIM("{} - clearing write_buffer 0x{:X} ", __FUNCTION__ , (uint32)g_simulation_debug_globals.gamestate_write_buffer);
 						debug_free(g_simulation_debug_globals.gamestate_write_buffer);
 						g_simulation_debug_globals.gamestate_write_buffer = nullptr;
 					}
@@ -396,19 +550,19 @@ void debug_simulation_gamestate_read_test()
 				if(gamestate_compressed_buffer)
 				{
 					debug_free(gamestate_compressed_buffer);
-					LOG_TRACE_GAME("{} - clearing compressed buffer ", __FUNCTION__);
+					LOG_TRACE_SIM("{} - clearing compressed buffer ", __FUNCTION__);
 				}
 			}
 			if(debug_chunks)
 			{
 				debug_free((uint8*)debug_chunks);
-				LOG_TRACE_GAME("{} - clearing header chunks buffer ", __FUNCTION__);
+				LOG_TRACE_SIM("{} - clearing header chunks buffer ", __FUNCTION__);
 			}
 			
 		}
 		else
 		{
-			LOG_TRACE_GAME("{} - warning debug simulation file has no chunk entries!", __FUNCTION__);
+			LOG_TRACE_SIM("{} - warning debug simulation file has no chunk entries!", __FUNCTION__);
 		}
 
 		file_close(&g_simulation_debug_globals.save_file);
@@ -428,7 +582,7 @@ void debug_simulation_gamestate_read_test()
 
 
 
-bool debug_simulation_write_file_internal(static_string32* name)
+bool debug_simulation_write_file_internal(void)
 {
 	bool success = true;
 	if (!g_simulation_debug_globals.writing_file)
@@ -436,16 +590,21 @@ bool debug_simulation_write_file_internal(static_string32* name)
 		return false;
 
 	c_static_string260 save_file_path;
-	save_file_path.set(g_simulation_debug_globals.save_location.get_string());
-	save_file_path.append(name->get_string());
+	save_file_path.set(g_simulation_debug_globals.save_directory.get_string());
 
+	if (g_simulation_debug_globals.save_file_name.length() == NULL)
+	{
+		static_string32 timestamp;
+		debug_simulation_timestamp_internal(&timestamp);
+		g_simulation_debug_globals.save_file_name.set(timestamp.get_string());
+	}
+
+	save_file_path.append(g_simulation_debug_globals.save_file_name.get_string());	
+	save_file_path.append(K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
+
+	LOG_INFO_SIM("{} - writing simulation debug file : {}", __FUNCTION__, save_file_path.get_string());
+	
 	file_reference_create_from_path(&g_simulation_debug_globals.save_file, save_file_path.get_string(), false);
-	//  file_create
-	//  file_open
-	//  file_write
-	//  verify
-	//  s_simulation_debug_file_header
-	//  debug_simulation_generate_default_header_internal
 
 	e_file_open_error open_file_error_code = _file_open_error_unknown;
 	bool create_file_success = file_create(&g_simulation_debug_globals.save_file);
@@ -454,13 +613,13 @@ bool debug_simulation_write_file_internal(static_string32* name)
 	{
 		if (!file_open(&g_simulation_debug_globals.save_file, _permission_write_bit, &open_file_error_code))
 		{
-			LOG_ERROR_GAME("{} - failed to open debug simulation file for write , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
+			LOG_ERROR_SIM("{} - failed to open debug simulation file for write , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
 			success = false;
 		}
 	}
 	else
 	{
-		LOG_ERROR_GAME("{} - failed to create debug simulation file!", __FUNCTION__);
+		LOG_ERROR_SIM("{} - failed to create debug simulation file!", __FUNCTION__);
 		success = false;
 	}
 
@@ -468,60 +627,66 @@ bool debug_simulation_write_file_internal(static_string32* name)
 	if (open_file_error_code == _file_open_error_success)
 	{
 		uint32 write_offset = NULL;
-		uint32 total_write_chunks = K_SIMULATION_DEBUG_MAX_GAMESTATES + g_simulation_debug_globals.update_queue.queued_count();
+		uint32 total_write_chunks = (g_simulation_debug_globals.recorded_gamestate?1:0) + g_simulation_debug_globals.update_queue.queued_count();
 		uint32 chunk_headers_end = total_write_chunks * sizeof(s_simulation_debug_chunk) + sizeof(s_simulation_debug_file_header);
 
 		s_simulation_debug_file_header debug_file_header;
 		debug_simulation_generate_default_header_internal(&debug_file_header);
+		debug_file_header.debug_chunks_count = total_write_chunks;
 
 		if (total_write_chunks > K_SIMULATION_DEBUG_MAX_GAMESTATES + K_SIMULATION_DEBUG_MAX_UPDATES)
 		{
 			//warning
-			LOG_WARNING_GAME("{} - total no of chunks exceed our expectations update chunks :{}", __FUNCTION__, total_write_chunks - K_SIMULATION_DEBUG_MAX_GAMESTATES);
+			LOG_WARNING_SIM("{} - no of chunks exceed our expectations , chunks count :{}", __FUNCTION__, total_write_chunks);
 		}
 
-		debug_file_header.debug_chunks_count = total_write_chunks;
+
 
 		//
-		// compress gamestate
+		// compress gamestate and write
+		//
 		uint32 out_gamestate_chunk_size = NULL;
 		uint8* gamestate_temporary_buffer = debug_malloc(K_SIMULATION_DEBUG_GAMESTATE_COMPRESSED_FILE_SIZE);
-		if (!debug_gamestate_write_compressed_gamestate_to_buffer(gamestate_temporary_buffer, K_SIMULATION_DEBUG_GAMESTATE_COMPRESSED_FILE_SIZE, &out_gamestate_chunk_size))
+		
+		if(g_simulation_debug_globals.recorded_gamestate)
 		{
-			LOG_ERROR_GAME("{} - failed to compress gamestate!", __FUNCTION__);
-			success = false;
+			if (debug_gamestate_write_compressed_gamestate_to_buffer(gamestate_temporary_buffer, K_SIMULATION_DEBUG_GAMESTATE_COMPRESSED_FILE_SIZE, &out_gamestate_chunk_size))
+			{
+				LOG_TRACE_SIM("{} - successfully written gamestate data to save file ", __FUNCTION__);
+				debug_file_header.game_saves_count++;
+			}
+			else
+			{
+				LOG_ERROR_SIM("{} - failed to compress gamestate!", __FUNCTION__);
+				success = false;
+			}
 		}
-
-		debug_file_header.game_saves_count++;
 
 
 		if (success)
 		{
-			//LOG_INFO_GAME("{} - writing simulation debug file data...", __FUNCTION__);
-
 			s_simulation_debug_chunk gamestate_chunk;
 			gamestate_chunk.chunk_type = _debug_chunk_gamestate;
 			gamestate_chunk.file_offset = chunk_headers_end;
 			gamestate_chunk.chunk_size = out_gamestate_chunk_size;
 
 
-			uint32 update_queue_header_bucket_size = sizeof(s_simulation_debug_chunk) * g_simulation_debug_globals.update_queue.queued_count();
-			s_simulation_debug_chunk* update_queue_header_bucket = (s_simulation_debug_chunk*)debug_malloc(update_queue_header_bucket_size);
+			uint32 update_chunks_header_size = sizeof(s_simulation_debug_chunk) * g_simulation_debug_globals.update_queue.queued_count();
+			s_simulation_debug_chunk* update_header_bucket = (s_simulation_debug_chunk*)debug_malloc(update_chunks_header_size);
 			uint32 update_chunks_size = NULL;
 
-
-
+			s_simulation_debug_chunk* current_chunk = update_header_bucket;
 			for (const c_debug_update_node* update_node = g_simulation_debug_globals.update_queue.get_first_element();
 				update_node != nullptr;
 				update_node = g_simulation_debug_globals.update_queue.get_next_element(update_node)
 				)
 			{
-				update_queue_header_bucket->chunk_type = _debug_chunk_update;
-				update_queue_header_bucket->file_offset = chunk_headers_end + out_gamestate_chunk_size + update_chunks_size;
-				update_queue_header_bucket->chunk_size = update_node->data_size;
+				current_chunk->chunk_type = _debug_chunk_update;
+				current_chunk->file_offset = chunk_headers_end + out_gamestate_chunk_size + update_chunks_size;
+				current_chunk->chunk_size = update_node->data_size;
 				update_chunks_size += update_node->data_size;
 
-				update_queue_header_bucket++;
+				current_chunk++;
 				debug_file_header.game_updates_count++;
 			}
 
@@ -529,68 +694,102 @@ bool debug_simulation_write_file_internal(static_string32* name)
 			debug_file_header.file_size = chunk_headers_end + out_gamestate_chunk_size + update_chunks_size;
 
 
-			if (!file_write(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_file_header), &debug_file_header))
+			if (success && file_write(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_file_header), &debug_file_header))
 			{
-				LOG_ERROR_GAME("{} - failed to write header to simulation debug file!", __FUNCTION__);
+				write_offset += sizeof(s_simulation_debug_file_header);
+			}
+			else
+			{
+				LOG_ERROR_SIM("{} - failed to write header to simulation debug file!", __FUNCTION__);
 				success = false;
 			}
-			write_offset += sizeof(s_simulation_debug_file_header);
 
-
-			if (!file_write(&g_simulation_debug_globals.save_file, sizeof(gamestate_chunk), &gamestate_chunk))
+			if(g_simulation_debug_globals.recorded_gamestate)
 			{
-				LOG_ERROR_GAME("{} - failed to write gamestate debug chunk header to simulation debug file!", __FUNCTION__);
+				if (success && file_write(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_chunk), &gamestate_chunk))
+				{
+					write_offset += sizeof(s_simulation_debug_chunk);
+				}
+				else
+				{
+					LOG_ERROR_SIM("{} - failed to write gamestate debug chunk header to simulation debug file!", __FUNCTION__);
+					success = false;
+				}
+			}
+
+
+
+			if (success && file_write(&g_simulation_debug_globals.save_file, update_chunks_header_size, update_header_bucket))
+			{
+				write_offset += update_chunks_header_size;
+			}
+			else
+			{
+				LOG_ERROR_SIM("{} - failed to write update debug chunk headers to simulation debug file!", __FUNCTION__);
 				success = false;
 			}
-			write_offset += sizeof(gamestate_chunk);
-
-
-			if (!file_write(&g_simulation_debug_globals.save_file, update_queue_header_bucket_size, update_queue_header_bucket))
-			{
-				LOG_ERROR_GAME("{} - failed to write update debug chunk headers to simulation debug file!", __FUNCTION__);
-				success = false;
-			}
-			write_offset += update_queue_header_bucket_size;
-			debug_free((uint8*)update_queue_header_bucket);
 
 
 			//check expected offset with actual offset
 			ASSERT(write_offset == chunk_headers_end);
 
-
-			if (!file_write(&g_simulation_debug_globals.save_file, out_gamestate_chunk_size, gamestate_temporary_buffer))
+			if (g_simulation_debug_globals.recorded_gamestate)
 			{
-				LOG_ERROR_GAME("{} - failed to write compressed gamestate chunk to simulation debug file!", __FUNCTION__);
-				success = false;
+				if (success && file_write(&g_simulation_debug_globals.save_file, out_gamestate_chunk_size, gamestate_temporary_buffer))
+				{
+					write_offset += out_gamestate_chunk_size;
+				}
+				else
+				{
+					LOG_ERROR_SIM("{} - failed to write compressed gamestate chunk to simulation debug file!", __FUNCTION__);
+					success = false;
+				}
 			}
-			write_offset += out_gamestate_chunk_size;
-			debug_free(gamestate_temporary_buffer);
+
+			if(gamestate_temporary_buffer)
+			{
+				LOG_TRACE_SIM("{} - clearing gamestate_temporary_buffer ", __FUNCTION__);
+				debug_free(gamestate_temporary_buffer);
+			}
 
 			//check expected offset with actual offset
 			ASSERT(write_offset == chunk_headers_end + out_gamestate_chunk_size);
 
 
-
+			current_chunk = update_header_bucket;
 			for (const c_debug_update_node* update_node = g_simulation_debug_globals.update_queue.get_first_element();
 				update_node != nullptr;
 				update_node = g_simulation_debug_globals.update_queue.get_next_element(update_node)
 				)
 			{
-				if (!file_write(&g_simulation_debug_globals.save_file, update_node->data_size, update_node->data))
+				ASSERT(write_offset == current_chunk->file_offset);
+
+				if (success && file_write(&g_simulation_debug_globals.save_file, update_node->data_size, update_node->data))
 				{
-					LOG_ERROR_GAME("{} - failed to write update debug chunk to simulation debug file!", __FUNCTION__);
+					write_offset += update_node->data_size;
+				}
+				else
+				{
+					LOG_ERROR_SIM("{} - failed to write update debug chunk to simulation debug file!", __FUNCTION__);
 					success = false;
 				}
-				write_offset += update_node->data_size;
+				current_chunk++;
 			}
 
 			//check expected offset with actual offset
 			ASSERT(write_offset == chunk_headers_end + out_gamestate_chunk_size + update_chunks_size);
 
+			if (update_header_bucket)
+			{
+				LOG_TRACE_SIM("{} - clearing update_header chunks buffer ", __FUNCTION__);
+				debug_free((uint8*)update_header_bucket);
+			}
+
+
 		}
 		if (!file_set_eof(&g_simulation_debug_globals.save_file))
 		{
-			LOG_ERROR_GAME("{} - failed to set simulation debug file size!", __FUNCTION__);
+			LOG_ERROR_SIM("{} - failed to set simulation debug file size!", __FUNCTION__);
 			success = false;
 		}
 	}
@@ -663,20 +862,176 @@ bool debug_simulation_write_file_internal(static_string32* name)
 	return success;
 }
 
+bool debug_simulation_read_file_internal(void)
+{
+	bool success = true;
+	if (!g_simulation_debug_globals.reading_file)
+		// cannot write without starting write
+		return false;
+
+	if (g_simulation_debug_globals.save_file_name.length() == NULL)
+	{
+		LOG_ERROR_SIM("{} - no name set for debug simulation file!", __FUNCTION__);
+		g_simulation_debug_globals.reading_file = false;
+		return false;
+	}
+
+	c_static_string260 save_file_path;
+	save_file_path.set(g_simulation_debug_globals.save_directory.get_string());
+	save_file_path.append(g_simulation_debug_globals.save_file_name.get_string());
+	save_file_path.append(K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
+
+
+	LOG_INFO_SIM("{} - start reading debug simulation file! {}", __FUNCTION__, save_file_path.get_string());
+
+	file_reference_create_from_path(&g_simulation_debug_globals.save_file, save_file_path.get_string(), false);
+	e_file_open_error open_file_error_code = _file_open_error_unknown;
+	if (!file_open(&g_simulation_debug_globals.save_file, _permission_read_bit, &open_file_error_code))
+	{
+		LOG_ERROR_SIM("{} - failed to open debug simulation file for read , error code: {}", __FUNCTION__, (uint32)open_file_error_code);
+		success = false;
+	}
+
+	if (open_file_error_code == _file_open_error_success)
+	{
+
+		s_simulation_debug_file_header debug_file_header;
+
+		// first we read the header
+		if (!success || !file_read(&g_simulation_debug_globals.save_file, sizeof(s_simulation_debug_file_header), true, &debug_file_header))
+		{
+			LOG_ERROR_SIM("{} - failed to read debug simulation file header!", __FUNCTION__);
+			success = false;
+		}
+
+
+		if (success)
+		{
+			uint32 file_size_disk = NULL;
+			if (!file_get_size(&g_simulation_debug_globals.save_file, &file_size_disk))
+			{
+				LOG_ERROR_SIM("{} - file_get_size failed", __FUNCTION__);
+				success = false;
+			}
+
+			if (debug_file_header.file_size != file_size_disk)
+			{
+				LOG_ERROR_SIM("{} - stored size does not match size on disk! (file-size-mismatch)", __FUNCTION__);
+				success = false;
+			}
+		}
+
+		if (!success || !debug_simulation_verify_header_internal(&debug_file_header))
+		{
+			LOG_ERROR_SIM("{} - failed to verify debug simulation file header!", __FUNCTION__);
+			success = false;
+		}
+
+		if (success)
+		{
+			csmemcpy(&g_simulation_debug_globals.film_options, &debug_file_header.debug_game_options, sizeof(s_game_options));
+
+			if (debug_file_header.debug_chunks_count > 0)
+			{
+				uint8 gamestate_chunk_count = NULL;
+				uint32 update_chunk_count = NULL;
+				uint32 read_offset = sizeof(s_simulation_debug_file_header);
+				uint32 debug_chunk_headers_size = sizeof(s_simulation_debug_chunk) * debug_file_header.debug_chunks_count;
+				s_simulation_debug_chunk* debug_chunks = (s_simulation_debug_chunk*)debug_malloc(debug_chunk_headers_size);
+				
+				if (file_read(&g_simulation_debug_globals.save_file, debug_chunk_headers_size, false, debug_chunks))
+				{
+					LOG_TRACE_SIM(" - - > successfully read debug chunk headers , total count {}", debug_file_header.debug_chunks_count);
+					read_offset += debug_chunk_headers_size;
+				}
+				else
+				{
+					LOG_ERROR_SIM("{} - failed to read debug chunk headers from simulation file!", __FUNCTION__);
+					success = false;
+				}
+
+				//check expected offset with actual offset
+				ASSERT(read_offset == debug_file_header.header_size + debug_chunk_headers_size);
+
+				s_simulation_debug_chunk* current_chunk = debug_chunks;
+				for (uint32 i = 0; i < debug_file_header.debug_chunks_count; i++)
+				{
+					//too much spam
+					//LOG_TRACE_SIM(" - - > reading debug chunk type : {} size : 0x{:08X} offset : 0x{:08X} ", current_chunk->chunk_type, current_chunk->chunk_size, current_chunk->file_offset);
+
+					if (VALID_COUNT(current_chunk->chunk_type, k_simulation_debug_chunk_types))
+					{
+						if (current_chunk->chunk_type == _debug_chunk_gamestate)
+						{
+							LOG_TRACE_SIM(" - - > found gamestate chunk size : 0x{:08X} offset : 0x{:08X}", current_chunk->chunk_size, current_chunk->file_offset);
+							gamestate_chunk_count++;
+							debug_gamestate_read_from_chunk(current_chunk);
+
+						}
+						else if (current_chunk->chunk_type == _debug_chunk_update)
+						{
+							//too much spam
+							//LOG_TRACE_SIM(" - - > found update chunk size : 0x{:08X} offset : 0x{:08X}", current_chunk->chunk_size, current_chunk->file_offset);
+							update_chunk_count++;
+							debug_update_read_from_chunk(current_chunk);
+						}
+
+						read_offset += current_chunk->chunk_size;
+						current_chunk++;
+					}
+					else
+					{
+						LOG_WARNING_SIM(" - - > got a bad chunk at count {} , skipping!!", i);
+					}				
+				}
+
+				if (debug_chunks)
+				{
+					debug_free((uint8*)debug_chunks);
+					LOG_TRACE_SIM("{} - clearing header chunks buffer ", __FUNCTION__);
+				}
+
+				//check expected offset with actual offset
+				ASSERT(read_offset == debug_file_header.header_size + debug_chunk_headers_size + debug_file_header.chunk_size);
+
+				if (gamestate_chunk_count > K_SIMULATION_DEBUG_MAX_GAMESTATES)
+				{
+					LOG_WARNING_SIM("{} - warning debug simulation file has too many gamestate chunks count :{} , expected : {}", __FUNCTION__, gamestate_chunk_count, K_SIMULATION_DEBUG_MAX_GAMESTATES);
+				}
+				if (update_chunk_count > K_SIMULATION_DEBUG_MAX_UPDATES)
+				{
+					LOG_WARNING_SIM("{} - warning debug simulation file has too many update chunks count :{} , expected : {}", __FUNCTION__, update_chunk_count, K_SIMULATION_DEBUG_MAX_UPDATES);
+				}
+
+			}
+			else
+			{
+				LOG_WARNING_SIM("{} - warning debug simulation file has no chunk entries!", __FUNCTION__);
+			}
+		}
+
+		file_close(&g_simulation_debug_globals.save_file);
+	}
+
+	g_simulation_debug_globals.reading_file = false;
+	return success;
+}
+
 bool debug_simulation_verify_header_internal(s_simulation_debug_file_header* header)
 {
+	bool result = true;
 	if (header->signature != K_SIMULATION_DEBUG_HEADER_SIGNATURE
 		|| header->eof_signature != K_SIMULATION_DEBUG_HEADER_EOF_SIGNATURE)
 	{
-		LOG_ERROR_GAME("{} - invalid debug simulation file signature! ", __FUNCTION__);
-		return false;
+		LOG_ERROR_SIM("{} - invalid debug simulation file signature! ", __FUNCTION__);
+		result = false;
 	}
 
 
 	if (header->header_size != sizeof(s_simulation_debug_file_header))
 	{
-		LOG_TRACE_GAME("{} - warning debug simulation file is old or outdated! (header-size-mismatch)", __FUNCTION__);
-		return false;
+		LOG_WARNING_SIM("{} - warning debug simulation file is old or outdated! (header-size-mismatch)", __FUNCTION__);
+		result = true;
 	}
 
 	if (header->file_size != (header->header_size
@@ -684,17 +1039,78 @@ bool debug_simulation_verify_header_internal(s_simulation_debug_file_header* hea
 		+ header->debug_chunks_count * sizeof(s_simulation_debug_chunk))
 		)
 	{
-		LOG_ERROR_GAME("{} - invalid debug simulation file (file-size-mismatch) ", __FUNCTION__);
-		return false;
+		LOG_ERROR_SIM("{} - invalid debug simulation file (file-size-mismatch) ", __FUNCTION__);
+		result = false;
 	}
 
 	if (header->debug_chunks_count != header->game_saves_count + header->game_updates_count)
 	{
-		LOG_ERROR_GAME("{} - invalid debug chunks count detected", __FUNCTION__);
-		return false;
+		LOG_ERROR_SIM("{} - invalid debug chunks count detected", __FUNCTION__);
+		result = false;
+	}	
+	
+	if (header->game_saves_count <1)
+	{
+		LOG_WARNING_SIM("{} - warning no gamesaves found in this file", __FUNCTION__);
+		result = true;
 	}
 
-	return true;
+	return result;
+}
+
+bool debug_simulation_fetch_updates_internal(int32 remaining_updates, int32* updates_read_out)
+{
+	// apply initial gamestate if not done
+	// 
+	//debug_gamestate_apply_saved_state();
+
+
+
+	//
+	// fetch required no of updates
+	//
+
+	real32 game_speed = time_globals::get()->game_speed;
+	int32 updates_required = time_globals::seconds_to_ticks_round(game_speed);
+
+	c_simulation_world* world = simulation_get_world();
+	bool match_remote_time = false;
+	if (!world->time_get_available(&match_remote_time))
+	{
+		updates_required = MAX(updates_required, 1);
+	}
+
+	updates_required = MIN(remaining_updates, updates_required);
+	int32 updates_fetched = NULL;
+
+	bool succesfully_fetched = true;
+
+	do
+	{
+		if (updates_fetched >= K_SIMULATION_DEBUG_MAX_ALLOWED_UPDATES_TO_FETCH)
+			break;
+		int32 available_updates = world->time_get_available(&match_remote_time);
+		if (available_updates >= updates_required)
+			break;
+
+		// fetch updates and push to queue
+		s_network_message_synchronous_update message; // maybe allocate in heap?
+		if (debug_update_retrieve_latest_update(&message))
+		{
+			updates_fetched++;
+			//LOG_INFO_SIM("simulation:global:debug inserting film playback update: tick/time {}/[{}]", message.update.game_time_ticks, message.update.simulation_time);
+			if (!simulation_get_globals()->world->update_queue_handle_server_update(&message))
+			{
+				succesfully_fetched = false;
+				LOG_WARNING_SIM("simulation:global:debug failed to insert film playback update.tick = {} , maybe out of memory", message.update.game_time_ticks);
+			}
+		}
+
+	} while (succesfully_fetched);
+
+	*updates_read_out = updates_fetched;
+
+	return succesfully_fetched;
 }
 
 
@@ -729,6 +1145,8 @@ void debug_simulation_generate_default_header_internal(s_simulation_debug_file_h
 	header->game_saves_count = NULL;
 	header->game_updates_count = NULL;
 
+	//copy current game_options
+	csmemcpy(&header->debug_game_options, &g_simulation_debug_globals.film_options, sizeof(s_game_options));
 
 	header->debug_chunks_count = NULL;
 
@@ -738,11 +1156,18 @@ void debug_simulation_generate_default_header_internal(s_simulation_debug_file_h
 
 void debug_simulation_create_folders_internal()
 {
-	g_simulation_debug_globals.save_location.set(GetExeDirectoryNarrow().c_str());
-	g_simulation_debug_globals.save_location.append(K_SIMULATION_DEBUG_SAVE_FOLDER_APPEND);
+	g_simulation_debug_globals.save_directory.set(GetExeDirectoryNarrow().c_str());
+	g_simulation_debug_globals.save_directory.append(K_SIMULATION_DEBUG_SAVE_FOLDER_APPEND);
 
 	s_file_reference save_folder;
-	file_reference_create_from_path(&save_folder, g_simulation_debug_globals.save_location.get_string(), true);
+	file_reference_create_from_path(&save_folder, g_simulation_debug_globals.save_directory.get_string(), true);
 	file_create_parent_directories_if_not_present(&save_folder);
 	file_close(&save_folder);
+}
+
+void debug_simulation_timestamp_internal(static_string32* timestamp)
+{
+	time_t timer = time(NULL);
+	tm* tm_info = localtime(&timer);
+	strftime(timestamp->get_buffer(), timestamp->max_length(), "%Y%m%d-%H%M%S_", tm_info);
 }

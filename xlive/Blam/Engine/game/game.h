@@ -37,18 +37,22 @@ typedef void(__cdecl* initialize_proc_t)(void);
 typedef void(__cdecl* dispose_proc_t)(void);
 typedef void(__cdecl* reset_proc_t)(void);
 typedef void(__cdecl* dispose_from_old_map_proc_t)(void);
+typedef void(__cdecl* initialize_for_new_structure_bsp_proc_t)(void);
+typedef void(__cdecl* dispose_from_old_structure_bsp_proc_t)(void);
+typedef void(__cdecl* prepare_for_structure_bsp_switch_proc_t)(int);
+typedef void(__cdecl* pvs_proc_t)(s_game_cluster_bit_vectors*, s_game_cluster_bit_vectors*, s_game_cluster_bit_vectors*);
 typedef void(__cdecl* activation_proc_t)(s_game_cluster_bit_vectors*, s_game_cluster_bit_vectors*);
 
 struct s_game_systems
 {
 	initialize_proc_t initialize_proc;
 	dispose_proc_t dispose_proc;
-	reset_proc_t reset_proc;
+	reset_proc_t initialize_for_new_map_proc;
 	dispose_from_old_map_proc_t dispose_from_old_map_proc;
-	void* unk4;
-	void* unk5;
-	void* unk6;
-	void* unk7;
+	initialize_for_new_structure_bsp_proc_t initialize_for_new_structure_bsp_proc;
+	dispose_from_old_structure_bsp_proc_t dispose_from_old_structure_bsp_proc;
+	prepare_for_structure_bsp_switch_proc_t prepare_for_structure_bsp_switch_proc;
+	pvs_proc_t pvs_proc;
 	activation_proc_t activation_proc;
 };
 ASSERT_STRUCT_SIZE(s_game_systems, 36);

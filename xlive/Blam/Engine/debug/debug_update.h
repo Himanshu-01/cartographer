@@ -1,8 +1,10 @@
 #pragma once
 
-//#include "Networking/messages/network_messages_simulation_synchronous.h"
 
+struct simulation_update;
 struct s_network_message_synchronous_update;
+struct s_simulation_debug_chunk;
+class c_simulation_queue;
 struct c_debug_update_node
 {
 	bool allocated;
@@ -57,11 +59,14 @@ public:
 	void clear();
 	void dispose();
 
-	//void encode(c_bitstream* stream);
-	//void decode(c_bitstream* stream);
-
 };
 
+bool debug_update_record_update(simulation_update* update, c_simulation_queue* bookkeeping, c_simulation_queue* game);
 bool debug_update_record_update(s_network_message_synchronous_update* update);
 bool debug_update_record_from_buffer(uint8* buffer, uint32 buffer_len);
 bool debug_update_retrieve_latest_update(s_network_message_synchronous_update* out_update);
+
+void debug_update_read_from_chunk(s_simulation_debug_chunk* chunk);
+void debug_update_queue_initialize_for_load();
+void debug_update_queue_clear();
+void debug_update_queue_dispose();

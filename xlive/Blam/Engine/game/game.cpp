@@ -4,6 +4,7 @@
 #include "game_engine.h"
 #include "game_time.h"
 
+#include "debug/debug_simulation_globals.h"
 #include "effects/particle_emitter.h"
 #include "cseries/cseries.h"
 #include "effects/particle.h"
@@ -84,7 +85,7 @@ int16 game_get_active_structure_bsp_index()
 // TODO: saved films
 bool game_is_playback(void)
 {
-	return false;
+	return debug_simulation_active() && debug_simulation_is_replaying();
 	//return _game_playback_none;
 }
 
@@ -263,7 +264,7 @@ void __cdecl game_update(int32 desired_ticks, real32* elapsed_game_dt)
 	return;
 }
 
-void game_instance_initialize_for_new_map_(s_game_options* options)
+void game_instance_initialize_for_new_map(s_game_options* options)
 {
 	s_main_game_globals* game_globals = get_main_game_globals();
 
@@ -291,20 +292,27 @@ void __cdecl game_initialize_for_new_map(s_game_options* options)
 	random_seed_allow_use();
 
 	game_globals->initializing = true;
-	game_instance_initialize_for_new_map_(options);
+	game_instance_initialize_for_new_map(options);
 
 	s_game_systems* g_game_systems = get_game_systems();
 	for (uint32 i = 0; i < 70; i++)
 	{
-		if (g_game_systems[i].reset_proc)
+		if (g_game_systems[i].initialize_for_new_map_proc)
 		{
-			g_game_systems[i].reset_proc();
+			g_game_systems[i].initialize_for_new_map_proc();
 		}
 	}
 	game_globals->initializing = false;
 	game_globals->map_active = true;
 
 	random_seed_disallow_use(_random_seed_in_game_initialize_for_new_map);
+
+	LOG_DEBUG_FUNC("");
+	if (debug_simulation_active() && debug_simulation_is_recording())
+	{
+		g_simulation_debug_globals.film_options = *options;
+		LOG_DEBUG_FUNC("saving film options");
+	}
 }
 
 void __cdecl game_initialize_for_new_structure_bsp(void)
@@ -312,6 +320,7 @@ void __cdecl game_initialize_for_new_structure_bsp(void)
 	random_seed_allow_use();
 	INVOKE(0x48BE0, 0x0, game_initialize_for_new_structure_bsp);
 	random_seed_disallow_use(_random_seed_in_game_initialize_for_new_structure_bsp);
+	LOG_DEBUG_FUNC("");
 }
 
 void __cdecl game_load_launch_parameters(void)
@@ -324,6 +333,7 @@ void __cdecl game_create_missing_objects(void)
 	random_seed_allow_use();
 	INVOKE(0x48CC8, 0x0, game_create_missing_objects);
 	random_seed_disallow_use(_random_seed_in_game_create_missing_objects);
+	LOG_DEBUG_FUNC("");
 }
 
 void __cdecl game_create_objects(void)
@@ -331,6 +341,7 @@ void __cdecl game_create_objects(void)
 	random_seed_allow_use();
 	INVOKE(0x48CA5, 0x0, game_create_objects);
 	random_seed_disallow_use(_random_seed_in_game_create_objects);
+	LOG_DEBUG_FUNC("");
 }
 
 //void __cdecl game_create_players(void)
@@ -343,6 +354,7 @@ void __cdecl game_create_ai(void)
 	random_seed_allow_use();
 	INVOKE(0x48C95, 0x0, game_create_ai);
 	random_seed_disallow_use(_random_seed_in_game_create_ai);
+	LOG_DEBUG_FUNC("");
 }
 
 void __cdecl game_start(void)
@@ -355,6 +367,8 @@ void __cdecl game_start(void)
 	game_engine_game_starting();
 	game_load_launch_parameters();
 	random_seed_disallow_use(_random_seed_in_game_start);
+
+	LOG_DEBUG_FUNC("");
 }
 
 //void __cdecl game_dispose_from_old_map(void)
@@ -370,6 +384,15 @@ void __cdecl game_frame(real32 dt)
 	motion_sensor_update_with_delta(dt);
 	p_game_frame(dt);
 	return;
+}
+
+void game_playback_patches(void)
+{
+	PatchCall(Memory::GetAddress(0x7C29A), game_is_playback); //inside game_time_update
+	//PatchCall(Memory::GetAddress(0x1AE8C2), game_is_playback);//inside simulation_update
+	PatchCall(Memory::GetAddress(0x1D4878), game_is_playback); // inside  c_simulation_watcher::setup_connection
+	//PatchCall(Memory::GetAddress(0x216F0D), game_is_playback); // inside a function that calls transition_progress screen
+	//PatchCall(Memory::GetAddress(0x21747D), game_is_playback); // inside user_interface_recover_from_disconnection
 }
 
 void game_apply_pre_winmain_patches(void)
@@ -399,6 +422,7 @@ void game_apply_pre_winmain_patches(void)
 		p_game_frame = Memory::GetAddress<game_frame_t>(0x48CDC, 0x41F7D);
 
 		PatchCall(Memory::GetAddress(0x39D45, 0xC0D4), game_frame);
+		game_playback_patches();
 	}
 	return;
 }

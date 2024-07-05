@@ -136,8 +136,10 @@ public:
 	
 	bool handle_synchronous_update(const s_network_message_synchronous_update* update);
 	void handle_synchronous_client_actions(s_machine_identifier const* remote_machine_identifier, uint32 user_flags, player_action const* action);
-	bool handle_synchronous_join(s_network_message_synchronous_update* update);
 	bool handle_synchronous_gamestate(s_network_message_synchronous_update* update);
+
+	int32 synchronous_authority_get_maximum_updates();
+	int32 update_queue_get_available_updates() const;
 
 	void time_start(int32 next_update_number);
 	void time_set_immediate_update(bool update_immediately);
@@ -166,17 +168,18 @@ public:
 
 	void queues_clear();
 
-	bool is_playback() const
-	{
-		// todo: re-add once destroy_world function is re-written
-		//ASSERT(exists());
-		return false;
-	}
+	bool is_playback() const;
 
 	bool is_distributed(void) const
 	{
 		return m_world_type == _simulation_world_type_distributed_authority
 			|| m_world_type == _simulation_world_type_distributed_client;
+	}
+
+	bool is_local(void) const
+	{
+		ASSERT(exists());
+		return m_world_type == _simulation_world_type_local;
 	}
 
 	bool exists() const
@@ -193,7 +196,8 @@ public:
 	bool is_authority() const
 	{
 		ASSERT(exists());
-		return m_world_type != _simulation_world_type_distributed_client && m_world_type != _simulation_world_type_synchronous_client;
+		return m_world_type != _simulation_world_type_distributed_client 
+			&& m_world_type != _simulation_world_type_synchronous_client;
 	}
 
 	bool is_active() const
@@ -260,9 +264,9 @@ public:
 		return m_synchronous_client_latest_update_number_received + 1;
 	}
 
-	bool do_we_have_sufficient_updates(void)
+	int32 update_queue_length(void) const
 	{
-		return m_synchronous_client_queue_length > 0;
+		return m_synchronous_client_queue_length;
 	}
 
 	void force_immediate_update(void)

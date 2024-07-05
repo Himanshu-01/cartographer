@@ -32,7 +32,7 @@ void __cdecl simulation_action_game_engine_player_update(datum player_index, uin
 
 void __cdecl simulation_action_game_engine_player_create(int16 player_index)
 {
-	if (game_is_server() && game_is_distributed())
+	if (game_is_server() && game_is_distributed() && !game_is_playback())
 	{
 		c_simulation_world* world = simulation_get_world();
 		int32 entity_index = simulation_entity_create(6, NONE);
@@ -44,9 +44,35 @@ void __cdecl simulation_action_game_engine_player_create(int16 player_index)
 	}
 }
 
+typedef void(__cdecl* simulation_action_multiplayer_event_t)(void*);
+simulation_action_multiplayer_event_t p_simulation_action_multiplayer_event;
+void __cdecl simulation_action_multiplayer_event(void* game_engine_data)
+{
+	if (game_is_distributed() && game_is_server() && !game_is_playback())
+	{
+		p_simulation_action_multiplayer_event(game_engine_data);
+	}
+}
+
+typedef void(__cdecl* simulation_action_game_engine_globals_create_t)();
+simulation_action_game_engine_globals_create_t p_simulation_action_game_engine_globals_create;
+void __cdecl simulation_action_game_engine_globals_create()
+{
+	if (game_is_distributed() && game_is_server() && !game_is_playback())
+	{
+		p_simulation_action_game_engine_globals_create();
+	}
+}
+
+
+
 void simulation_game_action_apply_patches(void)
 {
 	PatchCall(Memory::GetAddress(0x6FF5B, 0x6EB53), simulation_action_game_engine_player_create);
 	PatchCall(Memory::GetAddress(0x75148, 0x72240), simulation_action_game_engine_player_create);
+
+	DETOUR_ATTACH(p_simulation_action_multiplayer_event, Memory::GetAddress<simulation_action_multiplayer_event_t>(0x1B67EA), simulation_action_multiplayer_event);
+	DETOUR_ATTACH(p_simulation_action_game_engine_globals_create, Memory::GetAddress<simulation_action_game_engine_globals_create_t>(0x1B6572), simulation_action_game_engine_globals_create);
+
 	return;
 }

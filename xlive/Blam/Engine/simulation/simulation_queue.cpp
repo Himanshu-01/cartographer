@@ -249,3 +249,57 @@ void c_simulation_queue::decode(c_bitstream* stream)
 
 	}
 }
+
+void simDebugTextFmt(const char* fmt, ...)
+{
+	va_list valist;
+	va_start(valist, fmt);
+
+	/* get the formatted buffer size */
+	int stringLength = _vscprintf(fmt, valist) + 1; // +1 adds null characeter, "_vscwprintf" doesn't add it
+
+	if (stringLength == -1)
+	{
+		LOG_TRACE_SIM("{} - error trying to get string length size", __FUNCTION__);
+		return;
+	}
+
+	char* textBufferA = (char*)calloc(stringLength, sizeof(char));
+	vsprintf(textBufferA, fmt, valist);
+
+	LOG_TRACE_SIM(textBufferA);
+
+	free(textBufferA);
+	va_end(valist);
+}
+
+
+
+
+void simDebugTextFmt(const wchar_t* fmt, ...)
+{
+	va_list valist;
+	va_start(valist, fmt);
+
+	/* get the formatted buffer size */
+	int stringLength = _vscwprintf(fmt, valist) + 1; // +1 adds null characeter, "_vscwprintf" doesn't add it
+
+	if (stringLength == -1)
+	{
+		LOG_TRACE_GAME("{} - error trying to get string length size", __FUNCTION__);
+		return;
+	}
+
+	wchar_t* textBufferW = (wchar_t*)calloc(stringLength, sizeof(wchar_t));
+	_vswprintf(textBufferW, fmt, valist);
+
+	char* textBufferA = (char*)calloc(stringLength, sizeof(char));
+	_snprintf(textBufferA, stringLength, "%ls", textBufferW);
+
+	LOG_TRACE_SIM(textBufferA);
+
+	free(textBufferW);
+	free(textBufferA);
+	va_end(valist);
+}
+

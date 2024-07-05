@@ -48,8 +48,12 @@ namespace CommandCollection
 	int connect(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	int coop(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	int protocol(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
-	int debug_save(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
-	int debug_load(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_save_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_load_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_pause(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_simuation_name(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_simuation_start(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	int debug_simuation_launch(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 	// misc
 	void ObjectSpawn(datum object_idx, int count, const real_point3d* position, const real_vector3d* rotation, float randomMultiplier, bool sameTeam);
 	void ReadObjectDatumIdx();

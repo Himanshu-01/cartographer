@@ -134,7 +134,7 @@ static bool decode_event_from_buffer(int32 encoded_size, uint8* encoded_data, s_
 
 		for (int32 i = 0; i < decode_out->reference_count; i++)
 		{
-			SIM_EVENT_QUEUE_DBG("reference: %08X", decode_out->object_refereces[i]);
+			SIM_EVENT_QUEUE_DBG("reference: %08X", decode_out->entity_references[i]);
 		}
 	}
 	else
@@ -179,8 +179,9 @@ void simulation_queue_event_insert(e_simulation_event_type type, int32 reference
 				// copy it to the queue
 				simulation_get_world()->simulation_queue_enqueue(allocated_element);
 
-				SIM_EVENT_QUEUE_DBG("added element 0x%08X, type: %d, size: %d to simulation queue", 
-					allocated_element, 
+				SIM_EVENT_QUEUE_DBG("added element [%s] 0x%08X, type: %d, size: %d to simulation queue", 
+					allocated_element,
+					sim_event_def->event_type_name(),
 					allocated_element->type, 
 					allocated_element->data_size
 				);
@@ -205,7 +206,8 @@ bool simulation_queue_event_apply(const s_simulation_queue_element* update)
 		// ### FIXME !!! this actually requires entity references, instead of object references
 		apply_event_result = sim_event_def->perform(sim_apply_data.reference_count, sim_apply_data.entity_references, sim_apply_data.data_size, sim_apply_data.data);
 
-		SIM_EVENT_QUEUE_DBG("type %d decoded: %d, perform result: %d, element: 0x%08X, perform data size: %d",
+		SIM_EVENT_QUEUE_DBG("[%s] type %d decoded: %d, perform result: %d, element: 0x%08X, perform data size: %d",
+			sim_event_def->event_type_name(),
 			sim_apply_data.event_type,
 			decode_success,
 			apply_event_result,

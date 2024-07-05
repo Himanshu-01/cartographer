@@ -32,6 +32,7 @@ extern h2log *console_log;
 extern h2log *onscreendebug_log;
 extern h2log *voice_log;
 extern h2log * rng_math_log;
+extern h2log * simulation_log;
 
 #define CHECK_PTR(check, expression) \
 do \
@@ -181,6 +182,25 @@ do \
 // "Wait, that's illegal" except it is definitely not a joke related to xLiveLess
 #define LOG_CRITICAL_XLIVE(msg, ...)     LOG_CRITICAL  (xlive_log, msg, __VA_ARGS__)
 
+// simulation
+// For the most unimportant stuff related to simulation
+#define LOG_TRACE_SIM(msg, ...)        LOG_TRACE     (simulation_log, msg, __VA_ARGS__)
+
+// Somewhat more useful information related to simulation
+#define LOG_DEBUG_SIM(msg, ...)        LOG_DEBUG     (simulation_log, msg, __VA_ARGS__)
+
+// Things that even users may want to see related to simulation
+#define LOG_INFO_SIM(msg, ...)         LOG_INFO      (simulation_log, msg, __VA_ARGS__)
+
+// A surprise to be sure, but not a serious one related to simulation
+#define LOG_WARNING_SIM(msg, ...)      LOG_WARNING   (simulation_log, msg, __VA_ARGS__)
+
+// Absolutely not good, probably game breaking events related to simulation
+#define LOG_ERROR_SIM(msg, ...)        LOG_ERROR     (simulation_log, msg, __VA_ARGS__)
+
+// "Wait, that's illegal" except it is definitely not a joke related to simulation
+#define LOG_CRITICAL_SIM(msg, ...)     LOG_CRITICAL  (simulation_log, msg, __VA_ARGS__)
+
 inline void verify_output_log(const char *expression, const char *func_name, const char* file, const int line)
 {
 	LOG_TRACE_GAME("'{0}' failed in '{1}' at '{2}:{3:d}'!", func_name, expression, file, line);
@@ -262,4 +282,12 @@ inline T verify_output(T output, const char *expression, const char *func_name, 
 #define LOG_WARNING_XLIVE()
 #define LOG_ERROR_XLIVE()
 #define LOG_CRITICAL_XLIVE()
+
+// simulation
+#define LOG_TRACE_SIM()
+#define LOG_DEBUG_SIM()
+#define LOG_INFO_SIM()
+#define LOG_WARNING_SIM()
+#define LOG_ERROR_SIM()
+#define LOG_CRITICAL_SIM()
 #endif

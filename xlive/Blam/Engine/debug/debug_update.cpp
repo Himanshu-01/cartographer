@@ -127,8 +127,8 @@ void c_debug_update_queue::allocate(int32 data_size, c_debug_update_node** out_a
 	{
 		uint32 required_data_size = sizeof(c_debug_update_node) + data_size;
 
-		if (allocated_count() + 1 < K_SIMULATION_DEBUG_MAX_UPDATES)
-		{
+		//if (allocated_count() + 1 < K_SIMULATION_DEBUG_MAX_UPDATES)
+		//{
 			uint8* heap_block = debug_malloc(required_data_size);
 			if (heap_block)
 			{
@@ -148,7 +148,7 @@ void c_debug_update_queue::allocate(int32 data_size, c_debug_update_node** out_a
 				// DEBUG
 			}
 
-		}
+		//}
 	}
 }
 
@@ -226,6 +226,24 @@ void c_debug_update_queue::dispose()
 	}
 }
 
+bool debug_update_record_update(simulation_update* update, c_simulation_queue* bookkeeping, c_simulation_queue* game)
+{
+	if (!debug_simulation_active()
+		|| !debug_simulation_is_recording()
+		|| !debug_simulation_recording_allows_update())
+	{
+		return false;
+	}
+
+	s_network_message_synchronous_update message;
+	csmemcpy(&message.update, update, sizeof(simulation_update));
+	csmemcpy(&message.simulation_bookkeeping_queue, bookkeeping, sizeof(c_simulation_queue));
+	csmemcpy(&message.game_simulation_queue, game, sizeof(c_simulation_queue));
+
+	g_simulation_debug_globals.current_recording_tick = update->game_time_ticks;
+	return debug_update_record_update(&message);
+}
+
 bool debug_update_record_update(s_network_message_synchronous_update* update)
 {
 	bool result = false;
@@ -293,7 +311,8 @@ bool debug_update_record_from_buffer(uint8* buffer, uint32 buffer_len)
 
 bool debug_update_retrieve_latest_update(s_network_message_synchronous_update* out_update)
 {
-	out_update = nullptr;
+	ASSERT(out_update != nullptr);
+
 	bool result = false;
 	if (debug_simulation_active() && debug_simulation_is_replaying() && debug_simulation_replay_has_updates())
 	{
@@ -333,4 +352,62 @@ bool debug_update_retrieve_latest_update(s_network_message_synchronous_update* o
 	}
 
 	return result;
+}
+
+void debug_update_read_from_chunk(s_simulation_debug_chunk* chunk)
+{
+	if (debug_simulation_active())
+	{
+		uint8* update_buffer = debug_malloc(chunk->chunk_size);
+		if (file_read_from_position(&g_simulation_debug_globals.save_file, chunk->file_offset, chunk->chunk_size, false, update_buffer))
+		{
+			LOG_TRACE_SIM("{} - successfully read update data from save file ", __FUNCTION__);
+			if (!debug_update_record_from_buffer(update_buffer, chunk->chunk_size))
+			{
+				LOG_ERROR_SIM("{} - failed to record update data for replay!", __FUNCTION__);
+			}
+
+		}
+		else
+		{
+			LOG_ERROR_SIM("{} - failed in file_read_from_position!", __FUNCTION__);
+		}
+
+
+		if (update_buffer)
+		{
+			debug_free(update_buffer);
+			LOG_TRACE_SIM("{} - clearing update buffer ", __FUNCTION__);
+		}
+	}
+}
+
+void debug_update_queue_initialize_for_load()
+{
+	if (debug_simulation_active())
+	{
+		if (!g_simulation_debug_globals.update_queue.initialized())
+		{
+			g_simulation_debug_globals.update_queue.initialize();
+		}
+
+		if (debug_simulation_is_recording())
+		{
+			debug_update_queue_clear();
+		}
+		else
+		{
+			// we are the replay , so do nothing?
+		}
+	}
+}
+
+void debug_update_queue_clear()
+{
+	g_simulation_debug_globals.update_queue.clear();
+}
+
+void debug_update_queue_dispose()
+{
+	g_simulation_debug_globals.update_queue.dispose();
 }

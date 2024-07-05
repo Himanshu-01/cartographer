@@ -84,5 +84,8 @@ struct s_game_options
 };
 ASSERT_STRUCT_SIZE(s_game_options, 4488);
 
+bool __cdecl game_options_verify(s_game_options* options);
+
+
 // Initializes game options
 void game_options_new(s_game_options* game_options);

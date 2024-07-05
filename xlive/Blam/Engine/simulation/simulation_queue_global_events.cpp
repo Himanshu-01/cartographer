@@ -10,6 +10,18 @@
 #include "game/game_engine.h"
 #include "memory/bitstream.h"
 
+const char* k_game_global_event_names[] =
+{
+    "claim_authority",
+    "distributed_server",
+    "distributed_client",
+    "game_won",
+    "main_revert_map",
+    "main_reset_map",
+    "main_save_and_exit_campaign",
+    "notify_reset_complete",
+};
+
 static void simulation_queue_global_event_allocate_and_insert(e_event_queue_type type, void* data, int32 data_size)
 {
     s_simulation_queue_element* element = NULL;
@@ -32,6 +44,14 @@ void simulation_queue_game_global_event_insert(e_simulation_queue_global_event_t
         stream.write_integer("global-event-type", global_event_type, 3);
         if (!stream.error_occured())
         {
+            if(VALID_INDEX(global_event_type, k_simulation_queue_game_global_event_count))
+            {
+                SIM_GLOBAL_QUEUE_DBG("inserting game global event : %s", k_game_global_event_names[global_event_type]);
+            }
+            else
+            {
+                SIM_GLOBAL_QUEUE_DBG("inserting unknwon game global event type: %d", global_event_type);
+            }
             simulation_queue_global_event_allocate_and_insert(_simulation_queue_element_type_game_global_event, encoded_data, stream.get_space_used_in_bytes());
         }
         stream.finish_writing(NULL);
@@ -80,6 +100,11 @@ void simulation_queue_game_global_event_apply(const s_simulation_queue_element* 
     e_simulation_queue_global_event_type type;
     if (simulation_queue_game_global_event_decode(element, &type))
     {
+        if (VALID_INDEX(type, k_simulation_queue_game_global_event_count))
+        {
+            SIM_GLOBAL_QUEUE_DBG("applying game global event : %s", k_game_global_event_names[type]);
+        }
+
         switch (type)
         {
         case _simulation_queue_game_global_event_type_claim_authority:
@@ -138,6 +163,7 @@ void simulation_queue_player_event_apply(const s_simulation_queue_element* eleme
 	uint16 abs_player_index = stream.read_integer("player-index", k_player_index_bit_count);
 	bool active = stream.read_bool("active");
 
+    SIM_GLOBAL_QUEUE_DBG("applying player activation event");
 	if (!stream.error_occured())
 	{
 		datum player_index = player_index_from_absolute_player_index(abs_player_index);
@@ -183,6 +209,7 @@ void simulation_queue_player_update_apply(const s_simulation_queue_element* elem
     stream.begin_reading();
     simulation_player_update_decode(&stream, &update);
 
+    SIM_GLOBAL_QUEUE_DBG("applying player update event");
     if (stream.error_occured())
     {
         // ASSERT HERE

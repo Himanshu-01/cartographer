@@ -38,10 +38,10 @@ struct s_simulation_globals
 	bool simulation_invalidate;
 	bool simulation_reset_pending;
 	bool simulation_reset_in_progress;
-	bool field_B;
+	bool loading_saved_game;
 	c_simulation_world* world;
-	c_simulation_watcher* simulation_watcher;
-	c_simulation_type_collection* simulation_type_collection;
+	c_simulation_watcher* watcher;
+	c_simulation_type_collection* type_collection;
 };
 ASSERT_STRUCT_SIZE(s_simulation_globals, 24);
 
@@ -54,13 +54,14 @@ bool simulation_aborted();
 bool simulation_in_progress();
 bool simulation_query_object_is_predicted(datum object_datum);
 bool __cdecl simulation_get_machine_active_in_game(s_machine_identifier* machine_identifier);
-
+int32 __cdecl simulation_time_get_maximum_available(bool* match_remote_time);
 
 void simulation_reset();
 void simulation_fatal_error(void);
 void simulation_notify_reset_complete();
 void simulation_destroy_update(void);
 void __cdecl simulation_start(void);
+void __cdecl simulation_end();
 void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
 
 c_simulation_type_collection* simulation_get_type_collection();

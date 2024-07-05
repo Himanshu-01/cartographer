@@ -134,7 +134,15 @@ void main_game_launch(const char* map_name)
     cache_file_map_clear_all_failures();
     main_game_launch_set_map_name(map_name);
     main_game_launch_setup_game_mode_details();
-    game_options_setup_default_players(g_main_game_launch_user_count, &g_main_game_launch_options);
+    //game_options_setup_default_players(g_main_game_launch_user_count, &g_main_game_launch_options);
+    g_main_game_launch_options.valid_machine_mask = 1;
+    //g_main_game_launch_options.machines[0] = {};
+    //csmemset(g_main_game_launch_options.machines[0].machine_identifier, 0, sizeof(s_machine_identifier));
+    g_main_game_launch_options.local_machine_exists = true;
+    //g_main_game_launch_options.local_machine_identifier.machine_identifier[0] = 0;
+    //csmemset(g_main_game_launch_options.local_machine_identifier.machine_identifier, 0, sizeof(s_machine_identifier));
+    g_main_game_launch_options.players[0].player_valid = true;
+    g_main_game_launch_options.players[0].player_left_game = false;
     main_game_change(&g_main_game_launch_options);
     return;
 }

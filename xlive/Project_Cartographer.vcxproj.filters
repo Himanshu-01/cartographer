@@ -344,6 +344,7 @@
     <ClCompile Include="Blam\Engine\debug\debug_update.cpp" />
     <ClCompile Include="Blam\Engine\memory\data_compress.cpp" />
     <ClCompile Include="Blam\Engine\debug\debug_gamestate.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\simulation_watcher.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\miniupnpc\include\miniupnpc\codelength.h" />

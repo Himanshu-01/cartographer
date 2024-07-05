@@ -95,6 +95,7 @@ void ExitInstance()
 	delete console_log;
 	delete onscreendebug_log;
 	delete rng_math_log;
+	delete simulation_log;
 #if COMPILE_WITH_VOICE
 	delete voice_log;
 #endif

@@ -289,6 +289,15 @@ void simulation_queue_entity_creation_apply(const s_simulation_queue_element* el
 					decoded_creation_data.state_data_size,
 					decoded_creation_data.state_data
 				);
+
+				 SIM_ENT_QUEUE_DBG("[%s] type: %d, index: %X, gamestate index : 0x%X, initial update mask: 0x%X , result : %d",
+					 entity_def->entity_type_name(),
+					 decoded_creation_data.entity_type,
+					 decoded_creation_data.entity_index,
+					 game_entity->object_index,
+					 decoded_creation_data.initial_update_mask,
+					 game_entity->exists_in_gameworld
+				 );
 			}
 		}
 	}
@@ -332,7 +341,7 @@ bool encode_simulation_queue_update_to_buffer(
 		SIM_ENT_QUEUE_DBG("#####");
 		SIM_ENT_QUEUE_DBG("entity encoding, encoded size: %d",
 			stream.get_space_used_in_bytes());
-		SIM_ENT_QUEUE_DBG("entity type: %d, index: %X, initial update mask: 0x%X", data->entity_type, data->entity_index, initial_update_mask);
+		SIM_ENT_QUEUE_DBG("entity type: %d, index: %X, initial update mask: 0x%X", data->entity_type, data->entity_index, update_mask);
 	}
 	else
 	{
@@ -401,7 +410,7 @@ bool decode_simulation_queue_update_from_buffer(int32 encoded_size, uint8* encod
 		SIM_ENT_QUEUE_DBG("#####");
 		SIM_ENT_QUEUE_DBG("entity decoding, decoded size: %d",
 			stream.get_space_used_in_bytes());
-		SIM_ENT_QUEUE_DBG("entity type: %d, index: %X, initial update mask: 0x%X", out_decoded_data->entity_type, out_decoded_data->entity_index, out_decoded_data->initial_update_mask);
+		SIM_ENT_QUEUE_DBG("entity type: %d, index: %X, initial update mask: 0x%X", out_decoded_data->entity_type, out_decoded_data->entity_index, out_decoded_data->update_mask);
 	}
 	else
 	{
@@ -467,12 +476,20 @@ void simulation_queue_entity_update_apply(const s_simulation_queue_element* elem
 
 			if (game_entity)
 			{
-				entity_def->update_game_entity(
+				bool result = entity_def->update_game_entity(
 					game_entity,
 					decoded_update_data.update_mask,
 					decoded_update_data.state_data_size,
 					decoded_update_data.state_data
 				);
+
+				SIM_ENT_QUEUE_DBG("[%s] type: %d, index: %X, update mask: 0x%X , result : %d",
+					entity_def->entity_type_name(),
+					decoded_update_data.entity_type,
+					decoded_update_data.entity_index,
+					decoded_update_data.update_mask,
+					result
+					);
 			}
 		}
 	}
@@ -546,10 +563,13 @@ void simulation_queue_entity_deletion_apply(const s_simulation_queue_element* el
 			game_entity.object_index = NONE;
 		}
 		
-		if (entity_def->delete_game_entity(&game_entity))
-		{
-			// SUCCESS
-		}
+		bool result = entity_def->delete_game_entity(&game_entity);
+
+		SIM_ENT_QUEUE_DBG("[%s] type: %d, gamestate index: 0x%X , result : %d",
+			entity_def->entity_type_name(),
+			game_entity.entity_type,
+			game_entity.object_index,
+			result);
 	}
 	stream.finish_reading();
 	return;
@@ -597,10 +617,16 @@ void simulation_queue_entity_promotion_apply(const s_simulation_queue_element* e
 
 			c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(entity_type);
 			s_simulation_game_entity* game_entity = simulation_get_entity_database()->entity_get(entity_index);
-			if (entity_def->promote_game_entity_to_authority(game_entity))
-			{
-				// SUCCESS
-			}
+			bool result = entity_def->promote_game_entity_to_authority(game_entity);
+
+
+			SIM_ENT_QUEUE_DBG("[%s] type: %d, index: %X, gamestate index: 0x%X , result : %d",
+				entity_def->entity_type_name(),
+				entity_type,
+				entity_index,
+				gamestate_index,
+				result);
+			
 		}
 		stream.finish_reading();
 	}
