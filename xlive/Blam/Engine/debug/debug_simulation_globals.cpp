@@ -262,35 +262,38 @@ void debug_simulation_launch_replay()
 		g_simulation_debug_globals.save_file_name.get_string(),
 		K_SIMULATION_DEBUG_SAVE_FILE_EXTENSION);
 
-	//s_game_state_header header;
-	//if(debug_gamestate_read_header(&header))
-	//{
-	//	LOG_INFO_SIM("simulation:global:debug  on scenario : {} ",
-	//		header.scenario_name.get_string());
-
-	//	g_simulation_debug_globals.replay_started = true;
-	//	g_simulation_debug_globals.replay_applied_gamestate = false;
-	//	main_game_change(&header.options);
-	//}
-	//else
-	//{
+	s_game_state_header header;
+	s_game_options* launch_options = nullptr;
+	if(debug_gamestate_read_header(&header))
+	{
+		LOG_INFO_SIM("simulation:global:debug  on scenario : {} ",
+			header.scenario_name.get_string());
+			
+		launch_options = &header.options;
+	}
+	else
+	{
 		LOG_WARNING_SIM("simulation:global:debug found no gamestate header, using film options..");
 		LOG_INFO_SIM(L"simulation:global:debug on scenario : {} ",
 			g_simulation_debug_globals.film_options.scenario_path.get_string());
 
-		g_simulation_debug_globals.replay_started = true;
-		g_simulation_debug_globals.replay_applied_gamestate = false;
 
 		//g_simulation_debug_globals.film_options.players[0].player_valid = true;
 		//g_simulation_debug_globals.film_options.players[0].player_left_game = false;
 
-		//force synchronous_client to act as synchronous_server
-		//doing this so i dont have to rewrite c_simulation_world::update()
-		if (g_simulation_debug_globals.film_options.simulation_type == _game_simulation_synchronous_client)
-			g_simulation_debug_globals.film_options.simulation_type = _game_simulation_synchronous_server;
+		launch_options = &g_simulation_debug_globals.film_options;	
+	}
 
-		main_game_change(&g_simulation_debug_globals.film_options);
-	//}
+	g_simulation_debug_globals.replay_started = true;
+	g_simulation_debug_globals.replay_applied_gamestate = false;
+
+	//force synchronous_client to act as synchronous_server
+	//doing this so i dont have to rewrite c_simulation_world::update()
+
+	if (launch_options->simulation_type == _game_simulation_synchronous_client)
+		launch_options->simulation_type = _game_simulation_synchronous_server;
+
+	main_game_change(launch_options);
 
 }
 
@@ -313,6 +316,15 @@ void debug_simulation_notify_oos()
 	LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed");
 	debug_random_dump_call_stack();
 
+
+	static_string32 timestamp;
+	debug_simulation_timestamp_internal(&timestamp);
+	g_simulation_debug_globals.save_file_name.set(timestamp.get_string());
+
+	const char* type = simulation_get_world()->is_authority() ? "host" : "client";
+	g_simulation_debug_globals.save_file_name.append(type);
+	g_simulation_debug_globals.save_file_name.append("_oos");
+	debug_simulation_write_debug_file();
 	debug_simulation_stop_recording();
 }
 
@@ -1061,7 +1073,8 @@ bool debug_simulation_verify_header_internal(s_simulation_debug_file_header* hea
 bool debug_simulation_fetch_updates_internal(int32 remaining_updates, int32* updates_read_out)
 {
 	// apply initial gamestate if not done
-	// 
+	//
+	// still buggy sadly 
 	//debug_gamestate_apply_saved_state();
 
 

@@ -2,6 +2,7 @@
 #include "game_state.h"
 #include "game_state_procs.h"
 #include "debug/debug_gamestate.h"
+#include "debug/debug_update.h"
 
 void __cdecl game_state_initialize(void)
 {
@@ -34,6 +35,7 @@ void __cdecl game_state_call_after_load_procs_inside_game_state_try_and_load_fro
 {
 	game_state_call_after_load_procs(a2);
 	debug_gamestate_record_current_state();
+	debug_update_queue_clear();
 }
 void game_state_apply_patches()
 {

@@ -76,7 +76,7 @@ static_assert(sizeof(datum) == 4);
 #define IN_RANGE_INCLUSIVE(value, begin, end) (((value) >= (begin)) && ((value) <= (end)))
 #define VALID_INDEX(index, count) ((index) >= 0 && (index) < (count))
 #define VALID_COUNT(index, count) ((index) >= 0 && (index) <= (count))
-#define VALID_BITS(flags, max_bits) ((flags) & ~((1 << (max_bits)) - 1))
+#define VALID_BITS(flags, max_bits) (((flags) & ((1 << (max_bits)) - 1)) == (flags))
 
 // TODO remove padding macros
 // Explanation:

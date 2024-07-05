@@ -154,6 +154,12 @@ void __cdecl simulation_start()
     INVOKE(0x1ADCE3, 0x0, simulation_start);
 
     debug_simulation_initialize();
+
+    if (!game_is_ui_shell() && !debug_simulation_is_replaying())
+    {
+        //always start recording so that we can capture oos
+        debug_simulation_start_recording();
+    }
 }
 
 void __cdecl simulation_end()
@@ -260,7 +266,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 
     if (update->game_time_ticks == 0)
     {
-        // maybe not a good idea to record here?
+        // maybe not a good idea to record gamestate here?
         if(debug_simulation_is_recording())
         {
             debug_gamestate_record_current_state();
@@ -343,10 +349,6 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 }
 
 
-bool debugging_last_tick = false;
-simulation_update debug_update;
-uint8* g_debug_gamestate_buffer = nullptr;
-
 void __cdecl simulation_build_update(simulation_update* update)
 {
     //INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
@@ -369,6 +371,10 @@ void __cdecl simulation_build_update(simulation_update* update)
             globals->world->update_queue_retrieve_update(update);
             LOG_DEBUG_SIM("simulation:global:debug fetching update from m_synchronous_client_queue now /update->time {}/{}",
                 globals->world->get_time(), update->game_time_ticks);
+
+
+            LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
+
             g_simulation_debug_globals.current_replaying_tick = update->game_time_ticks;
         }
         else
@@ -377,11 +383,12 @@ void __cdecl simulation_build_update(simulation_update* update)
             ASSERT(false);
         }
         //ASSERT(false);
-        return;
+        //return;
     }
-
-    globals->world->build_update(update);
-
+    else
+    {
+        globals->world->build_update(update);
+    }
 
     bool go_oos = false;
 
@@ -389,9 +396,6 @@ void __cdecl simulation_build_update(simulation_update* update)
         && (!globals->world->is_distributed() || globals->world->is_playback())
         && !globals->world->is_out_of_sync())
     {
-
-        //set_random_seed(update->random_seed);
-        //time_globals::get()->tick_count = update->game_time_ticks;
 
         if (update->simulation_time != globals->world->get_next_update_number())
         {
@@ -424,13 +428,25 @@ void __cdecl simulation_build_update(simulation_update* update)
     {
 
         globals->world->go_out_of_sync();
+
         debug_simulation_notify_oos();
         
+
+        if (debug_simulation_active() && debug_simulation_is_replaying())
+            return;
+
+
         //tell the authority we are going oos
         s_network_message_synchronous_actions sync_actions;
         csmemset(&sync_actions, NULL, sizeof(s_network_message_synchronous_actions));
         sync_actions.out_of_sync = true;
-        globals->world->get_authority_view()->send_message(_synchronous_actions, sizeof(s_network_message_synchronous_actions), &sync_actions, false);
+        c_simulation_view* authority_view = globals->world->get_authority_view();
+
+        if (authority_view && authority_view->exists())
+        {
+            LOG_CRITICAL_SIM("simulation:global: OUT OF SYNC, telling host to go oos ");
+            authority_view->send_message(_synchronous_actions, sizeof(s_network_message_synchronous_actions), &sync_actions, false);
+        }
 
         //// doesnt really help much
         //set_random_seed(update->random_seed);
@@ -440,66 +456,6 @@ void __cdecl simulation_build_update(simulation_update* update)
     return;
 }
 
-void simulation_record_and_apply_state(simulation_update* update)
-{
-    s_simulation_globals* globals = simulation_get_globals();
-    if(globals->world->is_out_of_sync())
-    {
-        LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed on client");
-        //random_math_dump_call_stack();
-        
-        LOG_CRITICAL_NETWORK("simulation:global:debug we are pausing the game.. waiting on you to start debugging");
-        time_globals::get()->paused = true;
-        debugging_last_tick = true;
-
-        //break the game here wait on debugger to resume
-        ASSERT(false);
-
-
-        typedef void(__cdecl game_state_call_before_load_procs)(int context);
-        auto p_game_state_call_before_load_procs = Memory::GetAddress<game_state_call_before_load_procs*>(0x8C245);
-
-        typedef void(__cdecl game_state_call_after_load_procs)(int context);
-        auto p_game_state_call_after_load_procs = Memory:: GetAddress<game_state_call_after_load_procs*>(0x8C269);
-
-        LOG_CRITICAL_NETWORK("simulation:global:debug reverting gamestate");
-        ASSERT(g_debug_gamestate_buffer);
-
-        p_game_state_call_before_load_procs(0);
-        csmemcpy((void*)GAME_STATE_ALLOCATION_BASE, g_debug_gamestate_buffer, GAME_STATE_ALLOCATION_SIZE);
-        p_game_state_call_after_load_procs(0);
-
-        csmemcpy(update, &debug_update, sizeof(simulation_update));
-        time_globals::get()->paused = false;
-
-        LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
-    }
-    else
-    {
-        typedef void(__cdecl game_state_call_before_save_procs)(int context);
-        auto p_game_state_call_before_save_procs = Memory::GetAddress<game_state_call_before_save_procs*>(0x8C21B);
-
-        typedef void(__cdecl game_state_call_after_save_procs__)(int context);
-        auto p_game_state_call_after_save_procs = Memory::GetAddress<game_state_call_after_save_procs__*>(0x8C23F);
-
-        if (g_debug_gamestate_buffer == nullptr)
-        {
-            LOG_CRITICAL_NETWORK("simulation:global:debug initializing save memory");
-            g_debug_gamestate_buffer = new uint8[GAME_STATE_ALLOCATION_SIZE];
-        }
-        else
-        {
-            ASSERT(g_debug_gamestate_buffer);
-            p_game_state_call_before_save_procs(0);
-            csmemcpy(g_debug_gamestate_buffer, (void*)GAME_STATE_ALLOCATION_BASE, GAME_STATE_ALLOCATION_SIZE);
-            p_game_state_call_after_save_procs(0);
-
-            csmemcpy(&debug_update, update, sizeof(simulation_update));
-            
-        }
-        
-    }
-}
 
 void __cdecl simulation_update_aftermath(simulation_update* update)
 {

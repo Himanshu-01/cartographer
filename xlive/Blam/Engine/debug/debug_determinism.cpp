@@ -9,10 +9,10 @@
 std::stack<std::pair<uint32, uint32>> return_addresses;
 void debug_random_record_call_entry(uint32 ret_addr)
 {
-	if (debug_simulation_is_recording() && debug_simulation_recording_allows_random())
+	if (debug_simulation_active() && debug_simulation_is_recording() && debug_simulation_recording_allows_random())
 	{
 		return_addresses.push({ time_globals::get_game_time(), ret_addr });
-		LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_addr);
+		//LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_addr);
 	}
 }
 
@@ -24,7 +24,7 @@ void debug_random_record_clear()
 
 void debug_random_dump_call_stack()
 {
-	LOG_TRACE(rng_math_log, "Dumping random_math call stack started , is_host :", NetworkSession::LocalPeerIsSessionHost());
+	LOG_TRACE(rng_math_log, "Dumping random_math call stack started , is_host : {}", NetworkSession::LocalPeerIsSessionHost());
 	while (!return_addresses.empty())
 	{
 		auto top = return_addresses.top();

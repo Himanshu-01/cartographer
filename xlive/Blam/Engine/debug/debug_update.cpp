@@ -361,7 +361,7 @@ void debug_update_read_from_chunk(s_simulation_debug_chunk* chunk)
 		uint8* update_buffer = debug_malloc(chunk->chunk_size);
 		if (file_read_from_position(&g_simulation_debug_globals.save_file, chunk->file_offset, chunk->chunk_size, false, update_buffer))
 		{
-			LOG_TRACE_SIM("{} - successfully read update data from save file ", __FUNCTION__);
+			//LOG_TRACE_SIM("{} - successfully read update data from save file ", __FUNCTION__);
 			if (!debug_update_record_from_buffer(update_buffer, chunk->chunk_size))
 			{
 				LOG_ERROR_SIM("{} - failed to record update data for replay!", __FUNCTION__);
@@ -377,7 +377,7 @@ void debug_update_read_from_chunk(s_simulation_debug_chunk* chunk)
 		if (update_buffer)
 		{
 			debug_free(update_buffer);
-			LOG_TRACE_SIM("{} - clearing update buffer ", __FUNCTION__);
+			//LOG_TRACE_SIM("{} - clearing update buffer ", __FUNCTION__);
 		}
 	}
 }

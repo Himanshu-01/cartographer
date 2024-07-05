@@ -3,6 +3,7 @@
 
 #include "random_direction_table.h"
 #include "game/game_time.h"
+#include "game/game.h"
 #include "debug/debug_determinism.h"
 
 
@@ -131,7 +132,10 @@ static void __cdecl random_math_log_bad_access(DWORD ret_address)
 		LOG_CRITICAL_NETWORK("someone is using the global random number generator when they shouldn't be at 0x{:X}  time [{}]", (void*)ret_address, time_globals::get_game_time());
 	}
 
-	//debug_random_record_call_entry(ret_address);
+	if(!game_is_ui_shell())
+	{
+		debug_random_record_call_entry(ret_address);
+	}
 
 }
 

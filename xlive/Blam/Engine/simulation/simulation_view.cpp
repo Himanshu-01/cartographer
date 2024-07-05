@@ -1,6 +1,8 @@
 #include "stdafx.h"
 #include "simulation_view.h"
 #include "simulation.h"
+
+#include "debug/debug_simulation_globals.h"
 #include "Networking/Transport/network_observer.h"
 #include "Networking/NetworkMessageTypeCollection.h"
 #include "Networking/messages/network_messages_simulation_synchronous.h"
@@ -154,9 +156,14 @@ bool c_simulation_view::handle_synchronous_actions(int32 action_no, int32 update
 
 	if (is_out_of_sync)
 	{
+
+		LOG_CRITICAL_SIM("simulation:view: view {} synchronous-actions received msg to go out-of-sync", view_description.get_buffer());
+
 		go_out_of_sync();
 		// if client is oos , tell host to go oos as well
 		this->m_world->go_out_of_sync();
+		debug_simulation_notify_oos();
+
 		return true;
 	}
 
