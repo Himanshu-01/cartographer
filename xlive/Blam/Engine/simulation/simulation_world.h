@@ -114,6 +114,7 @@ public:
 	void delete_all_actors(void);
 
 	void update_queue_reset(void);
+	void update_queue_start(int32 next_update_number);
 
 	// discard resources
 	void reset_world(void);
@@ -142,6 +143,7 @@ public:
 	int32 update_queue_get_available_updates() const;
 
 	void time_start(int32 next_update_number);
+	void time_stop();
 	void time_set_immediate_update(bool update_immediately);
 	bool synchronous_gamestate_write_start(void);
 	bool synchronous_gamestate_decompress_and_load(int32 gamestate_offset);
@@ -190,7 +192,8 @@ public:
 	bool runs_simulation() const
 	{
 		ASSERT(exists());
-		return m_world_type != _simulation_world_type_synchronous_client;
+		return m_world_type != _simulation_world_type_synchronous_client
+			&& !is_playback();
 	}
 
 	bool is_authority() const

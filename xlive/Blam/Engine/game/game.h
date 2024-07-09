@@ -82,6 +82,7 @@ void __cdecl game_shell_set_in_progress();
 bool game_in_progress(void);
 bool game_is_predicted(void);
 bool game_is_distributed(void);
+bool game_is_synchronous_networking(void);
 bool game_is_server(void);
 bool game_is_playback(void);
 bool game_is_authoritative(void);

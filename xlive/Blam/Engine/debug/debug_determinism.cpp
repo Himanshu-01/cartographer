@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "debug_determinism.h"
 #include "debug_simulation_globals.h"
+#include "game/game.h"
 #include "game/game_time.h"
 #include "Networking/Session/NetworkSession.h"
 #include <stack>
@@ -9,10 +10,16 @@
 std::stack<std::pair<uint32, uint32>> return_addresses;
 void debug_random_record_call_entry(uint32 ret_addr)
 {
-	if (debug_simulation_active() && debug_simulation_is_recording() && debug_simulation_recording_allows_random())
+	if (debug_simulation_active())
 	{
-		return_addresses.push({ time_globals::get_game_time(), ret_addr });
-		//LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_addr);
+		if (debug_simulation_is_recording() && debug_simulation_recording_allows_random())
+		{
+			return_addresses.push({ time_globals::get_game_time(), ret_addr });
+		}
+		else if (debug_simulation_is_replaying() && game_is_synchronous_networking())
+		{
+			LOG_CRITICAL(rng_math_log, "simulation:global:debug logging calls to tick {} , offset 0x{:X} ", time_globals::get_game_time(), ret_addr);
+		}
 	}
 }
 

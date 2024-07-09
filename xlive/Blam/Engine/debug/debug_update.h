@@ -70,3 +70,5 @@ void debug_update_read_from_chunk(s_simulation_debug_chunk* chunk);
 void debug_update_queue_initialize_for_load();
 void debug_update_queue_clear();
 void debug_update_queue_dispose();
+void debug_update_memory_initialize_for_playback();
+void debug_update_memory_clear();

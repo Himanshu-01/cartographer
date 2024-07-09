@@ -859,7 +859,7 @@ void __cdecl main_revert_map_call()
 void __fastcall c_sp_pause_screen_list_handle_item_pressed_event_hook(void *thisx, int _EDX ,int a2, uint16* item_type)
 {
 	LOG_TRACE_FUNC("screen_hook : pause_menu item selected {} ",*item_type);
-	if (simulation_get_globals()->world->exists() && !simulation_get_globals()->world->is_authority())
+	if (game_is_server())
 	{
 		if (*item_type == 1 || *item_type == 2)
 		{

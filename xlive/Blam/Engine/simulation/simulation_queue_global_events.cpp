@@ -24,13 +24,16 @@ const char* k_game_global_event_names[] =
 
 static void simulation_queue_global_event_allocate_and_insert(e_event_queue_type type, void* data, int32 data_size)
 {
-    s_simulation_queue_element* element = NULL;
-    c_simulation_world* world = simulation_get_world();
-    world->simulation_queue_allocate(type, data_size, &element);
-    if (element)
+    if (!game_is_playback())
     {
-        csmemcpy((void*)element->data, data, data_size);
-        world->simulation_queue_enqueue(element);
+        s_simulation_queue_element* element = NULL;
+        c_simulation_world* world = simulation_get_world();
+        world->simulation_queue_allocate(type, data_size, &element);
+        if (element)
+        {
+            csmemcpy((void*)element->data, data, data_size);
+            world->simulation_queue_enqueue(element);
+        }
     }
 }
 
@@ -213,6 +216,7 @@ void simulation_queue_player_update_apply(const s_simulation_queue_element* elem
     if (stream.error_occured())
     {
         // ASSERT HERE
+        SIM_GLOBAL_QUEUE_DBG("player update event failed");
     }
     else if (!simulation_players_apply_update(&update))
     {

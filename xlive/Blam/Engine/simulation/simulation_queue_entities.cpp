@@ -270,7 +270,7 @@ void dump_entity_unit_creation_to_file(
 void simulation_queue_entity_creation_apply(const s_simulation_queue_element* element)
 {
 	s_simulation_queue_decoded_creation_data decoded_creation_data;
-	if (game_is_distributed() && !game_is_playback())
+	if (game_is_distributed())
 	{
 		csmemset(&decoded_creation_data, 0, sizeof(decoded_creation_data));
 		
@@ -465,7 +465,7 @@ void simulation_queue_entity_update_apply(const s_simulation_queue_element* elem
 {
 	s_simulation_queue_decoded_update_data decoded_update_data;
 
-	if (game_is_distributed() && !game_is_playback())
+	if (game_is_distributed())
 	{
 		csmemset(&decoded_update_data, 0, sizeof(decoded_update_data));
 
@@ -603,7 +603,7 @@ void simulation_queue_entity_promotion_insert(s_simulation_game_entity* entity)
 
 void simulation_queue_entity_promotion_apply(const s_simulation_queue_element* element)
 {
-	if (game_is_distributed() && !game_is_playback())
+	if (game_is_distributed())
 	{
 		int32 entity_index;
 		datum gamestate_index;

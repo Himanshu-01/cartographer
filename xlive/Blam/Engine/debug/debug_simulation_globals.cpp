@@ -5,6 +5,7 @@
 #include "debug_determinism.h"
 #include "cseries/cseries_strings.h"
 #include "cseries/debug_memory.h"
+#include "game/game.h"
 #include "game/game_time.h"
 #include "main/main_game.h"
 #include "saved_games/game_state.h"
@@ -69,13 +70,19 @@ bool debug_simulation_is_replaying()
 bool debug_simulation_replay_has_updates()
 {
 	ASSERT(debug_simulation_active());
-	return debug_simulation_active() && g_simulation_debug_globals.update_queue.queued_count() > 0;
+	return debug_simulation_is_replaying() && g_simulation_debug_globals.update_queue.queued_count() > 0;
 }
 
 bool debug_simulation_replay_has_gamesave()
 {
 	ASSERT(debug_simulation_active());
-	return debug_simulation_active() && g_simulation_debug_globals.replay_has_gamestate;
+	return debug_simulation_is_replaying() && g_simulation_debug_globals.replay_has_gamestate;
+}
+
+bool debug_simulation_replay_should_reset_time()
+{
+	ASSERT(debug_simulation_active());
+	return debug_simulation_is_replaying() && g_simulation_debug_globals.replay_reset_time;
 }
 
 bool debug_simulation_retrieve_updates()
@@ -237,6 +244,7 @@ void debug_simulation_stop_replay()
 	g_simulation_debug_globals.replay_started = false;
 	g_simulation_debug_globals.current_replaying_tick = NONE;
 	g_simulation_debug_globals.target_replaying_tick = NONE;
+	debug_update_memory_clear();
 }
 
 void debug_simulation_pause(bool pause)
@@ -286,12 +294,14 @@ void debug_simulation_launch_replay()
 
 	g_simulation_debug_globals.replay_started = true;
 	g_simulation_debug_globals.replay_applied_gamestate = false;
+	debug_update_memory_initialize_for_playback();
 
 	//force synchronous_client to act as synchronous_server
 	//doing this so i dont have to rewrite c_simulation_world::update()
-
-	if (launch_options->simulation_type == _game_simulation_synchronous_client)
-		launch_options->simulation_type = _game_simulation_synchronous_server;
+	//edit : should really avoid changing game_simulation_type
+	// 
+	//if (launch_options->simulation_type == _game_simulation_synchronous_client)
+	//	launch_options->simulation_type = _game_simulation_synchronous_server;
 
 	main_game_change(launch_options);
 
@@ -308,11 +318,32 @@ void debug_simulation_set_name(const char* name)
 	LOG_DEBUG_SIM("debug simulation file name set to {} ", name);
 }
 
+void debug_simulation_set_options(s_game_options* options)
+{
+	if (debug_simulation_active() && debug_simulation_is_recording())
+	{
+		g_simulation_debug_globals.film_options = *options;
+		LOG_DEBUG_SIM("saving film options");
+	}
+}
+
+void debug_simulation_start_recording_for_oos()
+{
+	if (!game_is_ui_shell() && game_is_synchronous_networking() 
+		&& !game_is_playback())
+	{
+		//always start recording in synchronous so that we can capture oos
+		LOG_INFO_SIM("simulation:global:debug starting for oos capture");
+		debug_simulation_start_recording();
+	}
+}
+
 void debug_simulation_notify_oos()
 {
 	if (!debug_simulation_active() || !debug_simulation_is_recording())
 		return;
 
+	LOG_CRITICAL_NETWORK("simulation:global:debug has encountered oos");
 	LOG_CRITICAL_NETWORK("simulation:global:debug calling dump random seed");
 	debug_random_dump_call_stack();
 
@@ -321,7 +352,7 @@ void debug_simulation_notify_oos()
 	debug_simulation_timestamp_internal(&timestamp);
 	g_simulation_debug_globals.save_file_name.set(timestamp.get_string());
 
-	const char* type = simulation_get_world()->is_authority() ? "host" : "client";
+	const char* type = game_is_server() ? "host" : "client";
 	g_simulation_debug_globals.save_file_name.append(type);
 	g_simulation_debug_globals.save_file_name.append("_oos");
 	debug_simulation_write_debug_file();
@@ -1098,6 +1129,10 @@ bool debug_simulation_fetch_updates_internal(int32 remaining_updates, int32* upd
 
 	bool succesfully_fetched = true;
 
+	ASSERT(g_simulation_debug_globals.playback_buffer != nullptr);
+	// maybe allocate in heap?, edit : probably yes there was some stack corruption happening
+	s_network_message_synchronous_update* message = (s_network_message_synchronous_update*) g_simulation_debug_globals.playback_buffer; 
+
 	do
 	{
 		if (updates_fetched >= K_SIMULATION_DEBUG_MAX_ALLOWED_UPDATES_TO_FETCH)
@@ -1107,15 +1142,23 @@ bool debug_simulation_fetch_updates_internal(int32 remaining_updates, int32* upd
 			break;
 
 		// fetch updates and push to queue
-		s_network_message_synchronous_update message; // maybe allocate in heap?
-		if (debug_update_retrieve_latest_update(&message))
+		if (debug_update_retrieve_latest_update(message))
 		{
+			if (debug_simulation_replay_should_reset_time())
+			{
+				LOG_WARNING_SIM("simulation:global:debug world time is being reset to [#{}]", message->update.simulation_time);
+				world->time_stop();
+				world->time_start(message->update.simulation_time);
+
+				g_simulation_debug_globals.replay_reset_time = false;
+			}
+
 			updates_fetched++;
-			//LOG_INFO_SIM("simulation:global:debug inserting film playback update: tick/time {}/[{}]", message.update.game_time_ticks, message.update.simulation_time);
-			if (!simulation_get_globals()->world->update_queue_handle_server_update(&message))
+			//LOG_INFO_SIM("simulation:global:debug inserting film playback update: tick/time {}/[{}]", message->update.game_time_ticks, message->update.simulation_time);
+			if (!simulation_get_globals()->world->update_queue_handle_server_update(message))
 			{
 				succesfully_fetched = false;
-				LOG_WARNING_SIM("simulation:global:debug failed to insert film playback update.tick = {} , maybe out of memory", message.update.game_time_ticks);
+				LOG_WARNING_SIM("simulation:global:debug failed to insert film playback update.tick = {} , maybe out of memory", message->update.game_time_ticks);
 			}
 		}
 

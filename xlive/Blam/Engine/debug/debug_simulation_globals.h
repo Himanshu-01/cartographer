@@ -27,6 +27,7 @@ struct s_simulation_debug_globals
 	bool replay_started;
 	bool replay_has_gamestate;
 	bool replay_applied_gamestate;
+	bool replay_reset_time;
 	s_game_options film_options;
 
 	bool writing_file;
@@ -37,6 +38,7 @@ struct s_simulation_debug_globals
 	int32 target_replaying_tick;
 
 	uint8* gamestate_write_buffer;
+	uint8* playback_buffer;
 	c_debug_update_queue update_queue;
 
 	c_static_string260 save_directory;
@@ -114,6 +116,7 @@ bool debug_simulation_recording_allows_update();
 bool debug_simulation_is_replaying();
 bool debug_simulation_replay_has_updates();
 bool debug_simulation_replay_has_gamesave();
+bool debug_simulation_replay_should_reset_time();
 bool debug_simulation_retrieve_updates();
 int32 debug_simulation_replay_update_queue_length();
 
@@ -128,6 +131,8 @@ void debug_simulation_stop_replay();
 void debug_simulation_pause(bool);
 void debug_simulation_launch_replay();
 void debug_simulation_set_name(const char* name);
+void debug_simulation_set_options(s_game_options* options);
+void debug_simulation_start_recording_for_oos();
 void debug_simulation_notify_oos();
 void debug_simulation_read_debug_file();
 void debug_simulation_write_debug_file();

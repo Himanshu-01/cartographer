@@ -411,3 +411,23 @@ void debug_update_queue_dispose()
 {
 	g_simulation_debug_globals.update_queue.dispose();
 }
+
+void debug_update_memory_initialize_for_playback()
+{
+	if (debug_simulation_active() && debug_simulation_is_replaying()
+		&& g_simulation_debug_globals.playback_buffer == nullptr)
+	{
+		LOG_TRACE_SIM("simulation:debug:update initializing playback memory");
+		g_simulation_debug_globals.playback_buffer = debug_malloc(sizeof(s_network_message_synchronous_update));
+	}
+}
+
+void debug_update_memory_clear()
+{
+	if (g_simulation_debug_globals.playback_buffer != nullptr)
+	{
+		LOG_TRACE_SIM("simulation:debug:update clearing playback memory");
+		debug_free(g_simulation_debug_globals.playback_buffer);
+		g_simulation_debug_globals.playback_buffer = nullptr;
+	}
+}

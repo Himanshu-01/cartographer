@@ -31,7 +31,7 @@ struct s_simulation_game_entity
 	bool exists_in_gameworld;
 	int8 event_reference_count;
 	datum object_index;
-	int32 entity_update_flag;
+	uint32 entity_update_flag;
 	int32 field_10;
 	uint32 creation_data_size;
 	void* creation_data;

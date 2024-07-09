@@ -256,6 +256,7 @@ void debug_gamestate_apply_saved_state()
             game_state_call_after_load_procs(K_SIMULATION_DEBUG_GAMESTATE_LOAD_FLAG);
 
             g_simulation_debug_globals.replay_applied_gamestate = true;
+            g_simulation_debug_globals.replay_reset_time = true;
         }
     }
 }

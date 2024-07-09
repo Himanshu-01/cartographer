@@ -70,6 +70,12 @@ bool game_is_distributed(void)
 		|| game_options_get()->simulation_type == _game_simulation_distributed_server;
 }
 
+bool game_is_synchronous_networking(void)
+{
+	return game_options_get()->simulation_type == _game_simulation_synchronous_client
+		|| game_options_get()->simulation_type == _game_simulation_synchronous_server;
+}
+
 bool game_is_server(void)
 {
 	const s_game_options* options = game_options_get();
@@ -308,11 +314,6 @@ void __cdecl game_initialize_for_new_map(s_game_options* options)
 	random_seed_disallow_use(_random_seed_in_game_initialize_for_new_map);
 
 	LOG_DEBUG_FUNC("");
-	if (debug_simulation_active() && debug_simulation_is_recording())
-	{
-		g_simulation_debug_globals.film_options = *options;
-		LOG_DEBUG_FUNC("saving film options");
-	}
 }
 
 void __cdecl game_initialize_for_new_structure_bsp(void)
@@ -363,6 +364,11 @@ void __cdecl game_start(void)
 	game_globals->game_in_progress = true;
 
 	simulation_start();
+	debug_simulation_initialize();
+	debug_simulation_start_recording_for_oos();
+	debug_simulation_set_options(game_options_get());
+
+
 	random_seed_allow_use();
 	game_engine_game_starting();
 	game_load_launch_parameters();

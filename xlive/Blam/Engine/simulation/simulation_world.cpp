@@ -212,7 +212,18 @@ t_c_simulation_world__initialize_world p_c_simulation_world__initialize_world;
 
 void c_simulation_world::initialize_world(int32 a2, int32 a3, int32 a4)
 {
+	//should probably just redo this function
 	p_c_simulation_world__initialize_world(this, a2, a3, a4);
+
+
+	if (!runs_simulation())
+	{
+		m_synchronous_client_queue_length = NULL;
+		m_synchronous_client_queue_head = nullptr;
+		m_synchronous_client_queue_tail = nullptr;
+		update_queue_reset();
+	}
+
 	if (!is_playback())
 	{
 		queues_initialize();
@@ -225,6 +236,11 @@ void c_simulation_world::initialize_world(int32 a2, int32 a3, int32 a4)
 			authority_message->game_simulation_queue.initialize();
 			authority_message->simulation_bookkeeping_queue.initialize();
 		}
+	}
+	else
+	{
+		//emulate world-playback using world-sync-server
+		m_world_type = _simulation_world_type_synchronous_authority;
 	}
 }
 
@@ -267,6 +283,13 @@ void c_simulation_world::update_queue_reset(void)
 	return;
 }
 void __declspec(naked) jmp_update_queue_reset() { __asm { jmp c_simulation_world::update_queue_reset } }
+
+void c_simulation_world::update_queue_start(int32 next_update_number)
+{
+	update_queue_reset();
+	this->m_synchronous_client_latest_update_number_received = next_update_number - 1;
+	this->m_synchronous_client_next_update_number_to_dequeue = next_update_number;
+}
 
 void c_simulation_world::reset_world(void)
 {
@@ -462,7 +485,7 @@ int32 c_simulation_world::time_get_available(bool* match_remote_time)
 
 	available_time = INT32_MAX;
 
-	if (debug_simulation_active() && debug_simulation_is_replaying())
+	if (is_playback())
 	{
 		available_time = update_queue_get_available_updates();
 	}
@@ -561,8 +584,26 @@ int32 c_simulation_world::update_queue_get_available_updates() const
 
 void c_simulation_world::time_start(int32 next_update_number)
 {
-	INVOKE_TYPE(0x1DD2C8, 0x0, void(__thiscall*)(c_simulation_world*, int32), this, next_update_number);
+	//INVOKE_TYPE(0x1DD2C8, 0x0, void(__thiscall*)(c_simulation_world*, int32), this, next_update_number);
+	
+	m_next_update_number = next_update_number;
+	if (runs_simulation())
+	{
+		update_queue_start(next_update_number);
+	}
+
+	m_time_running = true;
 }
+
+void c_simulation_world::time_stop()
+{
+	m_time_running = false;
+	if (!runs_simulation())
+	{
+		update_queue_reset();
+	}
+}
+
 
 void c_simulation_world::time_set_immediate_update(bool update_immediately)
 {

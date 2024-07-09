@@ -152,14 +152,6 @@ void __cdecl simulation_process_input(uint32 player_action_mask, const player_ac
 void __cdecl simulation_start()
 {
     INVOKE(0x1ADCE3, 0x0, simulation_start);
-
-    debug_simulation_initialize();
-
-    if (!game_is_ui_shell() && !debug_simulation_is_replaying())
-    {
-        //always start recording so that we can capture oos
-        debug_simulation_start_recording();
-    }
 }
 
 void __cdecl simulation_end()
@@ -234,7 +226,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 		&simulation_bookkeeping_queue,
 		&game_simulation_queue
 	);
-    if (sim_world->runs_simulation() && !sim_world->is_distributed())
+    if (sim_world->is_authority() && !sim_world->is_distributed())
     {
         // either local or synchronous authority
         g_host_synchronous_message.game_simulation_queue.clear();
@@ -267,14 +259,17 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
     if (update->game_time_ticks == 0)
     {
         // maybe not a good idea to record gamestate here?
-        if(debug_simulation_is_recording())
-        {
-            debug_gamestate_record_current_state();
-            debug_update_queue_clear();
-        }
+        //if(sim_world->is_active() && debug_simulation_active() && debug_simulation_is_recording())
+        //{
+        //    debug_gamestate_record_current_state();
+        //    debug_update_queue_clear();
+        //}
     }
 
-    debug_update_record_update(update, &simulation_bookkeeping_queue, &game_simulation_queue);
+    if(!game_is_ui_shell())
+    {
+        debug_update_record_update(update, &simulation_bookkeeping_queue, &game_simulation_queue);
+    }
 
     for (int32 i = 0; i < k_maximum_players; i++)
     {
@@ -364,13 +359,17 @@ void __cdecl simulation_build_update(simulation_update* update)
     s_simulation_globals* globals = simulation_get_globals();
     csmemset(update, 0, sizeof(simulation_update));
 
-    if (debug_simulation_active() && debug_simulation_is_replaying())
+    if (globals->world->is_playback())
     {
+        //debug_gamestate_apply_saved_state();
         if(globals->world->update_queue_length() >0)
         {
             globals->world->update_queue_retrieve_update(update);
-            LOG_DEBUG_SIM("simulation:global:debug fetching update from m_synchronous_client_queue now /update->time {}/{}",
-                globals->world->get_time(), update->game_time_ticks);
+            LOG_DEBUG_SIM("simulation:global:debug fetching update : [#{}] [{}]  vs  current: #{}/{}",
+                update->simulation_time,
+                update->game_time_ticks,
+                globals->world->get_next_update_number(),
+                globals->world->get_time());
 
 
             LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
@@ -432,20 +431,20 @@ void __cdecl simulation_build_update(simulation_update* update)
         debug_simulation_notify_oos();
         
 
-        if (debug_simulation_active() && debug_simulation_is_replaying())
-            return;
-
-
-        //tell the authority we are going oos
-        s_network_message_synchronous_actions sync_actions;
-        csmemset(&sync_actions, NULL, sizeof(s_network_message_synchronous_actions));
-        sync_actions.out_of_sync = true;
-        c_simulation_view* authority_view = globals->world->get_authority_view();
-
-        if (authority_view && authority_view->exists())
+        if (!globals->world->is_playback())
         {
-            LOG_CRITICAL_SIM("simulation:global: OUT OF SYNC, telling host to go oos ");
-            authority_view->send_message(_synchronous_actions, sizeof(s_network_message_synchronous_actions), &sync_actions, false);
+
+            //tell the authority we are going oos
+            s_network_message_synchronous_actions sync_actions;
+            csmemset(&sync_actions, NULL, sizeof(s_network_message_synchronous_actions));
+            sync_actions.out_of_sync = true;
+            c_simulation_view* authority_view = globals->world->get_authority_view();
+
+            if (authority_view && authority_view->exists())
+            {
+                LOG_CRITICAL_SIM("simulation:global: OUT OF SYNC, telling host to go oos ");
+                authority_view->send_message(_synchronous_actions, sizeof(s_network_message_synchronous_actions), &sync_actions, false);
+            }
         }
 
         //// doesnt really help much

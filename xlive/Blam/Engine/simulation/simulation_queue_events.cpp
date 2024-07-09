@@ -130,7 +130,7 @@ static bool decode_event_from_buffer(int32 encoded_size, uint8* encoded_data, s_
 			!stream.error_occured(),
 			stream.get_space_used_in_bytes(), 
 			decode_out->data_size);
-		SIM_EVENT_QUEUE_DBG("event type: %d, reference count: %d", decode_out->event_type, decode_out->reference_count);
+		SIM_EVENT_QUEUE_DBG("event [%s] type: %d, reference count: %d", sim_event_def->event_type_name(), decode_out->event_type, decode_out->reference_count);
 
 		for (int32 i = 0; i < decode_out->reference_count; i++)
 		{
@@ -180,8 +180,8 @@ void simulation_queue_event_insert(e_simulation_event_type type, int32 reference
 				simulation_get_world()->simulation_queue_enqueue(allocated_element);
 
 				SIM_EVENT_QUEUE_DBG("added element [%s] 0x%08X, type: %d, size: %d to simulation queue", 
-					allocated_element,
 					sim_event_def->event_type_name(),
+					allocated_element,
 					allocated_element->type, 
 					allocated_element->data_size
 				);

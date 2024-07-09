@@ -150,14 +150,18 @@ void c_simulation_queue::duplicate(c_simulation_queue* source_queue)
 	// retains source_queue and allocates new data for cloned elements
 	// queue must be initialized before using this	
 
+	ASSERT(initialized());
+
 	int32 queued_count = source_queue->queued_count();
-	if (queued_count > 0)
+	if (queued_count <=0)
 	{
-		LOG_TRACE_NETWORK(" {} duplicating elements count : {} ", __FUNCTION__, queued_count);
+		return;
 	}
+
+	LOG_TRACE_NETWORK(" {} duplicating elements count : {} ", __FUNCTION__, queued_count);
 	
 	for (const s_simulation_queue_element* element = source_queue->get_first_element();
-		element != nullptr;
+		element != nullptr && queued_count--;
 		element = source_queue->get_next_element(element))
 	{
 		s_simulation_queue_element* clone = nullptr;
