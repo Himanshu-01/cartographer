@@ -16,6 +16,23 @@ void c_bitmap_widget::set_local_bitmap(int16 local_bitmap_block_index, int16 bit
 	INVOKE_TYPE(0x21CFED, 0x0, int(__thiscall*)(c_bitmap_widget*, int16, int16), this, local_bitmap_block_index, bitmap_block_index);
 }
 
+void c_bitmap_widget::set_render_scale(real_vector2d* scale)
+{
+	if (scale)
+	{
+		this->m_render_scale = *scale;
+	}
+}
+
+void c_bitmap_widget::get_animating_bounds(rectangle2d* unprojected_bounds)
+{
+	*unprojected_bounds = m_bounds;
+	unprojected_bounds->left += (int32)m_current_animation.field_24;
+	unprojected_bounds->right += (int32)m_current_animation.field_24;
+	unprojected_bounds->top += (int32)m_current_animation.field_28;
+	unprojected_bounds->bottom += (int32)m_current_animation.field_28;
+}
+
 c_bitmap_widget::~c_bitmap_widget()
 {
 }

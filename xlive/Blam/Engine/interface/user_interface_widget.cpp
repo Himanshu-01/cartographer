@@ -51,14 +51,6 @@ c_user_interface_widget::~c_user_interface_widget()
 	this->destroy_recursive();
 }
 
-void c_user_interface_widget::set_bounds(rectangle2d* bounds)
-{
-	//return INVOKE_TYPE(0x2116D2, 0x0, void(__thiscall*)(c_user_interface_widget*, rectangle2d*), this, bounds);
-	this->m_bounds.top = bounds->top;
-	this->m_bounds.left = bounds->left;
-	this->m_bounds.bottom = bounds->bottom;
-	this->m_bounds.right = bounds->right;
-}
 
 int c_user_interface_widget::setup_children()
 {
@@ -110,29 +102,29 @@ c_user_interface_widget* c_user_interface_widget::try_find_child(e_user_interfac
 	return INVOKE_TYPE(0x211909, 0x0, c_user_interface_widget * (__thiscall*)(c_user_interface_widget*, e_user_interface_widget_type, uint32, bool), this, type, idx, recursive_search);
 }
 
-c_user_interface_widget* c_user_interface_widget::try_find_text_widget(uint32 idx)
+c_text_widget* c_user_interface_widget::try_find_text_widget(uint32 idx)
 {
-	return try_find_child(_widget_type_text, idx, false);
+	return (c_text_widget*)try_find_child(_widget_type_text, idx, false);
 }
 
-c_user_interface_widget* c_user_interface_widget::try_find_hud_widget(uint32 idx)
+c_hud_widget* c_user_interface_widget::try_find_hud_widget(uint32 idx)
 {
-	return try_find_child(_widget_type_hud, idx, false);
+	return (c_hud_widget*)try_find_child(_widget_type_hud, idx, false);
 }
 
-c_user_interface_widget* c_user_interface_widget::try_find_bitmap_widget(uint32 idx)
+c_bitmap_widget* c_user_interface_widget::try_find_bitmap_widget(uint32 idx)
 {
-	return try_find_child(_widget_type_bitmap, idx, false);
+	return (c_bitmap_widget*)try_find_child(_widget_type_bitmap, idx, false);
 }
 
-c_user_interface_widget* c_user_interface_widget::try_find_player_widget(uint32 idx)
+c_player_widget* c_user_interface_widget::try_find_player_widget(uint32 idx)
 {
-	return try_find_child(_widget_type_player, idx, false);
+	return (c_player_widget*)try_find_child(_widget_type_player, idx, false);
 }
 
-c_user_interface_widget* c_user_interface_widget::try_find_model_widget(uint32 idx)
+c_model_widget* c_user_interface_widget::try_find_model_widget(uint32 idx)
 {
-	return try_find_child(_widget_type_model, idx, false);
+	return (c_model_widget*)try_find_child(_widget_type_model, idx, false);
 }
 
 c_screen_widget* c_user_interface_widget::get_parent_screen()
@@ -165,6 +157,15 @@ void c_user_interface_widget::add_new_child(c_user_interface_widget* child)
 void c_user_interface_widget::update_users_mask(uint32 user_mask)
 {
 	INVOKE_TYPE(0x211B37, 0x0, void(__thiscall*)(c_user_interface_widget*, uint32), this, user_mask);
+}
+
+void c_user_interface_widget::set_bounds(rectangle2d* bounds)
+{
+	//return INVOKE_TYPE(0x2116D2, 0x0, void(__thiscall*)(c_user_interface_widget*, rectangle2d*), this, bounds);
+	this->m_bounds.top = bounds->top;
+	this->m_bounds.left = bounds->left;
+	this->m_bounds.bottom = bounds->bottom;
+	this->m_bounds.right = bounds->right;
 }
 
 void* c_user_interface_widget::get_mouse_region(rectangle2d* mouse_region_out)

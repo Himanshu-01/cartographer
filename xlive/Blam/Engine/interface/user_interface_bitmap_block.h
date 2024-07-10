@@ -10,7 +10,7 @@ protected:
 	int32 delay_milliseconds;
 	int32 last_frame_milliseconds;
 	int64 field_7C;
-	real_vector2d m_progress_scale;
+	real_vector2d m_render_scale;
 	real32 field_8C;
 	int16 m_bitmap_block_index;
 	uint8 gap_92[2];
@@ -20,7 +20,8 @@ public:
 	void verify_and_update_bitmap_index(int16 index);
 	void assign_new_bitmap_block(bitmap_data* block);
 	void set_local_bitmap(int16 local_bitmap_block_index, int16 bitmap_block_index);
-
+	void set_render_scale(real_vector2d* scale);
+	void get_animating_bounds(rectangle2d* unprojected_bounds);
 
 	virtual ~c_bitmap_widget();
 	virtual void update() override;

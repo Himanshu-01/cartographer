@@ -30,6 +30,11 @@ CHECK_STRUCT_SIZE(s_screen_animation_block, 0x34);
 struct s_event_record;
 class c_user_interface_text;
 class c_screen_widget;
+class c_bitmap_widget;
+class c_hud_widget;
+class c_text_widget;
+class c_player_widget;
+class c_model_widget;
 
 #pragma pack(push , 1)
 class c_user_interface_widget
@@ -57,7 +62,6 @@ protected:
 
 	void destroy_recursive();
 	void initialize_animation(s_screen_animation_block* animation);
-	void set_bounds(rectangle2d* bounds);
 
 public:
 	c_user_interface_widget(e_user_interface_widget_type widget_type, int16 user_flags);
@@ -68,18 +72,18 @@ public:
 	c_user_interface_widget* get_parent();
 	c_user_interface_widget* get_children();
 	c_user_interface_widget* try_find_child(e_user_interface_widget_type type, uint32 idx, bool recursive_search);
-	c_user_interface_widget* try_find_text_widget(uint32 idx);
-	c_user_interface_widget* try_find_hud_widget(uint32 idx);
-	c_user_interface_widget* try_find_bitmap_widget(uint32 idx);
-	c_user_interface_widget* try_find_player_widget(uint32 idx);
-	c_user_interface_widget* try_find_model_widget(uint32 idx);
+	c_text_widget* try_find_text_widget(uint32 idx);
+	c_hud_widget* try_find_hud_widget(uint32 idx);
+	c_bitmap_widget* try_find_bitmap_widget(uint32 idx);
+	c_player_widget* try_find_player_widget(uint32 idx);
+	c_model_widget* try_find_model_widget(uint32 idx);
 	c_screen_widget* get_parent_screen();
 	void set_visible(bool visible);
 	void set_child_visible(e_user_interface_widget_type type, uint32 idx,  bool visible);
 	void set_allocated(bool allocated);
 	void add_new_child(c_user_interface_widget* child);
 	void update_users_mask(uint32 user_mask);
-
+	void set_bounds(rectangle2d* bounds);
 	// Virtual functions
 
 	virtual ~c_user_interface_widget();
