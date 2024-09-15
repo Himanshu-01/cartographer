@@ -18,10 +18,6 @@
 #include "Networking/NetworkMessageTypeCollection.h"
 
 
-
-#define GAME_STATE_ALLOCATION_SIZE 0x3FE000
-#define GAME_STATE_ALLOCATION_BASE 0x30000000
-
 s_network_message_synchronous_update g_host_synchronous_message;
 
 s_simulation_globals* simulation_get_globals()
@@ -215,17 +211,17 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
     c_simulation_queue simulation_bookkeeping_queue, game_simulation_queue;
     c_simulation_world* sim_world = simulation_get_world();
 
-    simulation_get_globals()->world->queues_update_statistsics();
+    sim_world->queues_update_statistsics();
 
     // only during distributed system or server synchronous
     // but not client synchronous
 	// transfer the elements to the 
 
-	sim_world->attach_simulation_queues_to_update(
-		update->simulation_in_progress,
+    sim_world->attach_simulation_queues_to_update(
+        update->simulation_in_progress,
 		&simulation_bookkeeping_queue,
 		&game_simulation_queue
-	);
+    );
     if (sim_world->is_authority() && !sim_world->is_distributed())
     {
         // either local or synchronous authority
@@ -241,7 +237,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
         {
             LOG_TRACE_SIM(" {} host has bookkeeping_queue count : {} game_simulation_queue count : {} ", __FUNCTION__,
                 g_host_synchronous_message.simulation_bookkeeping_queue.queued_count(), g_host_synchronous_message.game_simulation_queue.queued_count());
-        }
+    }
 
 
         // really need a better way to to do this
@@ -288,7 +284,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
     if (simulation_bookkeeping_queue.queued_count()>0)
     {
         LOG_TRACE_SIM(" {} simulation_bookkeeping_queue  has count : {} ", __FUNCTION__, simulation_bookkeeping_queue.queued_count());
-        sim_world->apply_simulation_queue(&simulation_bookkeeping_queue, update);
+        sim_world->apply_simulation_queue(&simulation_bookkeeping_queue);
     }
 
     // Player activation code
@@ -321,7 +317,7 @@ void __cdecl simulation_apply_before_game(simulation_update* update)
 	if (game_simulation_queue.queued_count() > 0)
 	{
         LOG_TRACE_SIM(" {} game_simulation_queue  has count : {} ", __FUNCTION__, game_simulation_queue.queued_count());
-		sim_world->apply_simulation_queue(&game_simulation_queue, update);
+		sim_world->apply_simulation_queue(&game_simulation_queue);
 
 		// purge any deletion pending object during this update
 		// if simulation is not in progress
@@ -357,37 +353,10 @@ void __cdecl simulation_build_update(simulation_update* update)
     ASSERT(update);
 
     s_simulation_globals* globals = simulation_get_globals();
-    csmemset(update, 0, sizeof(simulation_update));
+    csmemset(update, 0, sizeof(simulation_update));    
 
-    if (globals->world->is_playback())
-    {
-        //debug_gamestate_apply_saved_state();
-        if(globals->world->update_queue_length() >0)
-        {
-            globals->world->update_queue_retrieve_update(update);
-            LOG_DEBUG_SIM("simulation:global:debug fetching update : [#{}] [{}]  vs  current: #{}/{}",
-                update->simulation_time,
-                update->game_time_ticks,
-                globals->world->get_next_update_number(),
-                globals->world->get_time());
-
-
-            LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
-
-            g_simulation_debug_globals.current_replaying_tick = update->game_time_ticks;
-        }
-        else
-        {
-            LOG_ERROR_SIM("simulation:global:debug we dont have any more updates to fetch! errrrrrrrrrrrrrror");
-            ASSERT(false);
-        }
-        //ASSERT(false);
-        //return;
-    }
-    else
-    {
-        globals->world->build_update(update);
-    }
+    globals->world->build_update(update);
+    
 
     bool go_oos = false;
 
@@ -517,6 +486,11 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
     return;
 }
 
+void __cdecl simulation_build_machine_updates(bool* machine_update_valid, simulation_machine_update* machine_update)
+{
+    return INVOKE(0x1ADE77, 0x0, simulation_build_machine_updates, machine_update_valid, machine_update);
+}
+
 c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index)
 {
     return INVOKE(0x1ADF06, 0x0, simulation_get_remote_view_by_channel, channel_index);
@@ -541,7 +515,7 @@ void simulation_apply_patches(void)
     PatchCall(Memory::GetAddress(0x39D73, 0xC0F8), simulation_update_pregame);
     PatchCall(Memory::GetAddress(0x4A4D5, 0), simulation_build_update); //hook for logging oos
     PatchCall(Memory::GetAddress(0x4A4DF, 0x4375D), simulation_apply_before_game);
-    PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);
+    //PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);
     PatchCall(Memory::GetAddress(0x39C97, 0), simulation_update_hook);
     PatchCall(Memory::GetAddress(0x7C2BD, 0), simulation_time_get_maximum_available);//inside game_time_update
     PatchCall(Memory::GetAddress(0x49F2C, 0), simulation_notify_players_created_hook); // inside game_create_players

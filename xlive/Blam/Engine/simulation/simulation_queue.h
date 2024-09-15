@@ -232,12 +232,14 @@ simDebugTextFmt(\
 	header ": " " %s() -> " fmt, __FUNCTION__, __VA_ARGS__);
 
 
-//#define SIM_EVENT_QUEUE_DBG(fmt, ...)
-#define SIM_EVENT_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[sim-event]", fmt, __VA_ARGS__)
+#define SIM_EVENT_QUEUE_DBG(fmt, ...)
+//#define SIM_EVENT_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[sim-event]", fmt, __VA_ARGS__)
 
-//#define SIM_ENT_QUEUE_DBG(fmt, ...)
-#define SIM_ENT_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[sim-entity]", fmt, __VA_ARGS__)
+#define SIM_ENT_QUEUE_DBG(fmt, ...)
+//#define SIM_ENT_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[sim-entity]", fmt, __VA_ARGS__)
 
-#define SIM_GLOBAL_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[global]", fmt, __VA_ARGS__)
+#define SIM_GLOBAL_QUEUE_DBG(fmt, ...)
+//#define SIM_GLOBAL_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[global]", fmt, __VA_ARGS__)
 
-#define SIM_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[world]", fmt, __VA_ARGS__)
+#define SIM_QUEUE_DBG(fmt, ...)
+//#define SIM_QUEUE_DBG(fmt, ...) TRACE_SIM_HEADER("[world]", fmt, __VA_ARGS__)

@@ -101,7 +101,7 @@ public:
 	void simulation_queue_enqueue(s_simulation_queue_element* element);
 
 	void queues_initialize();
-	void apply_simulation_queue(const c_simulation_queue* queue, struct simulation_update* update);
+	void apply_simulation_queue(const c_simulation_queue* queue);
 
 	void attach_simulation_queues_to_update(bool simulation_in_progress, c_simulation_queue* out_bookkeepin_queue, c_simulation_queue* out_game_simulation_queue);
 
@@ -131,6 +131,8 @@ public:
 	void go_out_of_sync(void);
 
 	void build_update(simulation_update* update);
+	void build_player_actions(simulation_update* update);
+
 	void update_queue_retrieve_update(simulation_update* update);
 	bool update_queue_handle_server_update(const s_network_message_synchronous_update* host_update);
 	int32 time_get_available(bool* match_remote_time);

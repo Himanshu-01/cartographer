@@ -130,7 +130,7 @@ void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* el
 	}
 }
 
-void c_simulation_world::apply_simulation_queue(const c_simulation_queue* queue, simulation_update* update)
+void c_simulation_world::apply_simulation_queue(const c_simulation_queue* queue)
 {
 	if (queue->queued_count() > 0)
 	{
@@ -160,7 +160,7 @@ void c_simulation_world::apply_simulation_queue(const c_simulation_queue* queue,
 				simulation_queue_entity_promotion_apply(element);
 				break;
 			case _simulation_queue_element_type_game_global_event:
-				simulation_queue_game_global_event_apply(element, update);
+				simulation_queue_game_global_event_apply(element);
 				break;
 			case _simulation_queue_element_type_player_event:
 				simulation_queue_player_event_apply(element);
@@ -393,7 +393,102 @@ int32 c_simulation_world::get_time(void) const
 
 void c_simulation_world::build_update(simulation_update* update)
 {
-	INVOKE_TYPE(0x1DD1DF, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
+	//INVOKE_TYPE(0x1DD1DF, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
+
+	if (runs_simulation())
+	{
+		update->simulation_time = this->m_next_update_number;
+		update->game_time_ticks = time_globals::get_game_time();
+		//random_seed_allow_use();
+		update->random_seed = get_random_seed();
+		//random_seed_disallow_use();
+		simulation_build_machine_updates(&update->machine_update_valid, &update->machine_update);
+		simulation_build_player_updates(&update->player_update_count, k_maximum_simulation_player_updates, update->player_updates);
+
+		update->simulation_in_progress = simulation_in_progress();
+		if (update->simulation_in_progress)
+		{
+			build_player_actions(update);
+
+			if (is_authority())
+			{
+				if (m_flush_gamestate)
+				{
+					update->flush_gamestate = true;
+					m_flush_gamestate = false;
+				}
+			}
+		}
+
+		//sim_update_queues
+		//s_game_update_queue* game_update = simulation_get_synchronous_message();
+		//game_update->simulation_bookkeeping_queue.initialize();
+		//game_update->game_simulation_queue.initialize();
+		//attach_simulation_queues_to_update(
+		//	update->simulation_in_progress,
+		//	&game_update->simulation_bookkeeping_queue,
+		//	&game_update->game_simulation_queue);
+
+
+		//sim_update_encode_decode_check
+		uint8 buffer[0xFFFF];
+		c_bitstream temporary_stream(buffer, sizeof(buffer));
+		temporary_stream.begin_writing(k_bitstream_default_alignment);
+		simulation_update_encode(&temporary_stream, update);
+		//game_update->simulation_bookkeeping_queue.encode(&temporary_stream);
+		//game_update->game_simulation_queue.encode(&temporary_stream);
+		temporary_stream.finish_writing(NULL);
+		//game_update->simulation_bookkeeping_queue.dispose();
+		//game_update->game_simulation_queue.dispose();
+
+		temporary_stream.begin_reading();
+		bool decode_success = simulation_update_decode(&temporary_stream, update);
+		//game_update->simulation_bookkeeping_queue.decode(&temporary_stream);
+		//game_update->game_simulation_queue.decode(&temporary_stream);
+
+		//if (!decode_success || temporary_stream.error_occured())
+		//{
+		//	game_update->simulation_bookkeeping_queue.dispose();
+		//	game_update->game_simulation_queue.dispose();
+		//}
+
+		ASSERT(!temporary_stream.error_occured());
+		temporary_stream.finish_reading();
+		ASSERT(decode_success);
+
+
+	}
+	else
+	{
+		if (update_queue_length() > 0)
+		{
+			update_queue_retrieve_update(update);
+
+			if (is_playback())
+			{
+				LOG_DEBUG_SIM("simulation:global:debug fetching update : [#{}] [{}]  vs  current: #{}/{}",
+					update->simulation_time,
+					update->game_time_ticks,
+					get_next_update_number(),
+					get_time());
+
+
+				LOG_CRITICAL(rng_math_log, "simulation:global:debug starting debug tick calls for tick {} ", time_globals::get_game_time());
+
+				g_simulation_debug_globals.current_replaying_tick = update->game_time_ticks;
+			}
+		}
+		else
+		{
+			LOG_ERROR_SIM("simulation:global:debug we dont have any more updates to fetch! errrrrrrrrrrrrrror");
+			ASSERT(false);
+		}
+	}
+}
+
+void c_simulation_world::build_player_actions(simulation_update* update)
+{
+	INVOKE_TYPE(0x1DBE3F, 0x0, void(__thiscall*)(c_simulation_world*, simulation_update*), this, update);
 }
 
 //typedef void(__thiscall* t_c_simulation_world__update_queue_retrieve_update)(c_simulation_world*, simulation_update*);
@@ -762,7 +857,7 @@ void simulation_world_apply_patches()
 
 	PatchCall(Memory::GetAddress(0x1AE82A, 0x1A8A84), jmp_reset_world);
 	PatchCall(Memory::GetAddress(0x1DD9FB, 0x1C4EBB), jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress);
-	PatchCall(Memory::GetAddress(0x1DD273), jmp_update_queue_retrieve_update);
+	//PatchCall(Memory::GetAddress(0x1DD273), jmp_update_queue_retrieve_update);
 	//PatchCall(Memory::GetAddress(0x1DD464), jmp_update_queue_handle_server_update);
 	PatchCall(Memory::GetAddress(0x1DDC58), jmp_update_queue_reset); //initialize_world
 	PatchCall(Memory::GetAddress(0x1DDAC7), jmp_update_queue_reset); //change_state_active

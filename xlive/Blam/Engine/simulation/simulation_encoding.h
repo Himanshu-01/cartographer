@@ -14,6 +14,9 @@ struct simulation_machine_update
 void __cdecl simulation_player_update_encode(c_bitstream* stream, const simulation_player_update* player_update);
 bool __cdecl simulation_player_update_decode(c_bitstream* stream, simulation_player_update* player_update);
 
+void __cdecl simulation_update_encode(c_bitstream* stream, struct simulation_update* update);
+bool __cdecl simulation_update_decode(c_bitstream* stream, struct simulation_update* update);
+
 struct s_network_message_synchronous_update;
 void __cdecl synchronous_update_encode(c_bitstream* stream, s_network_message_synchronous_update* update);
 bool __cdecl synchronous_update_decode(c_bitstream* stream, s_network_message_synchronous_update* update);

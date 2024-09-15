@@ -98,7 +98,7 @@ void simulation_global_event_reset_map()
     LOG_TRACE_FUNC("resetting map in simulation_queue");
     main_reset_map();
 }
-void simulation_queue_game_global_event_apply(const s_simulation_queue_element* element, simulation_update* update)
+void simulation_queue_game_global_event_apply(const s_simulation_queue_element* element)
 {
     e_simulation_queue_global_event_type type;
     if (simulation_queue_game_global_event_decode(element, &type))

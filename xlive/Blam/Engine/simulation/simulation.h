@@ -63,6 +63,8 @@ void simulation_destroy_update(void);
 void __cdecl simulation_start(void);
 void __cdecl simulation_end();
 void __cdecl simulation_process_input(uint32 player_action_mask, const player_action* player_actions);
+void __cdecl simulation_build_player_updates(int32* player_update_count, int32 maximum_player_update_count, simulation_player_update* player_updates);
+void __cdecl simulation_build_machine_updates(bool* machine_update_valid, simulation_machine_update* machine_update);
 
 c_simulation_type_collection* simulation_get_type_collection();
 c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index);
