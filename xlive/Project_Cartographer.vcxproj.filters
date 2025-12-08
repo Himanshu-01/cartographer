@@ -541,6 +541,12 @@
     <ClCompile Include="H2MOD\Modules\h2log\h2log.cpp" />
     <ClCompile Include="Blam\Engine\interface\user_interface_network_search.cpp" />
     <ClCompile Include="Blam\Engine\physics\character_physics_mode_ground.cpp" />
+    <ClCompile Include="Blam\Engine\units\vehicles.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\simulation_entity_update_encode_helper.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_headhunter.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_king.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_slayer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\miniupnpc\include\miniupnpc\codelength.h" />
@@ -2043,6 +2049,14 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_network_search.h" />
     <ClInclude Include="Blam\Engine\networking\logic\network_logic.h" />
     <ClInclude Include="Blam\Engine\physics\character_physics_mode_ground.h" />
+    <ClInclude Include="Blam\Engine\main\map_manager.h" />
+    <ClInclude Include="Blam\Engine\math\crypto_windows.h" />
+    <ClInclude Include="Blam\Engine\units\vehicles.h" />
+    <ClInclude Include="Blam\Engine\simulation\simulation_entity_update_encode_helper.h" />
+    <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine.h" />
+    <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_headhunter.h" />
+    <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_king.h" />
+    <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_slayer.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
