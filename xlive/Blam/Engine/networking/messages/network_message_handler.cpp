@@ -133,13 +133,32 @@ void __stdcall read_channel_message_hook(c_network_message_handler* thisx, int32
 
 	if (peer_network_channel->get_network_address(&addr))
 	{
-		event(_event_verbose, "h2mod:custom_message: %s - Received message: %s from network channel: %d, address: %x",
-			__FUNCTION__, get_network_message_description(message_type), network_channel_index, ntohl(addr.address.raw_ipv4));
+		//event(_event_verbose, "message:received : [%s] from network channel: {%d}, address: {%x}",
+		//	 get_network_message_description(message_type), network_channel_index, ntohl(addr.address.raw_ipv4));
+
+		//LOG_INFO(g_xlive_log, "message: received : {} from network channel: {}, address: {}",
+		//	 get_network_message_description(message_type), network_channel_index, ntohl(addr.address.raw_ipv4));
 	}
 	else
 	{
-		event(_event_error, "h2mod:custom_message: %s - Received message: %s from an unestablished network channel: %d",
-			__FUNCTION__, get_network_message_description(message_type), network_channel_index);
+		event(_event_error, "message:received : [%s] from unknown channel: {%d}",
+			get_network_message_description(message_type), network_channel_index);
+
+		//LOG_INFO(g_xlive_log, "message: received : {} from unknown channel: {}",
+		//	get_network_message_description(message_type), network_channel_index);
+	}
+
+	if (message_type == _network_message_type_parameters_update)
+	{
+		event(_event_verbose, "session:parameters_update: - Received session_mode: %d from network channel: %d",
+			 *(uint32*)(packet + 0x14), network_channel_index);
+	}
+	if (message_type == _network_message_type_mode_acknowledge)
+	{
+		//event(_event_verbose, "session:parameters:acknowledgement - Received session_mode: %d from network channel: %d",
+		//	*(uint32*)(packet + 0x8), network_channel_index);
+		LOG_WARNING(g_h2mod_log, "session:parameters:acknowledgement - Received session_mode: {} from network channel: {}",
+			*(uint32*)(packet + 0x8), network_channel_index);
 	}
 
 	if (!is_message_custom(message_type))

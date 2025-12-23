@@ -50,12 +50,16 @@ enum e_network_session_class
 
 enum e_network_session_mode
 {
-	_network_session_mode_none = 0,
-	_network_session_mode_idle = 1,
-	_network_session_mode_in_game = 4,
-	_network_session_mode_migration_start = 6,
-	_network_session_mode_migration_joining = 7,
-	_network_session_mode_migration_disbanding = 9,
+	_network_session_mode_none = 0x0,
+	_network_session_mode_idle = 0x1,
+	_network_session_mode_setup = 0x2,
+	_network_session_mode_ready = 0x3,
+	_network_session_mode_in_game = 0x4,
+	_network_session_mode_post_game = 0x5,
+	_network_session_mode_migration_start = 0x6,
+	_network_session_mode_migration_joining = 0x7,
+	_network_session_mode_migration_waiting = 0x8,
+	_network_session_mode_migration_disbanding = 0x9,
 
 	k_network_session_mode_count = 10
 };
@@ -128,6 +132,9 @@ namespace NetworkSession
 
 /* structures */
 
+struct s_network_message_parameters_update;
+struct s_network_message_mode_acknowledge;
+
 // CARTOGRAPHER ADDITION
 
 struct s_cartographer_peer_data
@@ -182,7 +189,7 @@ ASSERT_STRUCT_SIZE(s_session_virtual_couch, 200);
 struct s_session_parameters
 {
 	uint32 parameters_update_number;
-	uint8 gap_4C64[4];
+	int32 session_mode_sequence;
 	int32 session_mode;
 	uint32 gap_4C6C;
 	uint32 system_language_id;
@@ -418,7 +425,8 @@ public:
 	uint32 field_7960;
 	uint32 field_7964;
 	uint32 field_7968;
-	char field_796C[4];
+	bool m_local_pending_mode_transition;
+	char field_796D[3];
 	int32 field_7970;
 	uint32 field_7974;
 	uint32 field_7978;
@@ -653,6 +661,12 @@ public:
 		return m_session_parameters.session_mode;
 	}
 
+	int32 observer_owner() const
+	{
+		ASSERT(VALID_INDEX(m_session_index, k_network_maximum_sessions));
+		return m_session_index;
+	}
+
 	void switch_player_team(datum player_index, e_game_team team_index)
 	{
 		if (is_host())
@@ -700,12 +714,23 @@ public:
 
 	bool handle_leave_internal(int32 peer_index);
 
+	bool handle_parameters_update(s_network_message_parameters_update* message);
+
+	bool handle_mode_acknowledge(int32 channel_index, s_network_message_mode_acknowledge* message);
+
 private:
 	const char* get_peer_description(int32 peer_index) const;
 
 	int32 get_peer_from_incoming_address(const transport_address* incoming_address) const;
 	
 	int32 get_peer_from_secure_address(const s_transport_secure_address* secure_address) const;
+	
+	bool apply_parameters_update(s_network_message_parameters_update* message, s_session_parameters* out_params);
+	
+	void handle_disconnection();
+
+	void complete_host_pending_transition();
+
 };
 ASSERT_STRUCT_SIZE(c_network_session, 31624);
 ASSERT_STRUCT_OFFSET(c_network_session, m_session_membership, 0x70);

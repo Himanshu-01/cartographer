@@ -8,6 +8,7 @@
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/network_event.h"
 #include "networking/network_time.h"
+#include "networking/messages/network_messages_session_parameters.h"
 #include "shell/shell.h"
 
 /* constants */
@@ -18,6 +19,22 @@ const char* const k_network_protocols_text[] =
 	"System-Link",
 	"LIVE",
 };
+
+/* prototypes */
+
+CLASS_HOOK_DECLARE_LABEL(c_network_session__handle_parameters_update, c_network_session::handle_parameters_update);
+static __declspec(naked) void jmp_c_network_session__handle_parameters_update()
+{
+	CLASS_HOOK_JMP(c_network_session__handle_parameters_update, c_network_session::handle_parameters_update);
+}
+
+CLASS_HOOK_DECLARE_LABEL(c_network_session__handle_mode_acknowledge, c_network_session::handle_mode_acknowledge);
+static __declspec(naked) void jmp_c_network_session__handle_mode_acknowledge()
+{
+	CLASS_HOOK_JMP(c_network_session__handle_mode_acknowledge, c_network_session::handle_mode_acknowledge);
+}
+
+
 
 /* gloabls */
 
@@ -252,6 +269,10 @@ void __cdecl network_globals_switch_environment(int32 a1, bool a2)
 
 void network_session_apply_patches()
 {
+	//PatchCall(Memory::GetAddress(0x1E8961), c_network_session::handle_parameters_update);
+	WriteJmpTo(Memory::GetAddress(0x1CEB3E,0), jmp_c_network_session__handle_parameters_update);
+	WriteJmpTo(Memory::GetAddress(0x1C5A7F,0), jmp_c_network_session__handle_mode_acknowledge);
+
 }
 
 void network_session_membership_update_local_players_teams()
@@ -427,6 +448,194 @@ bool c_network_session::handle_leave_internal(int32 peer_index)
 	return INVOKE_TYPE(0x1CC7B4, 0x1A3D34, bool(__thiscall*)(c_network_session*, int32), this, peer_index);
 }
 
+bool c_network_session::handle_parameters_update(s_network_message_parameters_update* message)
+{
+	//return INVOKE_TYPE(0x1CEB3E, 0x0, bool(__thiscall*)(c_network_session*, s_network_message_parameters_update*), this, message);
+
+	ASSERT((established() || peer_joining()) && !is_host());
+
+	s_session_parameters new_parameters;
+	const bool result = apply_parameters_update(message,&new_parameters);
+	const char* handle_result = message->incremental_update_number != NONE ? "incremental" : "complete";
+	if (result)
+	{
+		csmemcpy(&this->m_session_parameters, &new_parameters, sizeof(new_parameters));
+		event(
+			_event_status,
+			"session:parameters: [%s] parameters-update handled %s [#%d]/[#%d]",
+			managed_session_get_id_string(&m_session_id),
+			handle_result,
+			message->update_number,
+			message->incremental_update_number
+		);
+
+
+
+		/////
+
+		///lifecycle-status
+		
+		/////
+		s_network_message_mode_acknowledge packet;
+		if (message->session_mode_valid && message->session_mode_request_ack)
+		{
+			//if (
+			//	m_session_parameters.session_mode == _network_session_mode_setup ||
+			//	m_session_parameters.session_mode == _network_session_mode_in_game
+			//	)
+			//{
+				event(
+					_event_status,
+					"session:parameters: [%s] sending acknowledgement state [#%d] to host",
+					managed_session_get_id_string(&m_session_id),
+					m_session_parameters.session_mode
+				);
+			//}
+
+			packet.session_id = m_session_id;
+			packet.session_mode = m_session_parameters.session_mode;
+			packet.session_mode_sequence = m_session_parameters.session_mode_sequence;
+			const s_session_peer* local_peer = &m_session_peers[m_session_host_peer_index];
+			if (local_peer->is_remote_peer)
+			{
+				ASSERT(local_peer->observer_channel_index != NONE);
+
+				this->m_network_observer->send_message(
+					this->m_session_index,
+					local_peer->observer_channel_index,
+					false,
+					_network_message_type_mode_acknowledge,
+					sizeof(s_network_message_mode_acknowledge),
+					&packet);
+			}
+		}
+
+	}
+	else
+	{
+		event(
+			_event_error,
+			"session:parameters: [%s] parameters-update current [#%d] couldn't process %s update [#%d]/[#%d]",
+			managed_session_get_id_string(&m_session_id),
+			m_session_parameters.parameters_update_number,
+			handle_result,
+			message->update_number,
+			message->incremental_update_number
+		);
+
+		handle_disconnection();
+	}
+	return result;
+}
+
+
+bool c_network_session::handle_mode_acknowledge(int32 channel_index, s_network_message_mode_acknowledge* message)
+{
+	bool result = false;
+	const int32 observer_channel_index = m_network_observer->observer_channel_find_by_network_channel(observer_owner(), channel_index);
+	const int32 peer_index = get_peer_index_by_observer_index(observer_channel_index);
+
+	ASSERT(message);
+	ASSERT(established() && is_host());
+
+	if (peer_index == NONE || peer_index == m_local_peer_index)
+	{
+		event(
+			_event_warning,
+			"session:mode: [%s] mode-acknowledge received from invalid peer [%s]",
+			managed_session_get_id_string(&m_session_id),
+			get_peer_description(peer_index)
+		);
+	}
+	else if (m_local_pending_mode_transition)
+	{
+		if (message->session_mode_sequence == m_session_parameters.session_mode_sequence
+			&& message->session_mode == m_session_parameters.session_mode)
+		{
+			s_session_peer* local_peer = &m_session_peers[peer_index];
+			ASSERT(local_peer->is_remote_peer);
+
+			if(local_peer->mode_transition_pending)
+			{
+				event(
+					_event_message,
+					"session:mode: [%s] received mode-acknowledge from peer [%s] for current mode transition [#%d](%d)",
+					managed_session_get_id_string(&m_session_id),
+					get_peer_description(peer_index),
+					m_session_parameters.session_mode_sequence,
+					m_session_parameters.session_mode
+				);
+
+				local_peer->mode_transition_pending = false;
+				result = true;
+
+
+				if (m_session_membership.peer_count <= 0)
+				{
+					complete_host_pending_transition();
+				}
+				else
+				{
+					int32 other_peer_index = 0;
+					while (true)
+					{
+						
+						const s_session_peer* other_peer = &m_session_peers[other_peer_index];
+						if (other_peer->is_remote_peer && other_peer->mode_transition_pending)
+							break;
+						if (++other_peer_index >= m_session_membership.peer_count)
+							complete_host_pending_transition();
+					}
+					ASSERT(other_peer_index != peer_index);
+					ASSERT(other_peer_index != m_local_peer_index);
+				}
+			}
+			else
+			{
+				event(
+					_event_warning,
+					"session:mode: [%s] duplicate mode-acknowledge received from peer [%s] for current mode transition [#%d](%d)",
+					managed_session_get_id_string(&m_session_id),
+					get_peer_description(peer_index),
+					m_session_parameters.session_mode_sequence,
+					m_session_parameters.session_mode
+				);
+			}
+		}
+		else
+		{
+			event(
+				_event_warning,
+				"session:mode: [%s] mismatched mode-acknowledge received peer [%s] mode [#%d](%d) != current transition to [#%d](%d)",
+				managed_session_get_id_string(&m_session_id),
+				get_peer_description(peer_index),
+				message->session_mode_sequence,
+				message->session_mode,
+				m_session_parameters.session_mode_sequence,
+				m_session_parameters.session_mode
+			);
+
+		}
+
+	}
+	else
+	{
+		event(
+			_event_warning,
+			"session:mode: [%s] mode-acknowledge received from peer [%s] mode [#%d](%d), but current mode [#%d](%d) is not transitioning",
+			managed_session_get_id_string(&m_session_id),
+			get_peer_description(peer_index),
+			message->session_mode_sequence,
+			message->session_mode,
+			m_session_parameters.session_mode_sequence,
+			m_session_parameters.session_mode
+		);
+	}
+
+	return result;
+}
+
+
 /* private code */
 
 const char* c_network_session::get_peer_description(int32 peer_index) const
@@ -479,4 +688,38 @@ int32 c_network_session::get_peer_from_secure_address(const s_transport_secure_a
 		}
 	}
 	return result;
+}
+
+bool c_network_session::apply_parameters_update(s_network_message_parameters_update* message, s_session_parameters* out_params)
+{
+	return INVOKE_TYPE(0x1C2BFC, 0x0, bool(__thiscall*)(c_network_session*, s_network_message_parameters_update*, s_session_parameters*), this, message, out_params);
+}
+
+void c_network_session::handle_disconnection()
+{
+	return INVOKE_TYPE(0x1CD920, 0x0, void(__thiscall*)(c_network_session*), this);
+}
+
+void c_network_session::complete_host_pending_transition()
+{
+	ASSERT(established() && is_host());
+
+	if (!m_local_pending_mode_transition)
+		return;
+
+	for (int32 i = 0; i < m_session_membership.peer_count; ++i)
+	{
+		const s_session_peer* test_local_peer = &m_session_peers[i];
+		ASSERT(!test_local_peer->mode_transition_pending);
+	}
+
+	event(
+		_event_message,
+		"session:mode: [%s] mode transition complete to [#%d](%d)",
+		managed_session_get_id_string(&m_session_id),
+		m_session_parameters.session_mode_sequence,
+		m_session_parameters.session_mode
+	);
+
+	m_local_pending_mode_transition = false;
 }

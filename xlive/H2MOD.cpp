@@ -54,6 +54,7 @@
 #include "networking/network_utilities.h"
 #include "networking/network_memory.h"
 #include "networking/network_configuration.h"
+#include "networking/network_loading.h"
 #include "physics/character_physics_mode_ground.h"
 #include "units/bipeds.h"
 #include "rasterizer/rasterizer_lens_flares.h"
@@ -406,6 +407,14 @@ static bool __cdecl OnMapLoad(s_game_options* options)
 		WriteValue(Memory::GetAddress(0x41F6B1), 0);
 	}
 
+	if (options
+		&& (options->game_mode == _game_mode_campaign
+			|| options->game_mode == _game_mode_multiplayer
+			|| options->game_mode == _game_mode_ui_shell && options->menu_context == 7))
+	{
+		INVOKE_TYPE(0x1AEB5A, 0x0, void(*)(void));
+	}
+
 	EventHandler::MapLoadEventExecute(EventExecutionType::execute_before, options->game_mode);
 	CustomVariantHandler::OnMapLoad(ExecTime::_preEventExec, options);
 
@@ -417,7 +426,8 @@ static bool __cdecl OnMapLoad(s_game_options* options)
 
 	if (options->game_mode == _game_mode_multiplayer)
 	{
-		game_globals_apply_tag_patches();
+		//game_globals_apply_tag_patches();
+
 	}
 
 	cartographer_player_profile_weapon_offsets_on_map_load();
@@ -649,6 +659,17 @@ static void h2mod_apply_hooks(void)
 	DETOUR_ATTACH(p_map_cache_load, Memory::GetAddress<map_cache_load_t>(0x8F62, 0x1F35C), OnMapLoad);
 	DETOUR_ATTACH(p_get_enabled_teams_flags, Memory::GetAddress<get_enabled_teams_flags_t>(0x1B087B, 0x19698B), get_enabled_team_flags);
 
+	// possible fix for a network update race condition
+	// where the loading network thread (the one started and running during map load)
+	// would race with the newtork update in the function that waits for the loading network thread to finish just 1000 milliseconds
+	// instead of waiting it to process everything then exit
+	WriteValue<int32>(Memory::GetAddress(0x1AEA75, 0x1AD61C) + 1, INFINITE);
+	
+
+	// also call simulation_update() when loading the map
+	network_loading_apply_patches();
+
+	//WriteValue<uint8>(Memory::GetAddress(0x862B), 0xEB);
 	// below hooks applied to specific executables
 	if (!shell_is_dedicated_server())
 	{

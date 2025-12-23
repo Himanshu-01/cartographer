@@ -547,6 +547,7 @@
     <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_headhunter.cpp" />
     <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_king.cpp" />
     <ClCompile Include="Blam\Engine\simulation\game_interface\simulation_game_engine_slayer.cpp" />
+    <ClCompile Include="Blam\Engine\networking\network_loading.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\miniupnpc\include\miniupnpc\codelength.h" />
@@ -2057,6 +2058,7 @@
     <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_headhunter.h" />
     <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_king.h" />
     <ClInclude Include="Blam\Engine\simulation\game_interface\simulation_game_engine_slayer.h" />
+    <ClInclude Include="Blam\Engine\networking\network_loading.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />

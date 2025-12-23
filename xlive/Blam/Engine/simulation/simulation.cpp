@@ -26,9 +26,9 @@ bool simulation_engine_initialized()
 	return simulation_get_globals()->initialized;
 }
 
-bool simulation_is_paused()
+bool simulation_aborted()
 {
-	return simulation_get_globals()->engine_paused;
+	return simulation_get_globals()->aborted;
 }
 
 bool simulation_reset_in_progress()
@@ -50,7 +50,7 @@ bool simulation_starting_up(void)
 	if (simulation_globals->initialized)
 	{
 		ASSERT(simulation_globals->world);
-		if (!simulation_globals->engine_paused && simulation_globals->world->exists())
+		if (!simulation_globals->aborted && simulation_globals->world->exists())
 		{
 			result = !simulation_globals->world->is_active();
 		}
@@ -62,9 +62,13 @@ bool simulation_starting_up(void)
 void simulation_notify_reset_complete(void)
 {
 	s_simulation_globals* sim_globals = simulation_get_globals();
-	if (!game_is_playback())
+	if (!game_is_playback() && simulation_reset_in_progress())
 	{
-		sim_globals->world->send_player_acknowledgements(true);
+		if (sim_globals->world->exists() && !sim_globals->world->is_authority())
+		{
+			// dont need this if we are not authority
+			sim_globals->world->send_player_acknowledgements(true);
+		}
 	}
 	sim_globals->simulation_reset_in_progress = false;
 	return;
@@ -134,7 +138,7 @@ bool simulation_in_progress(void)
 	if (simulation_engine_initialized()
 		&& game_in_progress()
 		&& game_get_active_structure_bsp_index() != NONE
-		&& !simulation_is_paused())
+		&& !simulation_aborted())
 	{
 		ASSERT(simulation_get_globals()->world);
 		if (simulation_get_world()->is_active())
@@ -270,7 +274,7 @@ void __cdecl simulation_build_update(struct simulation_update* update)
 	ASSERT(simulation_globals->initialized);
 	ASSERT(simulation_globals->world);
 
-	if (simulation_globals->engine_paused)
+	if (simulation_globals->aborted)
 	{
 		DISPLAY_ASSERT("simulation aborted inside game update");
 	}
@@ -297,7 +301,7 @@ void simulation_update_pregame(void)
 	struct simulation_update update;
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 
-	if (simulation_globals->initialized && game_in_progress() && !simulation_is_paused())
+	if (simulation_globals->initialized && game_in_progress() && !simulation_aborted())
 	{
 		if (simulation_globals->watcher->need_to_generate_updates())
 		{
@@ -344,6 +348,39 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
 	return;
 }
 
+void simulation_synchronous_game_patches()
+{
+
+//#todo: move these out to respective files
+
+	//ui-game-patches
+	WriteValue<BYTE>(Memory::GetAddress(0x23EC55 + 1), 0);	// Prevent the game from pausing during the game
+	//call    user_interface_globals_invoke_pause_screen
+	NopFill(Memory::GetAddress(0x7AE4), 0x5); // prevent pause menu from showing up when not in focus
+	
+	//lifecycle-game-patches
+	WriteValue<BYTE>(Memory::GetAddress(0x1D9A74 + 1), 4);	// increase max players to 4
+	WriteValue<BYTE>(Memory::GetAddress(0x1D9A7D + 1), 4);	// increase max peer-count to 4
+	WriteValue<BYTE>(Memory::GetAddress(0x4930C), 0xEB);	// remove game_options check
+	
+	WriteValue<BYTE>(Memory::GetAddress(0x1D9280 + 2), 4);	// increase membership_player_count to 4
+	WriteValue<BYTE>(Memory::GetAddress(0x1D928A + 2), 4);	// increase membership_peer_count to 4
+
+
+	
+	// remove pregame lobby player check
+	NopFill(Memory::GetAddress(0x2165E9), 0x7); 
+	uint8 pregame_lobby_patch_asm[] = { 0xE9 ,0x16 ,0x01 ,00 ,00 ,0x90 };
+	WriteBytes(Memory::GetAddress(0x2165F0), pregame_lobby_patch_asm, NUMBEROF(pregame_lobby_patch_asm));
+
+
+	PatchCall(Memory::GetAddress(0x1AE002), synchronous_update_encode);
+	PatchCall(Memory::GetAddress(0x1ED08E), synchronous_update_encode);
+	PatchCall(Memory::GetAddress(0x1AE084), synchronous_update_decode);
+	PatchCall(Memory::GetAddress(0x1ED0A3), synchronous_update_decode);
+
+}
+
 void simulation_apply_patches(void)
 {
 	simulation_event_handler_apply_patches();
@@ -354,5 +391,6 @@ void simulation_apply_patches(void)
 	PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);	// c_simulation_world::build_update
 
 	WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);
+	simulation_synchronous_game_patches();
 	return;
 }
