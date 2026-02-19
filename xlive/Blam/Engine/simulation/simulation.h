@@ -9,7 +9,8 @@
 
 enum
 {
-	k_maximum_simulation_player_updates = 64
+	k_maximum_simulation_player_updates = 64,
+	k_bits_required_for_simulation_player_updates_count = 5
 };
 
 struct simulation_update
@@ -36,12 +37,12 @@ struct s_simulation_globals
 {
 	bool initialized;
 	bool fatal_error;
-	bool engine_paused;
+	bool aborted;
 	int32 field_4;
 	bool simulation_invalidate;
 	bool simulation_reset_pending;
 	bool simulation_reset_in_progress;
-	bool field_B;
+	bool loading_saved_game;
 	c_simulation_world* world;
 	c_simulation_watcher* watcher;
 	c_simulation_type_collection* simulation_type_collection;
