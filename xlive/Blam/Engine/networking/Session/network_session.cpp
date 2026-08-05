@@ -191,6 +191,19 @@ e_network_session_class network_squad_session_get_session_class()
 	return out_class;
 }
 
+bool network_squad_session_can_set_game_settings()
+{
+	c_network_session* session = nullptr;
+	if (network_life_cycle_in_squad_session(&session)
+		&& session->established()
+		&& session->is_local_peer_session_leader()
+		&& session->session_mode() == _network_session_mode_idle)
+	{
+		return true;
+	}
+	return false;
+}
+
 
 bool network_session_interface_set_local_user_character_type(int32 user_index, e_character_type character_type)
 {
@@ -415,6 +428,21 @@ bool c_network_session::handle_leave_request(const transport_address* incoming_a
 bool c_network_session::handle_leave_internal(int32 peer_index)
 {
 	return INVOKE_TYPE(0x1CC7B4, 0x1A3D34, bool(__thiscall*)(c_network_session*, int32), this, peer_index);
+}
+
+bool  c_network_session::parameters_game_variant_request_change(s_game_variant* variant)
+{
+	return INVOKE_TYPE(0x1C903B, 0x1A06FB, bool(__thiscall*)(c_network_session*, s_game_variant*), this, variant);
+}
+
+bool c_network_session::parameters_simulation_protocol_request_change(e_network_game_simulation_protocol protocol)
+{
+	return INVOKE_TYPE(0x1C8F03, 0x1A05C3, bool(__thiscall*)(c_network_session*, e_network_game_simulation_protocol), this, protocol);
+}
+
+bool c_network_session::parameters_countdown_timer_request_change(int8 mode, int32 countdown_timer, int8 dedicated_server_host, uint32 delay_reason, s_player_identifier* responsible_player)
+{
+	return INVOKE_TYPE(0x1C96FB, 0x1A0C83, bool(__thiscall*)(c_network_session*, int8, int32, int8, uint32, s_player_identifier*), this, mode, countdown_timer, dedicated_server_host, delay_reason, responsible_player);
 }
 
 /* private code */

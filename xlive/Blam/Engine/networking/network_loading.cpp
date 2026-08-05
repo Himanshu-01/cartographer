@@ -17,7 +17,7 @@ void network_loading_apply_patches()
 
 void __cdecl network_loading_create_thread(void)
 {
-	INVOKE(0x1AEB5A, 0x0, network_loading_create_thread);
+	INVOKE(0x1AEB5A, 0x1AD701, network_loading_create_thread);
 	return;
 }
 

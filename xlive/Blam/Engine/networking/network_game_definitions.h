@@ -13,6 +13,15 @@ enum e_network_session_qos_status_data_type : int32
 	k_network_session_qos_status_data_type_bits = 2,
 };
 
+enum e_network_game_simulation_protocol : int32
+{
+	_network_game_simulation_protocol_offline = 0,
+	_network_game_simulation_protocol_synchronous,
+	_network_game_simulation_protocol_distributed,
+
+	k_network_game_simulation_protocol_count
+};
+
 /* structures */
 
 // practically the xuid, but aligned to 4 (hence the split in 2 32 bit variables)

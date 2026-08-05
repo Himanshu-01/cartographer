@@ -48,7 +48,7 @@ bool __cdecl simulation_player_update_decode(c_bitstream* packet, simulation_pla
 
 void __cdecl simulation_update_encode(c_bitstream* packet, struct simulation_update* update)
 {
-	//INVOKE(0x1E0998, 0x0, synchronous_update_encode_internal, packet, update);
+	//INVOKE(0x1E0998, 0X1C7E58, synchronous_update_encode_internal, packet, update);
 
 	const int32 starting_pos = packet->get_current_bit_position();
 
@@ -111,7 +111,7 @@ void __cdecl simulation_update_encode(c_bitstream* packet, struct simulation_upd
 
 bool __cdecl simulation_update_decode(c_bitstream* packet, struct simulation_update* update)
 {
-	//return INVOKE(0x1E0AA2, 0x0, synchronous_update_decode_internal, packet, update);
+	//return INVOKE(0x1E0AA2, 0x1C7F62, synchronous_update_decode_internal, packet, update);
 
 	ASSERT(packet);
 	ASSERT(update);
@@ -179,20 +179,20 @@ bool __cdecl simulation_update_decode(c_bitstream* packet, struct simulation_upd
 
 void __cdecl player_action_encode(c_bitstream* packet, struct player_action* action)
 {
-	INVOKE(0x1DFE4C, 0x0, player_action_encode, packet, action);
+	INVOKE(0x1DFE4C, 0x1C730C, player_action_encode, packet, action);
 }
 
 bool __cdecl player_action_decode(c_bitstream* packet, struct player_action* action)
 {
-	return INVOKE(0x1E01CB, 0x0, player_action_decode, packet, action);
+	return INVOKE(0x1E01CB, 0x1C768B, player_action_decode, packet, action);
 }
 
 void __cdecl simulation_machine_update_encode(c_bitstream* packet, struct simulation_machine_update* machine_update)
 {
-	INVOKE(0x1E08E7, 0x0, simulation_machine_update_encode, packet, machine_update);
+	INVOKE(0x1E08E7, 0x1C7DA7, simulation_machine_update_encode, packet, machine_update);
 }
 
 bool __cdecl simulation_machine_update_decode(c_bitstream* packet, struct simulation_machine_update* machine_update)
 {
-	return INVOKE(0x1E0935, 0x0, simulation_machine_update_decode, packet, machine_update);
+	return INVOKE(0x1E0935, 0x1C7DF5, simulation_machine_update_decode, packet, machine_update);
 }

@@ -5,6 +5,7 @@
 #include "main/main_game.h"
 #include "main/main_render.h"
 #include "main/main_time.h"
+#include "networking/logic/network_session_interface.h"
 
 /* macros */
 
@@ -36,6 +37,8 @@ HS_FUNCTION_DEFINITION_CREATE(display_framerate_definition, "display_framerate",
 HS_FUNCTION_DEFINITION_CREATE(display_frame_deltas_definition, "display_frame_deltas", _hs_type_boolean, &display_frame_deltas);
 HS_FUNCTION_DEFINITION_CREATE(console_pauses_game_definition, "console_pauses_game", _hs_type_boolean, &debug_console_pauses_game);
 HS_FUNCTION_DEFINITION_CREATE(framerate_infinite_definition, "framerate_infinite", _hs_type_boolean, &debug_disable_frame_rate_throttle);
+HS_FUNCTION_DEFINITION_CREATE(net_distributed_always_definition, "net_distributed_always", _hs_type_boolean, &debug_net_distributed_always);
+HS_FUNCTION_DEFINITION_CREATE(net_distributed_never_definition, "net_distributed_never", _hs_type_boolean, &debug_net_distributed_never);
 
 
 
@@ -53,6 +56,8 @@ const hs_global_external* hs_external_globals[] =
 	&console_status_string_render_definition,
 	&console_pauses_game_definition,
 	&framerate_infinite_definition,
+	&net_distributed_always_definition,
+	&net_distributed_never_definition,
 };
 
 const int16 k_hs_external_global_count = NUMBEROF(hs_external_globals);	// original is 1043

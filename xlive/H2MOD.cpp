@@ -48,6 +48,7 @@
 #include "main/main_screenshot.h"
 #include "main/main_time.h"
 #include "networking/logic/life_cycle_manager.h"
+#include "networking/logic/network_session_interface.h"
 #include "networking/session/network_session.h"
 #include "networking/transport/transport.h"
 #include "networking/network_event.h"
@@ -646,6 +647,7 @@ static void h2mod_apply_hooks(void)
 	network_globals_apply_patches();
 	network_transport_apply_patches();
 	network_session_apply_patches();
+	network_session_interface_patches();
 	bitstream_serialization_apply_patches();
 	game_life_cycle_apply_patches();
 
