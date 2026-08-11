@@ -1,8 +1,6 @@
 #include "stdafx.h"
 #include "player_control.h"
 
-#include "players.h"
-
 #include "cache/cache_files.h"
 #include "camera/observer.h"
 #include "game/game_time.h"
