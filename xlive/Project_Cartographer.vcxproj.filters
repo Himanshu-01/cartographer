@@ -2105,6 +2105,7 @@
     <ClInclude Include="Blam\Engine\kablam\kablam_string\kablam_string.h" />
     <ClInclude Include="Blam\Engine\kablam\kablam_shell\kablam_shell.h" />
     <ClInclude Include="Blam\Engine\simulation\simulation_update.h" />
+    <ClInclude Include="Blam\Engine\game\player_training.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
