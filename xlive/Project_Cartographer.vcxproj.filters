@@ -563,6 +563,10 @@
     <ClCompile Include="Blam\Engine\networking\logic\life_cycle\life_cycle_handler_joining.cpp" />
     <ClCompile Include="Blam\Engine\math\crypto_windows.cpp" />
     <ClCompile Include="Blam\Engine\cartographer\build_version\cartographer_build_version.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_pause_game.cpp" />
+    <ClCompile Include="Blam\Engine\interface\user_interface_objectives.cpp" />
+    <ClCompile Include="Blam\Engine\interface\screens\screen_pause_settings.cpp" />
+    <ClCompile Include="Blam\Engine\interface\signal_slot.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="3rdparty\miniupnpc\include\miniupnpc\codelength.h" />
@@ -2108,6 +2112,12 @@
     <ClInclude Include="Blam\Engine\interface\user_interface_errors.h" />
     <ClInclude Include="Blam\Engine\units\unit_messages.h" />
     <ClInclude Include="Blam\Engine\units\unit_control.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_pause_game.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_pause_settings.h" />
+    <ClInclude Include="Blam\Engine\interface\user_interface_objectives.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_multiplayer_controller_settings_menu.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_multiplayer_keyboard_settings_menu.h" />
+    <ClInclude Include="Blam\Engine\interface\screens\screen_multiplayer_audio_settings_menu.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resources\Resource.rc" />
