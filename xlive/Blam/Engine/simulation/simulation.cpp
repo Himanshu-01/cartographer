@@ -13,6 +13,7 @@
 #include "game/game.h"
 #include "game/game_time.h"
 #include "game/players.h"
+#include "math/random_math.h"
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/session/network_session.h"
 #include "networking/network_event.h"
@@ -368,9 +369,11 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 			objects_purge_deleted_objects();
 	}
 
-	if (update->flush_gamestate)
+	if (update->flush_gamestate && !sim_world->is_authority())
 	{
-		simulation_get_globals()->world->gamestate_flush_immediate();
+		ASSERT(!game_is_distributed());
+
+		sim_world->gamestate_flush();
 	}
 
 	// destroy the update exactly after we applied the queues to the gamestate
@@ -402,6 +405,8 @@ void simulation_fatal_error(void)
 
 void __cdecl simulation_build_update(struct simulation_update* update)
 {
+	//profile_attribute_enter(2, _profile_attribution_subsystem_9);
+
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 
 	ASSERT(simulation_globals->initialized);
@@ -416,14 +421,89 @@ void __cdecl simulation_build_update(struct simulation_update* update)
 	ASSERT(game_in_progress());
 	ASSERT(update);
 
+	//INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+	
+	csmemset(update, 0, sizeof(*update));
 
-	INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+	simulation_globals->world->build_update(update);
+	bool go_oos = false;
+
+	if ((!simulation_globals->world->is_authority() || simulation_globals->world->is_playback()) &&
+		(!simulation_globals->world->is_distributed() || simulation_globals->world->is_playback()) &&
+		!simulation_globals->world->is_out_of_sync())
+	{
+		if (update->flush_gamestate)
+		{
+			simulation_globals->world->gamestate_flush();
+		}
+
+		if (update->update_number != simulation_globals->world->get_next_update_number())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, update number differs, update [#%d] != next [#%d]",
+				update->update_number,
+				simulation_globals->world->get_next_update_number()
+			);
+			go_oos = true;
+		}
+		else if (update->verify_game_time != simulation_globals->world->get_time())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, update time differs, update [#%d] time [%d] != local time %d",
+				update->update_number,
+				update->verify_game_time,
+				simulation_globals->world->get_time()
+			);
+			go_oos = true;
+		}
+		else if (update->verify_random_seed != get_random_seed())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, random seed differs, update [#%d] time [%d] seed [0x%08X] (local seed [0x%08X])",
+				update->update_number,
+				update->verify_game_time,
+				update->verify_random_seed,
+				get_random_seed()
+			);
+			go_oos = true;
+		}
+	}
+
+	if (go_oos)
+	{
+		simulation_globals->world->go_out_of_sync();
+	}
+
+	//profile_attribute_exit(2, _profile_attribution_subsystem_9);
+
 	return;
 }
 
 void __cdecl simulation_update_aftermath(const struct simulation_update* update)
 {
-	INVOKE(0x1ADEA9, 0x1A8260, simulation_update_aftermath, update);
+	//INVOKE(0x1ADEA9, 0x1A8260, simulation_update_aftermath, update);
+
+	//profile_attribute_enter(2, _profile_attribution_subsystem_9);
+
+	s_simulation_globals* simulation_globals = simulation_get_globals();
+
+	ASSERT(update);
+	ASSERT(simulation_globals->initialized);
+	ASSERT(simulation_globals->world);
+	ASSERT(game_in_progress());
+
+	if (simulation_globals->world->is_authority())
+	{
+		simulation_globals->world->distribute_update(update);
+	}
+
+	simulation_globals->world->advance_update(update);
+
+	//profile_attribute_exit(2, _profile_attribution_subsystem_9);
+
 	return;
 }
 
@@ -480,6 +560,29 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
 	}
 	return;
 }
+
+void __cdecl simulation_build_machine_update(
+	bool* machine_update_valid,
+	simulation_machine_update* machine_update)
+{
+	s_simulation_globals* simulation_globals = simulation_get_globals();
+
+	ASSERT(simulation_globals->initialized);
+	ASSERT(simulation_globals->world);
+	ASSERT(simulation_globals->world->exists());
+	ASSERT(simulation_globals->world->runs_simulation());
+	ASSERT(simulation_globals->watcher);
+	ASSERT(game_in_progress());
+	//simulation_globals->watcher->generate_machine_update(machine_update_valid, machine_update);
+	INVOKE(0x1ADE77, 0x1A822E, simulation_build_machine_update, machine_update_valid, machine_update);
+	return;
+}
+
+class c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index)
+{
+	return INVOKE(0x1ADF06, 0x0, simulation_get_remote_view_by_channel, channel_index);
+}
+
 
 /* private code */
 

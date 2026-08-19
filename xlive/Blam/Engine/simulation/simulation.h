@@ -16,6 +16,7 @@ bool simulation_reset_in_progress(void);
 void __cdecl simulation_update(void);
 
 bool simulation_starting_up(void);
+bool simulation_aborted();
 
 void simulation_notify_reset_complete(void);
 
@@ -45,3 +46,7 @@ void __cdecl simulation_process_input(uint32 player_action_mask, struct player_a
 bool __cdecl simulation_get_machine_active_in_game(struct s_machine_identifier* machine_identifier);
 
 void __cdecl simulation_build_player_updates(int32* player_update_count, int32 maximum_player_update_count, struct simulation_player_update* player_updates);
+
+void __cdecl simulation_build_machine_update(bool* machine_update_valid, struct simulation_machine_update* machine_update);
+
+class c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index);

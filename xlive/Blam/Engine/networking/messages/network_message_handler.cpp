@@ -8,12 +8,15 @@
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/logic/network_session_interface.h"
 #include "networking/messages/network_message_gateway.h"
+#include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/messages/network_message_type_collection.h"
 #include "networking/session/network_session.h"
 #include "networking/session/network_session_manager.h"
 #include "networking/session/network_observer.h"
 #include "networking/transport/transport_security.h"
 #include "networking/network_event.h"
+#include "simulation/simulation.h"
+#include "simulation/simulation_view.h"
 
 #include "H2MOD/Modules/CustomVariantSettings/CustomVariantSettings.h"
 #include "H2MOD/Modules/MapManager/MapManager.h"
@@ -38,6 +41,12 @@ static __declspec(naked) void jmp_c_network_message_handler__handle_leave_sessio
 	CLASS_HOOK_JMP(c_network_message_handler__handle_leave_session, c_network_message_handler::handle_leave_session);
 }
 
+CLASS_HOOK_DECLARE_LABEL(c_network_message_handler__handle_synchronous_update, c_network_message_handler::handle_synchronous_update);
+static __declspec(naked) void jmp_c_network_message_handler__handle_synchronous_update()
+{
+	CLASS_HOOK_JMP(c_network_message_handler__handle_synchronous_update, c_network_message_handler::handle_synchronous_update);
+}
+
 /* globals */
 
 t_read_channel_message p_read_channel_message;
@@ -50,6 +59,7 @@ void network_message_handler_apply_patches(void)
 	p_read_channel_message = (t_read_channel_message)DetourClassFunc(Memory::GetAddress<BYTE*>(0x1E929C, 0x1CB25C), (BYTE*)read_channel_message_hook, 8);
 	p_handle_out_of_band_message = (t_handle_out_of_band_message)DetourClassFunc(Memory::GetAddress<BYTE*>(0x1E907B, 0x1CB03B), (BYTE*)handle_out_of_band_message_hook, 8);
 	WriteJmpTo(Memory::GetAddress(0x1E8D13, 0x1CACD3), jmp_c_network_message_handler__handle_leave_session);
+	WriteJmpTo(Memory::GetAddress(0x1E89D0, 0x1CA990), jmp_c_network_message_handler__handle_synchronous_update);
 }
 
 /* private code */
@@ -239,6 +249,57 @@ void c_network_message_handler::handle_leave_session(const transport_address* ad
 			transport_address_get_string(address)
 		);
 	}
+	return;
+}
+
+void c_network_message_handler::handle_synchronous_update(
+	int32 network_channel_index,
+	const s_network_message_synchronous_update* message)
+{
+
+	const char* channel_name = "[TODO]";
+	c_simulation_view* remote_view = simulation_get_remote_view_by_channel(network_channel_index);
+
+	if (remote_view)
+	{
+		if (remote_view->view_type() == _simulation_view_type_synchronous_to_remote_authority)
+		{
+			if (remote_view->handle_synchronous_update(&message->update))
+			{
+				// Success
+			}
+			else
+			{
+				event(
+					_event_warning,
+					"networking:messages:synchronous-update: failed to handle #%d over channel '%s' with view mode %d/%d",
+					message->update.update_number,
+					channel_name,
+					remote_view->get_view_establishment_mode(),
+					remote_view->get_view_establishment_identifier()
+				);
+			}
+		}
+		else
+		{
+			event(
+				_event_warning,
+				"networking:messages:synchronous-update: view not authority for #%d over channel '%s' with view of type #%d",
+				message->update.update_number,
+				channel_name,
+				remote_view->view_type()
+			);
+		}
+	}
+	else
+	{
+		event(
+			_event_message,
+			"networking:messages:synchronous-update: no simulation view for #%d over channel '%s'",
+			message->update.update_number
+		);
+	}
+
 	return;
 }
 

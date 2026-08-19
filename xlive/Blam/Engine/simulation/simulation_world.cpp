@@ -6,8 +6,14 @@
 #include "simulation_queue_global_events.h"
 
 #include "simulation.h"
+#include "simulation_update.h"
+#include "simulation_encoding.h"
 
+#include "game/game_time.h"
+#include "math/random_math.h"
+#include "memory/bitstream.h"
 #include "networking/network_event.h"
+#include "networking/network_memory.h"
 #include "saved_games/game_state_procs.h"
 
 #include "H2MOD/GUI/imgui_integration/Console/ImGui_ConsoleImpl.h"
@@ -16,15 +22,6 @@
 // if that's the case, increse the buffer size
 c_simulation_queue g_simulation_queues[k_simulation_queue_count];
 
-void c_simulation_world::gamestate_flush_immediate(void)
-{
-	if (!is_authority())
-	{
-		game_state_call_before_save_procs(0);
-		game_state_call_after_save_procs(0);
-	}
-	return;
-}
 
 c_simulation_queue* c_simulation_world::queue_get(e_simulation_queue_type type) const
 {
@@ -387,6 +384,452 @@ void c_simulation_world::delete_player(datum player_index)
 	return;
 }
 
+int32 c_simulation_world::time_get_available(
+	bool* match_remote_time)
+{
+	int32 available_time = 0;
+
+	ASSERT(exists());
+	ASSERT(match_remote_time);
+
+	*match_remote_time = false;
+
+	if (m_time_running)
+	{
+		available_time = LONG_MAX;
+		switch (m_world_type)
+		{
+		case _simulation_world_type_local:
+		case _simulation_world_type_distributed_authority:
+		case _simulation_world_type_distributed_client:
+			break;
+		case _simulation_world_type_synchronous_authority:
+			available_time = synchronous_authority_get_maximum_updates();
+			break;
+		case _simulation_world_type_synchronous_client:
+			available_time = update_queue_get_available_updates();
+			*match_remote_time = true;
+			break;
+		default:
+			unreachable();
+		}
+	}
+
+	return available_time;
+}
+
+void c_simulation_world::iterator_begin(
+	s_simulation_world_view_iterator* iterator,
+	uint32 view_type_mask)
+{
+	ASSERT(iterator);
+	ASSERT(view_type_mask == NONE || (view_type_mask != 0 && VALID_BITS(view_type_mask, k_simulation_view_type_count)));
+
+	iterator->view_type_mask = view_type_mask;
+	iterator->next_world_view_index = 0;
+	return;
+}
+
+bool c_simulation_world::iterator_next(
+	s_simulation_world_view_iterator* iterator,
+	c_simulation_view** view) const
+{
+	bool result = false;
+
+	ASSERT(iterator);
+	ASSERT(view);
+
+	while (iterator->next_world_view_index < NUMBEROF(m_views))
+	{
+		c_simulation_view* current_view = m_views[iterator->next_world_view_index++];
+		if (current_view && TEST_BIT(iterator->view_type_mask, current_view->view_type()))
+		{
+			*view = current_view;
+			result = true;
+			break;
+		}
+	}
+
+	return result;
+}
+
+void c_simulation_world::gamestate_flush(
+	void)
+{
+	ASSERT(exists());
+	ASSERT(m_world_type == _simulation_world_type_synchronous_client);
+
+	game_state_call_before_save_procs(0);
+	game_state_call_after_save_procs(0);
+
+	return;
+}
+
+void c_simulation_world::go_out_of_sync(
+	void)
+{
+	ASSERT(exists());
+	ASSERT(!runs_simulation());
+	ASSERT(m_time_running);
+
+	// TODO: add debug hs global check here 
+	//if (g_hs_net_allow_out_of_sync)
+	{
+		m_out_of_sync = true;
+	}
+
+	return;
+}
+
+int32 c_simulation_world::get_time(
+	void) const
+{
+	ASSERT(exists());
+	return (int32)game_time_get();
+}
+
+void c_simulation_world::build_player_actions(struct simulation_update* update)
+{
+	INVOKE_TYPE(0x1DBE3F, 0x1C32F4, void(__thiscall*)(c_simulation_world*, struct simulation_update*), this, update);
+}
+
+void c_simulation_world::build_update(
+	struct simulation_update* update)
+{
+	if (runs_simulation())
+	{
+		update->update_number = get_next_update_number();
+		update->verify_game_time = get_time();
+
+		random_seed_allow_use();
+		update->verify_random_seed = get_random_seed();
+		random_seed_disallow_use();
+
+		simulation_build_machine_update(&update->machine_update_valid, &update->machine_update);
+		simulation_build_player_updates(&update->player_update_count, NUMBEROF(update->player_updates), update->player_updates);
+		update->simulation_in_progress = simulation_in_progress();
+
+		if (update->simulation_in_progress)
+		{
+			build_player_actions(update);
+
+			if (is_distributed())
+			{
+				// Do nothing?
+			}
+
+			if (is_authority() && m_gamestate_flushed)
+			{
+				update->flush_gamestate = true;
+				m_gamestate_flushed = false;
+			}
+		}
+
+		//TODO**
+		//update->bookkeeping_simulation_queue.initialize();
+		//update->game_simulation_queue.initialize();
+		//attach_simulation_queues_to_update(update);
+
+		//uint8 data[0xFFFF];
+		//c_bitstream temporary_stream(data, sizeof(data));
+
+		//temporary_stream.begin_writing(k_bitstream_default_alignment);
+		//simulation_update_encode(&temporary_stream, update);
+		//temporary_stream.finish_writing(NULL);
+
+		//update->bookkeeping_simulation_queue.dispose();
+		//update->game_simulation_queue.dispose();
+
+		//temporary_stream.begin_reading();
+		//bool decode_success = simulation_update_decode(&temporary_stream, update);
+
+		//ASSERT(!temporary_stream.error_occurred());
+		//temporary_stream.finish_reading();
+
+		//ASSERT(decode_success);
+	}
+	else
+	{
+		update_queue_retrieve_update(update);
+	}
+	return;
+}
+
+
+void c_simulation_world::distribute_update(
+	const struct simulation_update* update)
+{
+	ASSERT(update);
+	ASSERT(exists());
+	ASSERT(is_authority());
+
+	if (m_world_type == _simulation_world_type_synchronous_authority)
+	{
+		synchronous_authority_dispatch_update(update);
+	}
+	else if (m_world_type == _simulation_world_type_distributed_authority)
+	{
+		distributed_authority_dispatch_player_actions(update->player_action_mask, update->player_actions);
+		distributed_authority_dispatch_actor_control(update->unit_control_mask, update->unit_control);
+	}
+
+	return;
+}
+
+void c_simulation_world::advance_update(
+	const struct simulation_update* update)
+{
+	ASSERT(update);
+	m_next_update_number = update->update_number + 1;
+
+	return;
+}
+
+
+void c_simulation_world::synchronous_authority_dispatch_update(
+	struct simulation_update const* update)
+{
+	ASSERT(exists());
+	ASSERT(is_authority());
+
+	s_simulation_world_view_iterator iterator;
+	iterator_begin(&iterator, FLAG(_simulation_view_type_synchronous_to_remote_client));
+
+	c_simulation_view* view;
+	while (iterator_next(&iterator, &view))
+	{
+		ASSERT(view);
+		view->dispatch_synchronous_update(update);
+	}
+
+	return;
+}
+
+int32 c_simulation_world::synchronous_authority_get_maximum_updates(
+	void)
+{
+	return INVOKE_TYPE(0x1DC421, 0x1C38D5, int32(__thiscall*)(c_simulation_world*), this);
+}
+
+bool c_simulation_world::handle_synchronous_update(
+	const struct simulation_update* update)
+{
+	bool result = false;
+
+	ASSERT(exists());
+	ASSERT(m_world_type == _simulation_world_type_synchronous_client);
+	ASSERT(m_time_running);
+	ASSERT(update);
+
+	const int32 next_expected_update_number = update_queue_get_next_expected_update_number();
+	if (synchronous_gamestate_write_in_progress())
+	{
+		event(_event_error, "simulation:world: OUT OF SYNC: server update arrived while gamestate transfer was incomplete");
+		go_out_of_sync();
+	}
+	else if (update->update_number < next_expected_update_number)
+	{
+		event(
+			_event_warning,
+			"simulation:world: synchronous-update discarded (expected #%ld, got old #%ld)",
+			next_expected_update_number,
+			update->update_number
+		);
+	}
+	else if (update->update_number != next_expected_update_number)
+	{
+		event(
+			_event_error,
+			"simulation:world: OUT OF SYNC: missed a server update (expected #%ld, got #%ld)",
+			next_expected_update_number,
+			update->update_number
+		);
+		go_out_of_sync();
+	}
+	else if (is_active() && m_time_immediate_update)
+	{
+		event(
+			_event_error,
+			"simulation:world: OUT OF SYNC: server update arrived while world was unable to process it (state %d)",
+			get_state()
+		);
+		go_out_of_sync();
+	}
+	else if (!update_queue_handle_server_update(update))
+	{
+		event(
+			_event_error,
+			"simulation:world: synchronous-update #%ld couldn't be inserted into update queue",
+			update->update_number
+		);
+		simulation_fatal_error();
+	}
+	else
+	{
+		result = true;
+		if (m_time_immediate_update)
+		{
+			bool time_available;
+			event(
+				_event_message,
+				"simulation:world: processing immediate updates (%d at update #%d time #%d)",
+				time_get_available(&time_available),
+				get_next_update_number(),
+				game_time_get()
+			);
+
+			while (game_in_progress() && !simulation_aborted() && m_out_of_sync && time_get_available(&time_available) <= 0)
+			{
+				game_tick();
+			}
+		}
+	}
+
+	if (!result)
+	{
+		event(
+			_event_error,
+			"simulation:world: synchronous-update has failed inside %s", __FUNCTION__
+		);
+	}
+
+	return result;
+}
+
+bool c_simulation_world::update_queue_handle_server_update(
+	const struct simulation_update* update)
+{
+	//return INVOKE_TYPE(0x1DCE0F, 0x1C42C3, bool(__thiscall*)(c_simulation_world*, const simulation_update*), this, update);
+
+	bool success = false;
+
+	ASSERT(update);
+
+	ASSERT(exists());
+	ASSERT(m_time_running);
+	ASSERT(!runs_simulation());
+	ASSERT(update->update_number == update_queue_get_next_expected_update_number());
+	ASSERT(m_update_queue_tail == NULL || (update->update_number == m_update_queue_tail->update.update_number + 1));
+
+	struct s_simulation_queued_update* update_storage = (struct s_simulation_queued_update*)network_heap_allocate_block(sizeof(*update_storage));
+	if (update_storage)
+	{
+		if (m_update_queue_tail)
+		{
+			//network_heap_verify_block(m_update_queue_tail);
+			m_update_queue_tail->next_node = update_storage;
+		}
+		else
+		{
+			m_update_queue_head = update_storage;
+		}
+
+		update_storage->next_node = NULL;
+		++m_update_queue_length;
+		m_update_queue_tail = update_storage;
+
+		event(
+			_event_verbose,
+			"simulation:world: update queue received #%d (previously received: #%d)",
+			update->update_number,
+			m_update_queue_next_update_number_to_dequeue
+		);
+
+		update_storage->update = *update;
+		m_update_queue_latest_update_number_received = update->update_number;
+		success = true;
+	}
+	else
+	{
+#ifdef EVENTS_ENABLED
+		char heapbuf[1024];
+		event(
+			_event_error,
+			"simulation:world: OUT OF MEMORY allocating stored update [#%d] (queue [#%d]/[#%d] length [%d]) [%s]",
+			update->update_number,
+			m_update_queue_next_update_number_to_dequeue,
+			m_update_queue_latest_update_number_received,
+			m_update_queue_length,
+			network_heap_describe(heapbuf, sizeof(heapbuf))
+		);
+#endif
+	}
+
+	return success;
+}
+
+
+void c_simulation_world::update_queue_retrieve_update(struct simulation_update* update)
+{
+	//INVOKE_TYPE(0x1DCE7C, 0x1C4330, void(__thiscall*)(c_simulation_world *, struct simulation_update*), this, update);
+	//return;
+
+	ASSERT(update);
+	ASSERT(exists());
+	ASSERT(m_time_running);
+	ASSERT(!runs_simulation());
+
+
+	ASSERT(m_update_queue_next_update_number_to_dequeue <= m_update_queue_latest_update_number_received);
+	ASSERT(m_update_queue_length > 0);
+	ASSERT(m_update_queue_head != NULL);
+
+	s_simulation_queued_update* update_node = m_update_queue_head;
+
+	//network_heap_verify_block(update_node);
+	ASSERT(update_node->update.update_number == m_update_queue_next_update_number_to_dequeue);
+
+	csmemcpy(update, update_node, sizeof(*update));
+
+	const bool last_node = m_update_queue_tail == update_node;
+	m_update_queue_head = update_node->next_node;
+	if (last_node)
+	{
+		m_update_queue_tail = NULL;
+	}
+
+	network_heap_free_block(update_node);
+
+	const int32 new_length = --m_update_queue_length;
+	++m_update_queue_next_update_number_to_dequeue;
+	if (new_length > 0)
+	{
+		ASSERT(m_update_queue_head != NULL);
+
+		ASSERT(m_update_queue_head->update.update_number == m_update_queue_next_update_number_to_dequeue);
+	}
+	return;
+}
+
+int32 c_simulation_world::update_queue_get_available_updates(
+	void) const
+{
+	ASSERT(exists());
+	ASSERT(m_time_running);
+	ASSERT(!runs_simulation());
+
+	const int32 available_updates = m_update_queue_latest_update_number_received - m_update_queue_next_update_number_to_dequeue + 1;
+	ASSERT(m_update_queue_length == available_updates);
+
+	return available_updates;
+}
+
+
+void c_simulation_world::distributed_authority_dispatch_player_actions(
+	uint32 player_valid_mask,
+	const player_action* player_actions)
+{
+	INVOKE_TYPE(0x1DC5B3, 0x1C3A67, void(__thiscall*)(c_simulation_world*, uint32, const player_action*), this, player_valid_mask, player_actions);
+	return;
+}
+
+void c_simulation_world::distributed_authority_dispatch_actor_control(
+	uint32 actor_valid_mask,
+	const unit_control_data* actor_control)
+{
+	INVOKE_TYPE(0x1DC761, 0x1C3C15, void(__thiscall*)(c_simulation_world*, uint32, const unit_control_data*), this, actor_valid_mask, actor_control);
+	return;
+}
 
 void simulation_world_apply_patches(void)
 {

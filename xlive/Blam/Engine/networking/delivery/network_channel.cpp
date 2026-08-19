@@ -18,3 +18,20 @@ bool s_network_channel::get_network_address(transport_address* address_out)
 
 	return result;
 }
+
+void c_network_channel_simulation_interface::set_established(
+	bool established)
+{
+	ASSERT(m_initialized);
+	m_established = established;
+
+	return;
+}
+
+bool c_network_channel_simulation_interface::established(
+	void) const
+{
+	ASSERT(m_initialized);
+
+	return m_established;
+}

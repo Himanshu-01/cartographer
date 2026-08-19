@@ -21,6 +21,7 @@ struct simulation_machine_update
 	s_machine_identifier identifiers[k_network_maximum_machines_per_session];
 };
 
+#define k_orginal_sizeof_s_simulation_update 0x3BD8
 struct simulation_update
 {
 	int32 update_number;
@@ -39,4 +40,13 @@ struct simulation_update
 	int32 verify_game_time;
 	uint32 verify_random_seed;
 };
-ASSERT_STRUCT_SIZE(struct simulation_update, 0x3BD8);
+ASSERT_STRUCT_SIZE(struct simulation_update, k_orginal_sizeof_s_simulation_update);
+
+#define k_orginal_sizeof_s_simulation_queued_update (k_orginal_sizeof_s_simulation_update + 8)
+struct s_simulation_queued_update
+{
+	struct simulation_update update;
+	s_simulation_queued_update* next_node;
+	char gap[4];
+};
+ASSERT_STRUCT_SIZE(s_simulation_queued_update, k_orginal_sizeof_s_simulation_queued_update);
