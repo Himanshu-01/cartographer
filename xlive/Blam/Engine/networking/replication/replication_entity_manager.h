@@ -8,7 +8,6 @@
 enum
 {
 	k_simulation_entity_database_maximum_entities = 1024,
-	k_replication_entity_manager_maximum_collection_size = 4
 };
 
 struct s_replication_entity_data

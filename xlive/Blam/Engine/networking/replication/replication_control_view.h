@@ -4,6 +4,12 @@
 #include "networking/player_motion.h"
 #include "networking/player_prediction.h"
 
+
+enum
+{
+	k_replication_entity_manager_maximum_collection_size = 4
+};
+
 /* enums */
 
 enum e_network_memory_block : int16
