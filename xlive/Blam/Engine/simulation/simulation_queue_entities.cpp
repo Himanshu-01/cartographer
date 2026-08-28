@@ -179,7 +179,7 @@ bool decode_simulation_queue_creation_from_buffer(int32 encoded_size, uint8* enc
 	return decode_success;
 }
 
-bool simulation_queue_entity_creation_allocate(s_simulation_queue_entity_data* sim_queue_entity_data, uint32 initial_update_mask, s_simulation_queue_element** element, int32* gamestate_index)
+bool simulation_queue_entity_creation_allocate(s_simulation_queue_entity_data* sim_queue_entity_data, uint32 initial_update_mask, s_simulation_queue_element** out_element, int32* gamestate_index)
 {
 	ASSERT(game_is_distributed());
 	ASSERT(!game_is_playback());
@@ -191,11 +191,8 @@ bool simulation_queue_entity_creation_allocate(s_simulation_queue_entity_data* s
 	uint8 encode_buffer[k_simulation_queue_element_data_size_max];
 	//c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(sim_queue_entity_data->entity_type);
 
-	// simulation_queue_allocate does set this to NULL
-	// but in case encode_simulation_queue_update_to_buffer fails
-	// set this to NULL
-	*element = NULL;
 
+	s_simulation_queue_element* element = NULL;
 	// ### TODO STUB for now
 	if (gamestate_index)
 	{
@@ -215,11 +212,11 @@ bool simulation_queue_entity_creation_allocate(s_simulation_queue_entity_data* s
 		&encoded_size
 	))
 	{
-		simulation_get_world()->simulation_queue_allocate(_simulation_queue_element_type_entity_creation, encoded_size, element);
-		if (*element)
+		simulation_get_world()->simulation_queue_allocate(_simulation_queue_element_type_entity_creation, encoded_size, &element);
+		if (element)
 		{
 			// copy the encode_buffer to the buffer, enqueuing done later for entities
-			csmemcpy((*element)->data, encode_buffer, encoded_size);
+			csmemcpy(element->data, encode_buffer, encoded_size);
 			result = true;
 		}
 		else
@@ -239,6 +236,15 @@ bool simulation_queue_entity_creation_allocate(s_simulation_queue_entity_data* s
 			"networking:simulation:queue:entities: failed to encode entity creation to buffer type %d",
 			sim_queue_entity_data->entity_type
 		);
+	}
+
+	if (result)
+	{
+		*out_element = element;
+	}
+	else if (element)
+	{
+		simulation_get_world()->simulation_queue_free(element);
 	}
 
 	return result;
@@ -302,7 +308,7 @@ void simulation_queue_entity_creation_apply(const s_simulation_queue_element* el
 	ASSERT(element->type == _simulation_queue_element_type_entity_creation);
 
 	s_simulation_queue_decoded_creation_data decoded_creation_data;
-	if (game_is_distributed() && !game_is_playback())
+	if (game_is_distributed())
 	{
 		csmemset(&decoded_creation_data, 0, sizeof(decoded_creation_data));
 		
@@ -367,6 +373,9 @@ bool encode_simulation_queue_update_to_buffer(
 {
 	bool result;
 
+	ASSERT(encode_buffer);
+	ASSERT(encode_buffer_size != 0);
+
 	c_bitstream stream(encode_buffer, encode_buffer_size);
 	stream.begin_writing(k_bitstream_default_alignment);
 
@@ -377,23 +386,34 @@ bool encode_simulation_queue_update_to_buffer(
 	// write the actual encode_buffer
 	c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(data->entity_type);
 	uint32 update_mask_written = 0;
-	entity_def->entity_update_encode(false, update_mask, &update_mask_written, data->state_data_size, data->state_data, NULL, &stream, 0);
+	bool encode_success = entity_def->entity_update_encode(false, update_mask, &update_mask_written, data->state_data_size, data->state_data, NULL, &stream, 0);
 
 	*out_encoded_size = stream.get_space_used_in_bytes();
 
 	result = !stream.error_occurred();
 	stream.finish_writing(NULL);
 
+	if (!result || !encode_success || update_mask != update_mask_written)
+	{
+		event(_event_warning,
+			"networking:simulation: encode_simulation_queue_update_to_buffer failed for entity [%s] in writing flags 0x%08X",
+			entity_def->entity_type_name(),
+			update_mask & ~update_mask_written);
+	}
+
 	return result;
 }
 
 bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encoded_size, s_simulation_queue_decoded_update_data* out_decoded_data)
 {
+	ASSERT(encoded_data);
+	ASSERT(encoded_size != 0);
+
 	bool decode_success = false;
 
 	c_bitstream stream(encoded_data, encoded_size);
 	stream.begin_reading();
-
+	
 	if (simulation_queue_entity_decode_header(&stream, &out_decoded_data->entity_type, &out_decoded_data->gamestate_index))
 	{
 		simulation_entity_index_decode(&stream, &out_decoded_data->entity_index);
@@ -405,10 +425,18 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 		if (entity)
 		{
 			c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(out_decoded_data->entity_type);
-			out_decoded_data->state_data_size = entity->state_data_size;
+			out_decoded_data->state_data_size = entity_def->state_data_size();
+
+			/*uint8 temp_state_buffer[k_simulation_entity_maximum_state_data_size];
+			csmemset(&temp_state_buffer, 0, sizeof(temp_state_buffer));*/
 
 			if (out_decoded_data->state_data_size <= k_simulation_entity_maximum_state_data_size)
 			{
+				entity_def->build_creation_data(
+					entity,
+					entity_def->creation_data_size(),
+					entity->creation_data);
+
 				uint32 update_mask = 0;
 				entity_def->build_baseline_state_data(
 					entity->creation_data_size,
@@ -417,15 +445,19 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 					(s_simulation_baseline_state_data*)out_decoded_data->state_data
 				);
 				
+				ASSERT(stream.get_space_left_in_bits() > 0);
+	
 				// in H3 this has some extra param which signals whether to decode
 				// gamestate index or entity index
 				if (entity_def->entity_update_decode(
-					false,
+					true,
 					&update_mask,
 					out_decoded_data->state_data_size,
 					out_decoded_data->state_data,
 					&stream))
 				{
+					ASSERT(update_mask == out_decoded_data->update_mask);
+
 					decode_success = !stream.error_occurred();
 					stream.finish_reading();
 				}
@@ -433,8 +465,15 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 				{
 					event(
 						_event_error,
-						"networking:simulation:queue:entities: failed to decode entity update"
+						"networking:simulation:queue:entities: failed to decode entity update for type %d ",
+						out_decoded_data->entity_type
 					);
+
+					event(_event_warning,
+						"networking:simulation: decode_simulation_queue_update_from_buffer has failed to decode on mask 0x%08X for entity [%s]",
+						out_decoded_data->update_mask,
+						entity_def->entity_type_name());
+
 				}
 			}
 			else
@@ -454,7 +493,7 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 	return decode_success;
 }
 
-bool simulation_queue_entity_update_allocate(s_simulation_queue_entity_data* entity_data, int32 gamestate_index, uint32 update_mask, s_simulation_queue_element** element)
+bool simulation_queue_entity_update_allocate(s_simulation_queue_entity_data* entity_data, int32 gamestate_index, uint32 update_mask, s_simulation_queue_element** out_element)
 {
 	ASSERT(game_is_distributed());
 	ASSERT(!game_is_playback());
@@ -471,10 +510,7 @@ bool simulation_queue_entity_update_allocate(s_simulation_queue_entity_data* ent
 	uint8 encode_buffer[k_simulation_queue_element_data_size_max];
 	//c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(sim_queue_entity_data->entity_type);
 
-	// simulation_queue_allocate does set this to NULL
-	// but in case encode_simulation_queue_update_to_buffer fails
-	// set this to NULL
-	*element = NULL;
+	s_simulation_queue_element* element = NULL;
 
 	if (entity_data->entity_index == NONE)
 	{
@@ -500,12 +536,26 @@ bool simulation_queue_entity_update_allocate(s_simulation_queue_entity_data* ent
 			&encoded_size
 		))
 		{
-			simulation_get_world()->simulation_queue_allocate(_simulation_queue_element_type_entity_update, encoded_size, element);
-			if (*element)
+			simulation_get_world()->simulation_queue_allocate(_simulation_queue_element_type_entity_update, encoded_size, &element);
+			if (element)
 			{
 				// copy the encode_buffer to the buffer, enqueuing done later for entities
-				csmemcpy((*element)->data, encode_buffer, encoded_size);
+				csmemcpy(element->data, encode_buffer, encoded_size);
 				result = true;
+
+
+				//perform consistency check here
+				s_simulation_queue_decoded_update_data decoded_update_data;
+				csmemset(&decoded_update_data, 0, sizeof(decoded_update_data));
+				if (decode_simulation_queue_update_from_buffer(encode_buffer, encoded_size, &decoded_update_data))
+				{
+					ASSERT(entity_data->entity_index == decoded_update_data.entity_index);
+					ASSERT(entity_data->entity_type == decoded_update_data.entity_type);
+					ASSERT((uint32)entity_data->state_data_size == decoded_update_data.state_data_size);
+					ASSERT(update_mask == decoded_update_data.update_mask);
+					//ASSERT(!csmemcmp(entity_data->state_data, decoded_update_data.state_data, entity_data->state_data_size));
+				}
+
 			}
 			else
 			{
@@ -527,6 +577,14 @@ bool simulation_queue_entity_update_allocate(s_simulation_queue_entity_data* ent
 		}
 	}
 
+	if (result)
+	{
+		*out_element = element;
+	}
+	else if (element)
+	{
+		simulation_get_world()->simulation_queue_free(element);
+	}
 	return result;
 }
 
@@ -559,7 +617,7 @@ void simulation_queue_entity_update_apply(const s_simulation_queue_element* elem
 						_event_warning,
 						"networking:simulation:queue:entities: failed to apply update to game entity (type %d 0x%8X)",
 						decoded_update_data.entity_type,
-						game_entity
+						decoded_update_data.entity_index
 					);
 				}
 			}

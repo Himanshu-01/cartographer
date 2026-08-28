@@ -15,6 +15,7 @@
 #include "game/players.h"
 #include "math/random_math.h"
 #include "networking/logic/life_cycle_manager.h"
+#include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/session/network_session.h"
 #include "networking/network_event.h"
 #include "objects/objects.h"
@@ -294,21 +295,9 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 	ASSERT(simulation_get_globals()->world);
 	ASSERT(game_in_progress());
 
-	c_simulation_queue simulation_bookkeeping_queue, game_simulation_queue;
 	c_simulation_world* sim_world = simulation_get_world();
+	sim_world->queues_update_statistics();
 
-	simulation_get_globals()->world->queues_update_statistics();
-
-	// only during distributed system or server synchronous
-	// but not client synchronous
-	// transfer the elements to the 
-	if (sim_world->runs_simulation())
-	{
-		sim_world->attach_simulation_queues_to_update(
-			&simulation_bookkeeping_queue,
-			&game_simulation_queue
-		);
-	}
 
 	for (int32 i = 0; i < k_maximum_players; i++)
 	{
@@ -324,7 +313,7 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 		players_set_machines(update->machine_update.machine_valid_mask, update->machine_update.identifiers);
 	}
 
-	sim_world->apply_simulation_queue(&simulation_bookkeeping_queue);
+	sim_world->apply_simulation_queue(&update->bookkeeping_simulation_queue);
 
 	// Player activation code
 	/* Moved so we can activate in the queue
@@ -353,20 +342,23 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 	// ### FIXME 
 	// IMPLEMENT simulation_get_world()->queue_get(_simulation_queue_basic)->requires_application();
 
-	if (game_simulation_queue.queued_count() <= 0)
+	if (update->game_simulation_queue.queued_count() > 0)
 	{
-		ASSERT(game_simulation_queue.allocated_size_in_bytes() == 0);
-	}
-	else
-	{
-		ASSERT(game_simulation_queue.allocated_size_in_bytes() > 0);
+		ASSERT(update->game_simulation_queue.queued_size_in_bytes() > 0);
+		ASSERT(update->simulation_in_progress); //update->flags.test(_simulation_update_simulation_in_progress_bit)
+		ASSERT(update->game_simulation_queue_requires_application); //update->flags.test(_simulation_update_game_simulation_queue_requires_application_bit)
 
-		sim_world->apply_simulation_queue(&game_simulation_queue);
+		sim_world->apply_simulation_queue(&update->game_simulation_queue);
 
 		// purge any deletion pending object during this update
 		// if simulation is not in progress
 		if (!update->simulation_in_progress)
 			objects_purge_deleted_objects();
+
+	}
+	else
+	{
+		ASSERT(update->game_simulation_queue.queued_size_in_bytes() == 0);
 	}
 
 	if (update->flush_gamestate && !sim_world->is_authority())
@@ -375,11 +367,6 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 
 		sim_world->gamestate_flush();
 	}
-
-	// destroy the update exactly after we applied the queues to the gamestate
-	simulation_bookkeeping_queue.dispose();
-	game_simulation_queue.dispose();
-	//simulation_destroy_update();
 
 	return;
 }
@@ -519,8 +506,11 @@ void simulation_update_pregame(void)
 		if (simulation_globals->watcher->need_to_generate_updates())
 		{
 			simulation_build_update(&update);
+			ASSERT(!update.simulation_in_progress);
+
 			simulation_apply_before_game(&update);
 			simulation_update_aftermath(&update);
+			simulation_destroy_update(&update);			
 		}
 		else
 		{
@@ -534,7 +524,7 @@ void simulation_destroy_update(struct simulation_update* update)
 {
 	ASSERT(update);
 	s_simulation_globals* simulation_globals = simulation_get_globals();
-	simulation_globals->world->destroy_world();
+	simulation_globals->world->destroy_update(update);
 	return;
 }
 
@@ -611,4 +601,6 @@ static void simulation_synchronous_game_patches(void)
 	PatchCall(Memory::GetAddress(0x1ED08E), simulation_update_encode);
 	PatchCall(Memory::GetAddress(0x1AE084), simulation_update_decode);
 	PatchCall(Memory::GetAddress(0x1ED0A3), simulation_update_decode);
+
+	network_messages_simulation_synchronous_apply_patches();
 }

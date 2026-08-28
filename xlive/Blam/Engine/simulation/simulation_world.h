@@ -121,7 +121,7 @@ class c_simulation_world
 	c_simulation_view* m_views[k_simulation_world_maximum_views];
 	int32 m_player_count; // guessed name for potential use, field is completely unused
 	c_simulation_player m_players[k_maximum_players];
-	c_simulation_actor m_actors[k_network_maximum_players_per_session];
+	c_simulation_actor m_actors[k_network_maximum_actors_per_simulation];
 	bool m_gamestate_flush_active;
 	int32 m_synchronous_gamestate_write_progress;
 	void* m_synchronous_gamestate_write_buffer;
@@ -142,7 +142,7 @@ public:
 	void queues_initialize(void);
 	void apply_simulation_queue(c_simulation_queue const* queue);
 
-	void attach_simulation_queues_to_update(c_simulation_queue* out_bookkeepin_queue, c_simulation_queue* out_game_simulation_queue);
+	void attach_simulation_queues_to_update(struct simulation_update* update);
 
 	c_simulation_queue* queue_get(e_simulation_queue_type type) const;
 
@@ -177,7 +177,7 @@ public:
 	void build_update(struct simulation_update* update);
 	void distribute_update(const struct simulation_update* update);
 	void advance_update(const struct simulation_update* update);
-	//static void destroy_update(struct simulation_update* update);
+	void destroy_update(struct simulation_update* update);
 	void synchronous_authority_dispatch_update(struct simulation_update const* update);
 	int32 synchronous_authority_get_maximum_updates(void);
 	bool handle_synchronous_update(const struct simulation_update* update);

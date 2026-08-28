@@ -4,6 +4,8 @@
 #include "networking/player_motion.h"
 #include "networking/player_prediction.h"
 
+/* enums */
+
 enum e_network_memory_block : int16
 {
 	_network_memory_block_message_outgoing = 0x0,
@@ -32,6 +34,18 @@ enum e_network_memory_block : int16
 	k_network_memory_block_count //= 0x12,
 };
 
+
+enum e_replication_entity_view_code :int32
+{
+	_replication_entity_view_code_create_entity = 0x1,
+	_replication_entity_view_code_delete_entity = 0x2,
+	_replication_entity_view_code_create_entity_collection = 0x3,
+	_replication_entity_view_code_delete_entity_collection = 0x4,
+	_replication_entity_view_code_update_entity = 0x5,
+};
+
+/* structures */
+
 struct s_replication_allocation_block
 {
 	int16 block_size;
@@ -40,15 +54,20 @@ struct s_replication_allocation_block
 };
 ASSERT_STRUCT_SIZE(s_replication_allocation_block, 8);
 
-struct s_replication_control_request
+struct s_replication_incoming_request
 {
-	int32 unknown_count;
-	int32 control_index;
-	int8 gap_8[52];
+	//seems to be a union
+	e_replication_entity_view_code view_code;
+	int32 entity_index;
+	int32 entity_count;
+	int32 entity_indices[k_replication_entity_manager_maximum_collection_size];
+	int32 entity_types[k_replication_entity_manager_maximum_collection_size];
+	uint32 entity_update_masks[k_replication_entity_manager_maximum_collection_size];
 	int32 block_count;
 	s_replication_allocation_block blocks[2];
-	int8 gap_50[48];
+	uint8 gap_50[48];
 };
+
 
 class c_replication_control_view : c_replication_scheduler_client
 {

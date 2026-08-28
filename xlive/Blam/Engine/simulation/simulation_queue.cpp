@@ -92,8 +92,8 @@ void c_simulation_queue::transfer_elements(c_simulation_queue* simulation_queue)
 	ASSERT(simulation_queue);
 	ASSERT(queued_count() == 0);
 	ASSERT(queued_size_in_bytes() == 0);
-	//ASSERT(simulation_queue->queued_count() > 0);
-	//ASSERT(simulation_queue->queued_size_in_bytes() > 0);
+	ASSERT(simulation_queue->queued_count() > 0);
+	ASSERT(simulation_queue->queued_size_in_bytes() > 0);
 
 	const int32 count = simulation_queue->queued_count();
 	for (int32 i = 0; i < count; i++)
@@ -123,8 +123,8 @@ void c_simulation_queue::transfer_elements(c_simulation_queue* simulation_queue)
 		ASSERT(simulation_queue->queued_size_in_bytes() == 0);
 	}
 
-	//ASSERT(queued_count() > 0);
-	//ASSERT(queued_size_in_bytes() > 0);
+	ASSERT(queued_count() > 0);
+	ASSERT(queued_size_in_bytes() > 0);
 	ASSERT(simulation_queue->queued_count() >= 0);
 	ASSERT(simulation_queue->queued_size_in_bytes() >= 0);
 	ASSERT(simulation_queue->allocated_count() >= 0);
@@ -153,8 +153,8 @@ void c_simulation_queue::deallocate(s_simulation_queue_element* element)
 		m_allocated_size -= get_element_size_in_bytes(element);
 		--m_allocated_count;
 
-		ASSERT(allocated_size_in_bytes() >= 0);
-		ASSERT(allocated_count() >= 0);
+		ASSERT(m_allocated_size >= 0);
+		ASSERT(m_allocated_count >= 0);
 
 		//network_heap_verify_block(element);
 		network_heap_free_block(element);
@@ -263,7 +263,7 @@ bool c_simulation_queue::decode(c_bitstream* bitstream)
 	bool result = true;
 
 	ASSERT(bitstream);
-	//ASSERT(!m_initialized);	FIXME
+	ASSERT(!m_initialized);
 
 	initialize();
 	

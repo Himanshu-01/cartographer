@@ -34,91 +34,130 @@ void c_simulation_world::simulation_queue_allocate(e_event_queue_type type, int3
 	ASSERT(data_size > 0);
 	ASSERT(out_allocated_elem != NULL);
 
-	*out_allocated_elem = NULL;
-	if (TEST_FLAG(FLAG(type), _simulation_queue_element_type_bookkeeping))
+	if (!is_playback())
 	{
-		// player event, player update, gamestate clear
-		queue_get(_simulation_queue_bookkeeping)->allocate(data_size, out_allocated_elem);
-	}
-	else
-	{
-		bool sim_queue_restrict_allocations = false;
-		c_simulation_queue* simulation_queue = queue_get(_simulation_queue);
 
-		if (!TEST_FLAG(FLAG(type), _simulation_queue_element_important_update))
+		int32 queued_count = 0;
+		int32 queued_size_in_bytes = 0;
+		int32 queued_encoded_size_in_bytes = 0;
+
+		*out_allocated_elem = NULL;
+		if (TEST_BIT(_simulation_queue_element_type_bookkeeping, type))
 		{
-			real32 allocated_percentage;
-			real32 allocated_in_bytes_percentage;
-			simulation_queue->get_allocation_status(&allocated_percentage, &allocated_in_bytes_percentage);
+			// player event, player update, gamestate clear
+			c_simulation_queue* bookkeeping_queue = queue_get(_simulation_queue_bookkeeping);
+			bookkeeping_queue->allocate(data_size, out_allocated_elem);
 
-			// if we allocated more than 90% of the buffer
-			// skip some updates to aleviate some of the stress on the queue
-			// especially if the game froze for multiple seconds
-			// and allow the allocation for important updates only
-			// entity deletion, entity promotion, and global game events
-			if (allocated_percentage > 90.f / 100.f
-				|| allocated_in_bytes_percentage > 90.f / 100.f)
+			queued_count = bookkeeping_queue->queued_count();
+			queued_size_in_bytes = bookkeeping_queue->queued_size_in_bytes();
+			queued_encoded_size_in_bytes = bookkeeping_queue->queued_encoded_size_in_bytes();
+		}
+		else
+		{
+			bool sim_queue_restrict_allocations = false;
+			c_simulation_queue* simulation_queue = queue_get(_simulation_queue);
+
+			if (!TEST_BIT(_simulation_queue_element_important_update, type))
 			{
-				sim_queue_restrict_allocations = true;
+				real32 allocated_percentage;
+				real32 allocated_in_bytes_percentage;
+				simulation_queue->get_allocation_status(&allocated_percentage, &allocated_in_bytes_percentage);
+
+				// if we allocated more than 90% of the buffer
+				// skip some updates to aleviate some of the stress on the queue
+				// especially if the game froze for multiple seconds
+				// and allow the allocation for important updates only
+				// entity deletion, entity promotion, and global game events
+				if (allocated_percentage > 90.f / 100.f
+					|| allocated_in_bytes_percentage > 90.f / 100.f)
+				{
+					event(_event_fatal, "networking:simulation:world: game simulation queue in danger, restricting allocations [%f/%f]",
+						allocated_percentage,
+						allocated_in_bytes_percentage);
+
+					sim_queue_restrict_allocations = true;
+				}
 			}
+
+			// event, creation, update, entity_deletion, entity_promotion, game_global_event
+			if (!sim_queue_restrict_allocations)
+				simulation_queue->allocate(data_size, out_allocated_elem);
+
+			queued_count = simulation_queue->queued_count();
+			queued_size_in_bytes = simulation_queue->queued_size_in_bytes();
+			queued_encoded_size_in_bytes = simulation_queue->queued_encoded_size_in_bytes();
 		}
 
-		// event, creation, update, entity_deletion, entity_promotion, game_global_event
-		if (!sim_queue_restrict_allocations)
-			simulation_queue->allocate(data_size, out_allocated_elem);
-	}
-
-	if (*out_allocated_elem)
-	{
-		(*out_allocated_elem)->type = type;
+		if (*out_allocated_elem)
+		{
+			(*out_allocated_elem)->type = type;
+		}
+		else
+		{
+			event(_event_fatal, "networking:simulation:world: allocations are failing for simulation event queue [req. size %d] [count %d size %d enc. size %d]",
+				data_size,
+				queued_count,
+				queued_size_in_bytes,
+				queued_encoded_size_in_bytes);
+		}
 	}
 }
 
 void c_simulation_world::simulation_queue_free(s_simulation_queue_element* element)
 {
-	if (TEST_FLAG(FLAG(element->type), _simulation_queue_element_type_bookkeeping))
+	if (!game_is_playback())
 	{
-		// player event, player update, gamestate clear
-		queue_get(_simulation_queue_bookkeeping)->deallocate(element);
-	}
-	else
-	{
-		queue_get(_simulation_queue)->deallocate(element);
+		if (TEST_BIT(_simulation_queue_element_type_bookkeeping, element->type))
+		{
+			// player event, player update, gamestate clear
+			queue_get(_simulation_queue_bookkeeping)->deallocate(element);
+		}
+		else
+		{
+			queue_get(_simulation_queue)->deallocate(element);
+		}
 	}
 }
 
 void c_simulation_world::simulation_queue_enqueue(s_simulation_queue_element* element)
 {
-	if (TEST_FLAG(FLAG(element->type), _simulation_queue_element_type_bookkeeping))
+	ASSERT(element);
+	ASSERT(element->type != _simulation_queue_element_type_none);
+	ASSERT(element->data_size > 0);
+
+	if (!is_playback())
 	{
-		// player event, player update, gamestate clear
-		queue_get(_simulation_queue_bookkeeping)->enqueue(element);
+		if (TEST_BIT(_simulation_queue_element_type_bookkeeping, element->type))
+		{
+			// player event, player update, gamestate clear
+			queue_get(_simulation_queue_bookkeeping)->enqueue(element);
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
-			&g_simulation_queues[_simulation_queue_bookkeeping],
-			g_simulation_queues[_simulation_queue_bookkeeping].allocated_count(),
-			g_simulation_queues[_simulation_queue_bookkeeping].allocated_size_in_bytes());
+			SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
+				&g_simulation_queues[_simulation_queue_bookkeeping],
+				g_simulation_queues[_simulation_queue_bookkeeping].allocated_count(),
+				g_simulation_queues[_simulation_queue_bookkeeping].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d", 
-			&g_simulation_queues[_simulation_queue_bookkeeping],
-			g_simulation_queues[_simulation_queue_bookkeeping].queued_count(),
-			g_simulation_queues[_simulation_queue_bookkeeping].queued_size_in_bytes());
-	}
-	else
-	{
-		// event, creation, update, entity_deletion, entity_promotion, game_global_event
+			SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
+				&g_simulation_queues[_simulation_queue_bookkeeping],
+				g_simulation_queues[_simulation_queue_bookkeeping].queued_count(),
+				g_simulation_queues[_simulation_queue_bookkeeping].queued_size_in_bytes());
+		}
+		else
+		{
+			// event, creation, update, entity_deletion, entity_promotion, game_global_event
 
-		queue_get(_simulation_queue)->enqueue(element);
+			queue_get(_simulation_queue)->enqueue(element);
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
-			&g_simulation_queues[_simulation_queue],
-			g_simulation_queues[_simulation_queue].allocated_count(),
-			g_simulation_queues[_simulation_queue].allocated_size_in_bytes());
+			SIM_EVENT_QUEUE_DBG("queue 0x%08X allocated count: %d, size: %d",
+				&g_simulation_queues[_simulation_queue],
+				g_simulation_queues[_simulation_queue].allocated_count(),
+				g_simulation_queues[_simulation_queue].allocated_size_in_bytes());
 
-		SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d", 
-			&g_simulation_queues[_simulation_queue], 
-			g_simulation_queues[_simulation_queue].queued_count(), 
-			g_simulation_queues[_simulation_queue].queued_size_in_bytes());
+			SIM_EVENT_QUEUE_DBG("queue 0x%08X queued count: %d, size: %d",
+				&g_simulation_queues[_simulation_queue],
+				g_simulation_queues[_simulation_queue].queued_count(),
+				g_simulation_queues[_simulation_queue].queued_size_in_bytes());
+		}
 	}
 }
 
@@ -211,12 +250,42 @@ void c_simulation_world::apply_simulation_queue(
 }
 
 void c_simulation_world::attach_simulation_queues_to_update(
-	c_simulation_queue* out_bookkeepin_queue,
-	c_simulation_queue* out_game_simulation_queue)
+	struct simulation_update* update)
 {
-	// FIXME: return the function to it's original state
-	out_bookkeepin_queue->transfer_elements(queue_get(_simulation_queue_bookkeeping));
-	out_game_simulation_queue->transfer_elements(queue_get(_simulation_queue));
+	ASSERT(update);
+
+	c_simulation_queue* bookkeeping_simulation_queue = queue_get(_simulation_queue_bookkeeping);
+	c_simulation_queue* game_simulation_queue = queue_get(_simulation_queue);
+
+	if (bookkeeping_simulation_queue->queued_count() > 0)
+	{
+		ASSERT(bookkeeping_simulation_queue->queued_size_in_bytes() > 0);
+		update->bookkeeping_simulation_queue.transfer_elements(bookkeeping_simulation_queue);
+	}
+	else
+	{
+		ASSERT(bookkeeping_simulation_queue->queued_size_in_bytes() == 0);
+	}
+
+
+	if (game_simulation_queue->queued_count() > 0)
+	{
+		update->game_simulation_queue_requires_application = true;
+	}
+
+	if (update->simulation_in_progress || update->game_simulation_queue_requires_application)
+	{
+		if (game_simulation_queue->queued_count() > 0)
+		{
+			ASSERT(game_simulation_queue->queued_size_in_bytes() > 0);
+			update->game_simulation_queue.transfer_elements(game_simulation_queue);
+		}
+		else
+		{
+			ASSERT(!update->game_simulation_queue_requires_application);
+			ASSERT(game_simulation_queue->queued_size_in_bytes() == 0);
+		}
+	}
 	return;
 }
 
@@ -268,10 +337,38 @@ void c_simulation_world::delete_all_actors(void)
 	return;
 }
 
-void c_simulation_world::update_queue_reset(void)
+
+CLASS_HOOK_DECLARE_LABEL(c_simulation_world__update_queue_reset, c_simulation_world::update_queue_reset);
+__declspec(naked) void jmp_update_queue_reset(void)
 {
-	typedef void(__thiscall* update_queue_reset_t)(c_simulation_world*);
-	INVOKE_TYPE(0x1DCDC3, 0x1C4277, update_queue_reset_t, this);
+	CLASS_HOOK_JMP(c_simulation_world__update_queue_reset, c_simulation_world::update_queue_reset);
+}
+void c_simulation_world::update_queue_reset(
+	void)
+{
+	//INVOKE_TYPE(0x1DCDC3, 0x1C4277, void(__thiscall*)(c_simulation_world*), this);
+	//need to reimplement this because sizeof(s_simulation_queued_update) changed
+
+	ASSERT(exists());
+	ASSERT(!m_time_running);
+	ASSERT(!runs_simulation());
+
+	while (m_update_queue_head)
+	{
+		//network_heap_verify_block(m_update_queue_head);
+		s_simulation_queued_update* next = m_update_queue_head->next_node;
+		simulation_destroy_update(&m_update_queue_head->update);
+		network_heap_free_block(m_update_queue_head);
+
+		m_update_queue_head = next;
+	}
+
+	m_update_queue_head = nullptr;
+	m_update_queue_tail = nullptr;
+	m_update_queue_length = 0;
+	m_update_queue_next_update_number_to_dequeue = 0;
+	m_update_queue_latest_update_number_received = NONE;
+
 	return;
 }
 
@@ -283,7 +380,8 @@ void c_simulation_world::reset_world(void)
 	m_time_immediate_update = false;
 	m_out_of_sync = false;
 	m_gamestate_flushed = false;
-	if (this->is_distributed())
+
+	if (is_distributed())
 	{
 		ASSERT(m_distributed_world);
 
@@ -291,7 +389,8 @@ void c_simulation_world::reset_world(void)
 		m_distributed_world->m_event_manager.reset();
 		m_distributed_world->m_entity_database.reset();
 		m_distributed_world->m_event_handler.reset();
-		this->delete_all_actors();
+		//simulation_gamestate_entities_notify_simulation_world_reset();
+		delete_all_actors();
 	}
 
 	if (!is_playback())
@@ -303,7 +402,7 @@ void c_simulation_world::reset_world(void)
 
 	if (!runs_simulation())
 	{
-		this->update_queue_reset();
+		update_queue_reset();
 	}
 
 	return;
@@ -525,28 +624,29 @@ void c_simulation_world::build_update(
 			}
 		}
 
-		//TODO**
-		//update->bookkeeping_simulation_queue.initialize();
-		//update->game_simulation_queue.initialize();
-		//attach_simulation_queues_to_update(update);
+		update->bookkeeping_simulation_queue.initialize();
+		update->game_simulation_queue.initialize();
+		attach_simulation_queues_to_update(update);
 
-		//uint8 data[0xFFFF];
-		//c_bitstream temporary_stream(data, sizeof(data));
 
-		//temporary_stream.begin_writing(k_bitstream_default_alignment);
-		//simulation_update_encode(&temporary_stream, update);
-		//temporary_stream.finish_writing(NULL);
+		//sim-encode-decode-check-begin
+		uint8 temp_buffer[0xFFFF];
+		c_bitstream temporary_stream(temp_buffer, sizeof(temp_buffer));
 
-		//update->bookkeeping_simulation_queue.dispose();
-		//update->game_simulation_queue.dispose();
+		temporary_stream.begin_writing(k_bitstream_default_alignment);
+		simulation_update_encode(&temporary_stream, update);
+		temporary_stream.finish_writing(NULL);
 
-		//temporary_stream.begin_reading();
-		//bool decode_success = simulation_update_decode(&temporary_stream, update);
+		destroy_update(update);
 
-		//ASSERT(!temporary_stream.error_occurred());
-		//temporary_stream.finish_reading();
+		temporary_stream.begin_reading();
+		bool decode_success = simulation_update_decode(&temporary_stream, update);
 
-		//ASSERT(decode_success);
+		ASSERT(!temporary_stream.error_occurred());
+		temporary_stream.finish_reading();
+		//sim-encode-decode-check-end
+
+		ASSERT(decode_success);
 	}
 	else
 	{
@@ -582,6 +682,14 @@ void c_simulation_world::advance_update(
 	ASSERT(update);
 	m_next_update_number = update->update_number + 1;
 
+	return;
+}
+
+void c_simulation_world::destroy_update(struct simulation_update* update)
+{
+	ASSERT(update);
+	update->bookkeeping_simulation_queue.dispose();
+	update->game_simulation_queue.dispose();
 	return;
 }
 
@@ -762,7 +870,6 @@ bool c_simulation_world::update_queue_handle_server_update(
 void c_simulation_world::update_queue_retrieve_update(struct simulation_update* update)
 {
 	//INVOKE_TYPE(0x1DCE7C, 0x1C4330, void(__thiscall*)(c_simulation_world *, struct simulation_update*), this, update);
-	//return;
 
 	ASSERT(update);
 	ASSERT(exists());
@@ -836,6 +943,7 @@ void simulation_world_apply_patches(void)
 	DETOUR_ATTACH(p_c_simulation_world__initialize_world, Memory::GetAddress<t_c_simulation_world__initialize_world>(0x1DDB4E, 0x1C500E), jmp_initialize_world);
 	DETOUR_ATTACH(p_c_simulation_world__destroy_world, Memory::GetAddress<t_c_simulation_world__destroy_world>(0x1DE0A9, 0x1C5569), jmp_destroy_world);
 
+	WriteJmpTo(Memory::GetAddress(0x1DCDC3, 0x1C4277), jmp_update_queue_reset);
 	PatchCall(Memory::GetAddress(0x1AE82A, 0x1A8A84), jmp_reset_world);
 	PatchCall(Memory::GetAddress(0x1DD9FB, 0x1C4EBB), jmp_send_player_acknowledgements_not_during_simulation_reset_in_progress);
 	return;

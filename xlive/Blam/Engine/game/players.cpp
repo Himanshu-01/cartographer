@@ -396,10 +396,10 @@ void __cdecl players_update_activation(void)
 					{
 						SET_BIT(player->flags, _player_active_in_game_bit, machine_active_in_game);
 
-						if (machine_active_in_game)
+						/*if (machine_active_in_game)
 						{
 							game_engine_player_activated(iterator.index);
-						}
+						}*/
 					}
 				}
 			}

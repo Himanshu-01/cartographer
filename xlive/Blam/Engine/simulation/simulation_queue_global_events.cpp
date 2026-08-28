@@ -307,6 +307,7 @@ static void simulation_queue_player_event_set_activation(int32 player_index, boo
 {
 	player_datum* player = player_get(player_index);
 
+	event(_event_status, "networking:simulation:queue: player_event_set_activation setting player %d state to %d ", DATUM_INDEX_TO_ABSOLUTE_INDEX(player_index), active);
 	if (TEST_BIT(player->flags, 0) != active)
 	{
 		SET_BIT(player->flags, 0, active);

@@ -7,15 +7,16 @@
 
 enum
 {
-	k_simulation_entity_database_maximum_entities = 1024
+	k_simulation_entity_database_maximum_entities = 1024,
+	k_replication_entity_manager_maximum_collection_size = 4
 };
 
-struct s_replication_entity_manager_data
+struct s_replication_entity_data
 {
-	uint8 mask;
-	uint8 mask_1;
-	int16 pad;
-	int32 field_4;
+	uint8 flags;
+	uint8 seed;
+	uint16 deletion_mask;
+	int32 collection_next_entity_index; //h2 only
 };
 
 
@@ -25,11 +26,20 @@ public:
 	void initialize(void);
 	void reset(void);
 
+
+	s_replication_entity_data* get_entity(int32 entity_index);
+	s_replication_entity_data* try_and_get_entity(int32 entity_index);
+	bool is_entity_local(int32 entity_index);
+	bool is_entity_allocated(int32 entity_index);
+	bool is_entity_being_deleted(int32 entity_index);
+	bool entity_is_master_collection(int32 entity_index);
+	bool entity_is_slave_collection(int32 entity_index);
+
 private: 
 	class c_simulation_entity_database* m_client;
 	c_replication_entity_manager_view* m_views[k_maximum_players];
 	uint32 m_view_mask;
-	s_replication_entity_manager_data m_entity_data[k_simulation_entity_database_maximum_entities];
+	s_replication_entity_data m_entity_data[k_simulation_entity_database_maximum_entities];
 	int32 m_entity_creation_start_position;
 };
 
@@ -44,7 +54,7 @@ public:
 	virtual void write_creation_description_to_string(int32 entity_index, void* telemetry_data, int32 buffer_size, char* buffer) = 0;
 	virtual bool write_update_to_packet(int32 entity_index, uint32 update_mask, void* telemetry_data, c_bitstream* packet, int32 required_leave_space_bits, uint32* update_mask_written) = 0;
 	virtual int32 read_update_from_packet(int32 entity_index, uint32* out_update_mask, int32 maximum_block_count, int32* block_count, s_replication_allocation_block* blocks, c_bitstream* packet) = 0;
-	virtual bool process_update(int32 entity_index, uint32 update_mask, int32 block_count, s_replication_allocation_block* blocks) = 0;
+	virtual void process_update(int32 entity_index, uint32 update_mask, int32 block_count, s_replication_allocation_block* blocks) = 0;
 	virtual void calculate_update_requirements(int32 entity_index, uint32 a3, uint32 a4, void* a5, real32* priority, uint32* a7) = 0;
 	virtual void calculate_deletion_requirements(int32 entity_index, int32 a3, real32* requirements) = 0;
 	virtual void notify_mark_entity_for_deletion(int32 entity_index) = 0;

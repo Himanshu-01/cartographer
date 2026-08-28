@@ -401,7 +401,8 @@ void __cdecl game_tick(void)
 	{
 		game_time_advance();
 	}
-
+	simulation_destroy_update(&update);
+	
 	main_status("game_tick", NULL);
 
 	return;

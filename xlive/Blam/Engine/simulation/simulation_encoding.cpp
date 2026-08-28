@@ -65,6 +65,7 @@ void __cdecl simulation_update_encode(
 
 	packet->write_integer("update-number", update->update_number, SIZEOF_BITS(update->update_number));
 	packet->write_bool("simulation_in_progress", update->simulation_in_progress);		//adding missing simulation_in_progress
+	packet->write_bool("game_sim_queue_application", update->game_simulation_queue_requires_application);		//adding missing queue_application_bit
 	packet->write_integer("player-flags", update->player_action_mask, k_maximum_players);
 
 	for (int8 player_index = 0; player_index < k_maximum_players; ++player_index)
@@ -110,9 +111,8 @@ void __cdecl simulation_update_encode(
 	}
 
 
-	c_simulation_world* simulation_world = simulation_get_world();
-	simulation_world->queue_get(_simulation_queue_bookkeeping)->encode(packet);
-	simulation_world->queue_get(_simulation_queue)->encode(packet);
+	update->bookkeeping_simulation_queue.encode(packet);
+	update->game_simulation_queue.encode(packet);
 
 	return;
 }
@@ -129,6 +129,7 @@ bool __cdecl simulation_update_decode(
 	bool result = true;
 	update->update_number = packet->read_integer("update-number", SIZEOF_BITS(update->update_number));
 	update->simulation_in_progress = packet->read_bool("simulation_in_progress"); 	//adding missing simulation_in_progress
+	update->game_simulation_queue_requires_application = packet->read_bool("game_sim_queue_application"); 	//adding missing queue_application_bit
 	update->player_action_mask = packet->read_integer("player-flags", k_maximum_players);
 
 	
@@ -164,11 +165,10 @@ bool __cdecl simulation_update_decode(
 	update->verify_game_time = packet->read_integer("verify-game-time", SIZEOF_BITS(update->verify_game_time));
 	update->verify_random_seed = packet->read_integer("verify-random", SIZEOF_BITS(update->verify_random_seed));
 
-	c_simulation_world* simulation_world = simulation_get_world();
 	
 	// Validation
-	result = result && simulation_world->queue_get(_simulation_queue_bookkeeping)->decode(packet);
-	result = result && simulation_world->queue_get(_simulation_queue)->decode(packet);
+	result = result && update->bookkeeping_simulation_queue.decode(packet);
+	result = result && update->game_simulation_queue.decode(packet);
 	result = result && !packet->error_occurred();
 	result = result && update->verify_game_time >= 0;
 	result = result && update->update_number >= 0;
@@ -176,8 +176,8 @@ bool __cdecl simulation_update_decode(
 	// If something went wrong dispose of the queues
 	if (!result)
 	{
-		simulation_world->queue_get(_simulation_queue_bookkeeping)->dispose();
-		simulation_world->queue_get(_simulation_queue)->dispose();
+		update->bookkeeping_simulation_queue.dispose();
+		update->game_simulation_queue.dispose();
 	}
 
 	return result;
