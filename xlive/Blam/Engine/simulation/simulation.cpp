@@ -63,6 +63,7 @@ void simulation_apply_patches(void)
 	simulation_game_action_apply_patches();
 
 	PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);	// c_simulation_world::build_update
+	PatchCall(Memory::GetAddress(0x7C2BD, 0), simulation_time_get_maximum_available);//inside game_time_update
 
 	WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);
 	simulation_synchronous_game_patches();
@@ -167,12 +168,17 @@ void simulation_notify_reset_complete(void)
 {
 	s_simulation_globals* sim_globals = simulation_get_globals();
 
-	if (!game_is_playback() && simulation_reset_in_progress())// // make sure simulation is still in resetting
+	if (!game_is_playback()
+		&& sim_globals->world->exists())
 	{
-		if (sim_globals->world->exists() && !sim_globals->world->is_authority())
+		if (!sim_globals->world->is_authority())
 		{
-			// dont need this if we are not authority
+			ASSERT(simulation_reset_in_progress());
 			sim_globals->world->send_player_acknowledgements(true);
+		}
+		else
+		{
+			event(_event_warning, "networking:simulation: calling simulation_reset_immediate() with a simulation reset already in progress");
 		}
 	}
 	sim_globals->simulation_reset_in_progress = false;
@@ -573,6 +579,25 @@ class c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 ch
 	return INVOKE(0x1ADF06, 0x0, simulation_get_remote_view_by_channel, channel_index);
 }
 
+int32 __cdecl simulation_time_get_maximum_available(bool* match_remote_time)
+{
+	//return INVOKE(0x1ADCBB, 0x0, simulation_time_get_maximum_available, match_remote_time);
+
+	ASSERT(match_remote_time);
+	*match_remote_time = 0;
+
+	int32 available_updates = INT32_MAX;
+	if (simulation_engine_initialized())
+	{
+		ASSERT(simulation_get_globals()->world);
+		if(simulation_get_world()->exists())
+		{
+			available_updates = simulation_get_world()->time_get_available(match_remote_time);
+		}
+	}
+
+	return available_updates;
+}
 
 /* private code */
 

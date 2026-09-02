@@ -108,7 +108,6 @@ void game_apply_pre_winmain_patches(void)
 {
 	PatchCall(Memory::GetAddress(0x86BE, 0x1EB86), game_initialize_for_new_map);
 	PatchCall(Memory::GetAddress(0x9802, 0x1FAED), game_initialize_for_new_map);
-	PatchCall(Memory::GetAddress(0x39D2A, 0xC0C0), game_update);
 	PatchCall(Memory::GetAddress(0x39E42, 0xBA4F), game_initialize);
 
 	PatchCall(Memory::GetAddress(0x1DD394, 0x1C4848), game_tick);	// c_simulation_world::time_set_immediate_update

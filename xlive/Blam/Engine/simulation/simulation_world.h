@@ -193,6 +193,8 @@ public:
 	void go_out_of_sync(void);
 	int32 get_time(void) const;
 
+	bool can_generate_updates(void);
+
 	void queues_update_statistics(void)
 	{
 		for (int32 i = 0; i < k_simulation_queue_count; i++)
@@ -219,6 +221,12 @@ public:
 	{
 		return m_world_type == _simulation_world_type_distributed_authority
 			|| m_world_type == _simulation_world_type_distributed_client;
+	}
+
+	bool is_synchronous(void) const
+	{
+		return m_world_type == _simulation_world_type_synchronous_authority
+			|| m_world_type == _simulation_world_type_synchronous_client;
 	}
 
 	bool exists(void) const

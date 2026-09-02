@@ -296,7 +296,8 @@ void c_network_message_handler::handle_synchronous_update(
 		event(
 			_event_message,
 			"networking:messages:synchronous-update: no simulation view for #%d over channel '%s'",
-			message->update.update_number
+			message->update.update_number,
+			channel_name
 		);
 	}
 

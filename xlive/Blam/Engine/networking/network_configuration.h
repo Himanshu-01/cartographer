@@ -17,20 +17,39 @@ struct s_network_adapter_configuration
 	s_network_adapter network_adapters[16];
 };
 
+struct s_simulation_world_configuration
+{
+	int32 maximum_catchup_views;
+	int32 join_timeout;
+	int32 join_total_wait_timeout;
+	real32 pause_game_required_machines_fraction;
+	int32 maximum_catchup_attempts;
+	int32 catchup_failure_timeout;
+	int32 client_join_failure_count;
+	int32 client_activation_failure_timeout;
+};
+ASSERT_STRUCT_SIZE(s_simulation_world_configuration, 32);
+
+struct s_simulation_configuration
+{
+	int8 gap_0[96];
+	s_simulation_world_configuration world;
+	int8 gap_80[1832];
+};
+ASSERT_STRUCT_SIZE(s_simulation_configuration, 0x7a8);
+
 // TODO: properly reverse this
 struct s_network_configuration
 {
 	int8 gap_0[16];
 	real32 field_10;
-	int8 gap_14[3364];
-	int32 game_results_update_interval_msec;
-	real32 field_D3C;
-	int32 field_D40;
-	int32 client_join_timeout;
-	int8 gap_D40[16];
-	int32 max_join_attempts;
-	int32 client_active_timeout;
-	int8 gap_D60[2636];
+	int8 gap_14[3276];
+	s_simulation_configuration simulation;
+	int8 gap_1488[716];
+	bool registry_single_instance_only;
+	int8 gap_1755[3];
+	WORD registry_network_port;
+	int8 gap_175A[82];
 	s_network_adapter_configuration network_adapter;
 };
 ASSERT_STRUCT_SIZE(s_network_configuration, 11192);

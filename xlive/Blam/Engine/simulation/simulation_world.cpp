@@ -495,7 +495,7 @@ int32 c_simulation_world::time_get_available(
 
 	if (m_time_running)
 	{
-		available_time = LONG_MAX;
+		available_time = INT32_MAX;
 		switch (m_world_type)
 		{
 		case _simulation_world_type_local:
@@ -585,6 +585,41 @@ int32 c_simulation_world::get_time(
 {
 	ASSERT(exists());
 	return (int32)game_time_get();
+}
+
+bool c_simulation_world::can_generate_updates(void)
+{
+	s_simulation_world_view_iterator iterator;
+	c_simulation_view* view = NULL;
+	bool result = true;
+
+	if (is_synchronous()
+		&& is_authority())
+	{
+		if (is_active())
+		{
+			iterator_begin(&iterator, FLAG(_simulation_view_type_synchronous_to_remote_client));
+			while (iterator_next(&iterator, &view))
+			{
+				if (view->observer_channel_backlogged(_network_message_type_synchronous_update))
+				{
+					//tell game to not generate more updates
+					view->observer_channel_set_waiting_on_backlog(_network_message_type_synchronous_update);
+					result = false;
+					event(_event_message,
+						"simulation:world:pregame: backlog detected, stopping new updates..."
+					);
+					break;
+				}
+			}
+		}
+		else
+		{
+			result = false;
+		}
+	}
+
+	return result;
 }
 
 void c_simulation_world::build_player_actions(struct simulation_update* update)
@@ -786,19 +821,14 @@ bool c_simulation_world::handle_synchronous_update(
 				game_time_get()
 			);
 
-			while (game_in_progress() && !simulation_aborted() && m_out_of_sync && time_get_available(&time_available) <= 0)
+			while (game_in_progress() 
+				&& !simulation_aborted() 
+				&& m_out_of_sync 
+				&& time_get_available(&time_available) <= 0)
 			{
 				game_tick();
 			}
 		}
-	}
-
-	if (!result)
-	{
-		event(
-			_event_error,
-			"simulation:world: synchronous-update has failed inside %s", __FUNCTION__
-		);
 	}
 
 	return result;

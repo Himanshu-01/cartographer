@@ -1925,6 +1925,7 @@
     <ClCompile Include="Blam\Engine\simulation\simulation_queue_global_events.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_type_collection.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_view.cpp" />
+    <ClCompile Include="Blam\Engine\simulation\simulation_watcher.cpp" />
     <ClCompile Include="Blam\Engine\simulation\simulation_world.cpp" />
     <ClCompile Include="Blam\Engine\sound\game_sound.cpp" />
     <ClCompile Include="Blam\Engine\sound\game_sound_deterministic.cpp" />

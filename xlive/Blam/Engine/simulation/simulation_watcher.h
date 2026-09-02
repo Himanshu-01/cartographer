@@ -14,17 +14,37 @@ public:
 		return INVOKE_TYPE(0x1D5D24, 0x1C2932, void(__thiscall*)(c_simulation_watcher*, int32*, int32, simulation_player_update*), this, player_update_count, maximum_player_update_count, player_updates);
 	}
 
-	bool __thiscall need_to_generate_updates(void)
-	{
-		ASSERT(m_world->exists());
+	bool __thiscall need_to_generate_updates(void);
+	bool get_player_is_in_game(int32 player_index, struct s_player_identifier const* player_identifier) const;
 
-		bool result = INVOKE_TYPE(0x1D4B42, 0x1C188C, bool(__thiscall*)(c_simulation_watcher*), this);
-		return (result || !m_world->simulation_queues_empty()) && m_world->is_distributed() && m_world->is_authority();
-	}
 
 	void maintain_connection()
 	{
 		return INVOKE_TYPE(0x1D6531, 0x0, void(__thiscall*)(c_simulation_watcher*), this);
+	}
+
+	void boot_machines(uint32 boot_machine_mask, bool notify)
+	{
+		INVOKE_TYPE(0x1D4DCA, 0x0, void(__thiscall*)(c_simulation_watcher*, uint32, bool), this, boot_machine_mask, notify);
+		return;
+	}
+
+	bool in_online_networked_session(
+		void)
+	{
+		return INVOKE_TYPE(0x1D4E1A, 0x0, bool(__thiscall*)(c_simulation_watcher*), this);
+	}
+
+	uint32 get_machine_valid_mask(
+		void) const
+	{
+		return m_machine_valid_mask;
+	}
+
+	class c_network_session * const get_session(
+		void)
+	{
+		return m_session;
 	}
 
 private:

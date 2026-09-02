@@ -63,6 +63,9 @@ public:
 
 	void send_message(e_network_message_type message_type, int32 message_size, const void* message_payload);
 
+	bool observer_channel_backlogged(e_network_message_type message_type);
+	void observer_channel_set_waiting_on_backlog(e_network_message_type message_type);
+	
 	void kill_view(e_simulation_view_reason death_reason);
 
 	void set_view_establishment(e_simulation_view_establishment_mode establishment_mode, int32 establishment_identifier);

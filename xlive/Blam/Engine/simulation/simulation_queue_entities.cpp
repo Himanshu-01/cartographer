@@ -427,9 +427,6 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 			c_simulation_entity_definition* entity_def = simulation_queue_entities_get_definition(out_decoded_data->entity_type);
 			out_decoded_data->state_data_size = entity_def->state_data_size();
 
-			/*uint8 temp_state_buffer[k_simulation_entity_maximum_state_data_size];
-			csmemset(&temp_state_buffer, 0, sizeof(temp_state_buffer));*/
-
 			if (out_decoded_data->state_data_size <= k_simulation_entity_maximum_state_data_size)
 			{
 				entity_def->build_creation_data(
@@ -450,7 +447,7 @@ bool decode_simulation_queue_update_from_buffer(uint8* encoded_data, int32 encod
 				// in H3 this has some extra param which signals whether to decode
 				// gamestate index or entity index
 				if (entity_def->entity_update_decode(
-					true,
+					false,
 					&update_mask,
 					out_decoded_data->state_data_size,
 					out_decoded_data->state_data,

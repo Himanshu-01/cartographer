@@ -98,6 +98,44 @@ void c_simulation_view::send_message(
 	return;
 }
 
+bool c_simulation_view::observer_channel_backlogged(e_network_message_type message_type)
+{
+	bool backlogged;
+	if (m_observer_channel_index != NONE)
+	{
+		ASSERT(m_observer != NULL);
+
+		backlogged = m_observer->observer_channel_backlogged(
+			_network_observer_owner_simulation,
+			m_observer_channel_index,
+			message_type);
+	}
+	else
+	{
+		ASSERT(is_dead(NULL));
+		backlogged = true;
+	}
+
+	return backlogged;
+}
+
+void c_simulation_view::observer_channel_set_waiting_on_backlog(
+	e_network_message_type message_type)
+{
+	//INVOKE_TYPE(0x1DE77C, 0x0, void(__thiscall*)(c_simulation_view*, e_network_message_type), this, message_type);
+	if (m_observer_channel_index != NONE)
+	{
+		ASSERT(m_observer != NULL);
+
+		m_observer->observer_channel_set_waiting_on_backlog(
+			_network_observer_owner_simulation,
+			m_observer_channel_index,
+			message_type);
+	}
+
+	return;
+}
+
 void c_simulation_view::kill_view(
 	e_simulation_view_reason death_reason)
 {

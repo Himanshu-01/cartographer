@@ -286,7 +286,7 @@ bool c_simulation_queue::decode(c_bitstream* bitstream)
 					if (element)
 					{
 						element->type = element_type;
-						bitstream->read_raw_data("data", element->data, SIZEOF_BITS(element_size));
+						bitstream->read_raw_data("data", element->data, element_size * CHAR_BITS);
 						enqueue(element);
 					}
 					else
@@ -387,7 +387,7 @@ void c_simulation_queue::encode(c_bitstream* bitstream)
 
 		bitstream->write_integer("type", element->type, k_simulation_queue_type_encoded_size_in_bits);
 		bitstream->write_integer("size", element->data_size, 10);
-		bitstream->write_raw_data("data", element->data, SIZEOF_BITS(element->data_size));
+		bitstream->write_raw_data("data", element->data, element->data_size * CHAR_BITS);
 
 		s_simulation_queue_element* next = NULL;
 		if (m_initialized)

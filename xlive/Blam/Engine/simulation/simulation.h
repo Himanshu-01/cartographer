@@ -50,3 +50,5 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
 void __cdecl simulation_build_machine_update(bool* machine_update_valid, struct simulation_machine_update* machine_update);
 
 class c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index);
+
+int32 __cdecl simulation_time_get_maximum_available(bool* match_remote_time);
