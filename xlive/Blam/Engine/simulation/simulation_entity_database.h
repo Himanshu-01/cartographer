@@ -42,6 +42,8 @@ public:
 	virtual uint32 generate_current_entity_update_mask(int32 entity_index);
 
 
+
+	void initialize(class c_simulation_world* world, class c_replication_entity_manager* entity_manager, class c_simulation_type_collection* type_collection);
 	void entity_capture_creation_data(int32 entity_index);
 
 	void entity_delete_internal(int32 entity_index);

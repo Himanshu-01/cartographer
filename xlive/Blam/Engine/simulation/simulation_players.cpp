@@ -1,6 +1,9 @@
 #include "stdafx.h"
 #include "simulation_players.h"
 
+#include "simulation_world.h"
+#include "simulation_view.h"
+
 /* prototypes */
 
 /* public code */
@@ -35,3 +38,14 @@ bool __cdecl simulation_players_apply_update(simulation_player_update* player_up
 	return INVOKE(0x1E22E2, 0x1C930E, simulation_players_apply_update, player_update);
 }
 
+void c_simulation_player::set_active(bool active)
+{
+	ASSERT(exists());
+	ASSERT(m_world && m_world->is_authority());
+	ASSERT(active != m_active);
+	ASSERT(!m_pending_deletion);
+
+	/////#TODO
+
+	m_active = active;
+}

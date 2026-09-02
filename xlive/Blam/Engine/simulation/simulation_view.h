@@ -62,6 +62,7 @@ public:
 	char const* get_death_reason_string(uint32 death_reason) const;
 
 	void send_message(e_network_message_type message_type, int32 message_size, const void* message_payload);
+	void send_establishment_message(void);
 
 	bool observer_channel_backlogged(e_network_message_type message_type);
 	void observer_channel_set_waiting_on_backlog(e_network_message_type message_type);
@@ -69,15 +70,22 @@ public:
 	void kill_view(e_simulation_view_reason death_reason);
 
 	void set_view_establishment(e_simulation_view_establishment_mode establishment_mode, int32 establishment_identifier);
+	void update(void);
 
 	bool handle_synchronous_update(struct simulation_update const* update);	
+	bool handle_remote_establishment(e_simulation_view_establishment_mode remote_establishment_mode, int32 remote_establishment_identifier);
 	void dispatch_synchronous_update(struct simulation_update const* update);
 
 	void update_view_activation_state(void);
 
 	void synchronous_catchup_send_data(void);
 	bool synchronous_catchup_submit_update(struct simulation_update const* update);
+	void synchronous_catchup_terminate(void);
+	void synchronous_client_block(bool block);
+	int32 synchronous_client_get_acknowledged_update_number(void) const;
 
+	void distributed_join_abort(void);
+	
 	bool exists(
 		void) const
 	{
@@ -105,6 +113,24 @@ public:
 	{
 		ASSERT(exists());
 		return m_view_type;
+	}
+
+	bool is_client_view(
+		void) const
+	{
+		return
+			m_view_type == _simulation_view_type_synchronous_to_remote_client ||
+			m_view_type == _simulation_view_type_distributed_to_remote_client;
+	}
+
+	bool is_distributed(
+		void) const
+	{
+		ASSERT(exists());
+
+		return
+			m_view_type == _simulation_view_type_distributed_to_remote_authority ||
+			m_view_type == _simulation_view_type_distributed_to_remote_client;
 	}
 
 	class c_simulation_world* get_world(
@@ -151,6 +177,21 @@ public:
 		return m_view_death_reason != _simulation_view_reason_none;
 	}
 
+	bool established(
+		void) const
+	{
+		ASSERT(exists());
+
+		return m_channel_index != NONE ? m_channel_interface.established() : false;
+	}
+
+	bool ready_to_establish(
+		void) const
+	{
+		return m_view_establishment_mode == _simulation_view_establishment_mode_connected &&
+			m_remote_establishment_mode == _simulation_view_establishment_mode_connected;
+	}
+
 	bool synchronous_catchup_in_progress(
 		void) const
 	{
@@ -177,14 +218,14 @@ private:
 	e_simulation_view_establishment_mode m_view_establishment_mode;
 	int32 m_view_establishment_identifier;
 	e_simulation_view_establishment_mode m_remote_establishment_mode;
-	uint32 m_remote_establishment_identifier;
+	int32 m_remote_establishment_identifier;
 	int32 m_channel_index;
 	uint32 m_channel_connection_identifier;
 	c_network_channel_simulation_interface m_channel_interface;
 	bool m_simulation_active;
 	uint32 m_simulation_player_acknowledged_mask;
-	uint32 m_synchronous_received_action_number;
-	uint32 m_synchronous_acknowledged_update_number;
+	int32 m_synchronous_received_action_number;
+	int32 m_synchronous_acknowledged_update_number;
 	bool m_synchronous_client_blocked;
 	uint32 m_synchronous_client_block_timestamp;
 	int32 m_synchronous_catchup_attempt_count;
@@ -198,7 +239,7 @@ ASSERT_STRUCT_SIZE(c_simulation_view, 0xB4);
 
 class c_simulation_distributed_view
 {
-private:
+public:
 	int16 identifier;
 	c_replication_scheduler m_replication_scheduler;
 	c_replication_entity_manager_view m_entity_view;

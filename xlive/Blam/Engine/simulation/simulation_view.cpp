@@ -4,9 +4,11 @@
 #include "simulation.h"
 #include "simulation_world.h"
 #include "networking/network_event.h"
+#include "networking/network_time.h"
 #include "networking/messages/network_messages_simulation.h"
 #include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/session/network_observer.h"
+#include "networking/replication/replication_game_results.h"
 
 /* enums */
 
@@ -98,6 +100,17 @@ void c_simulation_view::send_message(
 	return;
 }
 
+void c_simulation_view::send_establishment_message(void)
+{
+	s_network_message_view_establishment message;
+	csmemset(&message, 0, sizeof(message));
+
+	message.establishment_mode = m_view_establishment_mode;
+	message.establishment_identifier = m_view_establishment_identifier;
+	send_message(_network_message_type_view_establishment, sizeof(message), &message);
+}
+
+
 bool c_simulation_view::observer_channel_backlogged(e_network_message_type message_type)
 {
 	bool backlogged;
@@ -179,15 +192,24 @@ void c_simulation_view::set_view_establishment(
 
 	if (establishment_mode >= _simulation_view_establishment_mode_established)
 	{
-		if (establishment_mode != _simulation_view_establishment_mode_established)
+		if (establishment_mode == _simulation_view_establishment_mode_established)
+		{
+			valid_mode = establishment_identifier >= 0;
+		}
+		//h3 addon
+		else if (m_view_establishment_mode == _simulation_view_establishment_mode_active
+			&& establishment_mode == _simulation_view_establishment_mode_joining)
+		{
+			event(_event_message,
+				"networking:simulation:view: we are currently active, but are going back to joining (this is allowed)"
+			);
+			valid_mode = establishment_identifier >= 0;
+		}
+		else
 		{
 			valid_mode =
 				establishment_identifier == m_view_establishment_identifier &&
 				establishment_mode == m_view_establishment_mode + 1;
-		}
-		else
-		{
-			valid_mode = establishment_identifier >= 0;
 		}
 	}
 	else
@@ -236,17 +258,20 @@ void c_simulation_view::set_view_establishment(
 			m_view_establishment_mode = establishment_mode;
 			m_view_establishment_identifier = establishment_identifier;
 
-			s_network_message_view_establishment message;
-			csmemset(&message, 0, sizeof(message));
-
-			message.establishment_mode = m_view_establishment_mode;
-			message.establishment_identifier = m_view_establishment_identifier;
-			send_message(_network_message_type_view_establishment, sizeof(message), &message);
-
+			send_establishment_message();
 			update_view_activation_state();
 		}
 	}
 
+	return;
+}
+
+void c_simulation_view::update(void)
+{
+	ASSERT(exists());
+	ASSERT(m_world != NULL);
+
+	INVOKE_TYPE(0x1DF78A, 0x0, void(__thiscall*)(c_simulation_view*), this);
 	return;
 }
 
@@ -260,6 +285,339 @@ bool c_simulation_view::handle_synchronous_update(
 	ASSERT(update);
 
 	return m_world->time_running() ? m_world->handle_synchronous_update(update) : false;
+}
+
+bool c_simulation_view::handle_remote_establishment(
+	e_simulation_view_establishment_mode remote_establishment_mode,
+	int32 remote_establishment_identifier)
+{
+	ASSERT(exists());
+	ASSERT(VALID_INDEX(remote_establishment_mode, k_simulation_view_establishment_mode_count));
+
+	bool result = false;
+
+	if (m_world
+		&& m_channel_index != NONE)
+	{
+		e_simulation_view_establishment_mode old_remote_establishment_mode = m_remote_establishment_mode;
+		int32 old_remote_establishment_identifier = m_remote_establishment_identifier;
+
+		m_remote_establishment_mode = remote_establishment_mode;
+		m_remote_establishment_identifier = remote_establishment_identifier;
+
+		if (is_dead(NULL))
+		{
+			event(
+				_event_message,
+				"simulation:view: view %s remote %s mode %d/%d -> %d/%d but we are dead (currently %d/%d)",
+				get_view_description(),
+				is_client_view() ? "client" : "authority",
+				old_remote_establishment_mode,
+				old_remote_establishment_identifier,
+				m_remote_establishment_mode,
+				m_remote_establishment_identifier,
+				m_view_establishment_mode,
+				m_view_establishment_identifier
+			);
+		}
+		else
+		{
+			//remote client start
+			if (is_client_view())
+			{
+
+				//ready to establish
+				if (m_view_establishment_mode < _simulation_view_establishment_mode_established)
+				{
+					ASSERT(m_view_establishment_identifier == NONE);
+
+					if (m_remote_establishment_mode < _simulation_view_establishment_mode_established
+						&& m_remote_establishment_identifier == NONE)
+					{
+						event(
+							_event_message,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d is non-established (authority %d/%d)",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+					}
+					else
+					{
+						event(
+							_event_message,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d is erroneously established (authority %d/%d), resending",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+
+						send_establishment_message();
+					}
+				}
+
+				// establised
+				else if (m_view_establishment_mode == _simulation_view_establishment_mode_established)
+				{
+					ASSERT(m_view_establishment_identifier >= 0);
+
+					if (m_remote_establishment_mode == _simulation_view_establishment_mode_established
+						&& m_remote_establishment_identifier == m_view_establishment_identifier)
+					{
+
+						event(
+							_event_message,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d acknowledging establishment (authority %d/%d)",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+					}
+					else if (old_remote_establishment_mode != _simulation_view_establishment_mode_established
+						&& old_remote_establishment_identifier != m_view_establishment_identifier)
+					{
+
+						if (m_remote_establishment_mode < _simulation_view_establishment_mode_connected)
+						{
+							event(
+								_event_message,
+								"simulation:view: view %s remote client mode %d/%d -> %d/%d disconnects client (authority %d/%d), disconnecting",
+								get_view_description(),
+								old_remote_establishment_mode,
+								old_remote_establishment_identifier,
+								m_remote_establishment_mode,
+								m_remote_establishment_identifier,
+								m_view_establishment_mode,
+								m_view_establishment_identifier
+							);
+							set_view_establishment(_simulation_view_establishment_mode_connected, NONE);
+						}
+						else
+						{
+							event(
+								_event_message,
+								"simulation:view: view %s remote client mode %d/%d -> %d/%d does not establish (authority %d/%d), waiting",
+								get_view_description(),
+								old_remote_establishment_mode,
+								old_remote_establishment_identifier,
+								m_remote_establishment_mode,
+								m_remote_establishment_identifier,
+								m_view_establishment_mode,
+								m_view_establishment_identifier
+							);
+							send_establishment_message();
+						}
+					}
+					else
+					{
+						event(
+							_event_warning,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d abort establishment (authority %d/%d), dying",
+							get_view_description(),
+							_simulation_view_establishment_mode_established,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+						kill_view(_simulation_view_reason_mode_error);
+					}
+				}
+				//check for errors
+				else if (m_remote_establishment_mode != _simulation_view_establishment_mode_none)
+				{
+					ASSERT(m_view_establishment_identifier >= 0);
+
+					if (m_remote_establishment_identifier == m_view_establishment_identifier
+						&& m_remote_establishment_mode > _simulation_view_establishment_mode_established
+						&& m_remote_establishment_mode <= m_view_establishment_mode)
+					{
+
+						//acknowledge increment
+						if (m_remote_establishment_mode == old_remote_establishment_mode + 1)
+						{
+							event(
+								_event_message,
+								"simulation:view: view %s remote client mode %d/%d -> %d/%d acknowledged (authority %d/%d)",
+								get_view_description(),
+								old_remote_establishment_mode,
+								old_remote_establishment_identifier,
+								m_remote_establishment_mode,
+								m_remote_establishment_identifier,
+								m_view_establishment_mode,
+								m_view_establishment_identifier
+							);
+						}
+						else
+						{
+							//error bad value?
+						}
+
+					}
+					else
+					{
+						event(
+							_event_error,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d establishment error (authority %d/%d), dying",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+						kill_view(_simulation_view_reason_mode_error);
+					}
+				}
+				else
+				{
+					event(
+						_event_message,
+						"simulation:view: view %s remote client mode %d/%d -> %d/%d died (authority %d/%d), dying",
+						get_view_description(),
+						old_remote_establishment_mode,
+						old_remote_establishment_identifier,
+						m_remote_establishment_mode,
+						m_remote_establishment_identifier,
+						m_view_establishment_mode,
+						m_view_establishment_identifier
+					);
+					kill_view(_simulation_view_reason_remote_ended);
+				}
+			}
+			//end remote client
+
+			//if remote authority
+			else
+			{
+				const bool remote_is_established = remote_establishment_mode == _simulation_view_establishment_mode_established;
+				const bool remote_is_establishing = remote_establishment_mode < _simulation_view_establishment_mode_established;
+				const bool remote_establishment_matches = m_view_establishment_identifier == remote_establishment_identifier;
+
+				//established
+				if (remote_is_established)
+				{
+					if (m_view_establishment_identifier == NONE)
+					{
+						event(
+							_event_message,
+							"simulation:view: view %s remote authority mode %d/%d -> %d/%d initiating establishment (currently %d/%d)",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+
+						set_view_establishment(_simulation_view_establishment_mode_established, remote_establishment_identifier);
+					}
+				}
+				//ready to establish or beyond
+				else if (remote_is_establishing || !remote_establishment_matches)
+				{
+					if (m_view_establishment_mode < _simulation_view_establishment_mode_established)
+					{
+						if (old_remote_establishment_mode > _simulation_view_establishment_mode_none
+							|| remote_establishment_mode <= _simulation_view_establishment_mode_none)
+						{
+							event(
+								_event_message,
+								"simulation:view: view %s remote authority mode %d/%d -> %d/%d ignored as unestablished/unrecognized (currently %d/%d)",
+								get_view_description(),
+								old_remote_establishment_mode,
+								old_remote_establishment_identifier,
+								m_remote_establishment_mode,
+								m_remote_establishment_identifier,
+								m_view_establishment_mode,
+								m_view_establishment_identifier
+							);
+						}
+						else
+						{
+							event(
+								_event_message,
+								"simulation:view: view %s remote authority mode %d/%d -> %d/%d newly created, resending local mode %d/%d",
+								get_view_description(),
+								_simulation_view_establishment_mode_none,
+								old_remote_establishment_identifier,
+								m_remote_establishment_mode,
+								m_remote_establishment_identifier,
+								m_view_establishment_mode,
+								m_view_establishment_identifier
+							);
+							send_establishment_message();
+						}
+					}
+					else
+					{
+						event(
+							_event_message,
+							"simulation:view: view %s remote authority mode %d/%d -> %d/%d disconnects us (currently %d/%d), dying",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+						kill_view(_simulation_view_reason_remote_ended);
+					}
+
+				}
+				//if remote_establishment_matches
+				else
+				{
+
+					event(
+						_event_message,
+						"simulation:view: view %s remote authority mode %d/%d -> %d/%d continuing establishment (currently %d/%d)",
+						get_view_description(),
+						old_remote_establishment_mode,
+						old_remote_establishment_identifier,
+						m_remote_establishment_mode,
+						m_remote_establishment_identifier,
+						m_view_establishment_mode,
+						m_view_establishment_identifier
+					);
+					set_view_establishment(remote_establishment_mode, remote_establishment_identifier);
+				}
+
+			}
+		}
+
+
+		update_view_activation_state();
+		result = true;
+	}
+	else
+	{
+		event(
+			_event_warning,
+			"simulation:view: view %s ignoring mode %d/%d, not attached to a channel",
+			get_view_description(),
+			remote_establishment_mode,
+			remote_establishment_identifier
+		);
+	}
+
+	return result;
 }
 
 
@@ -313,7 +671,84 @@ void c_simulation_view::dispatch_synchronous_update(
 
 void c_simulation_view::update_view_activation_state(void)
 {
-	INVOKE_TYPE(0x1DEF6D, 0x1C642D, void(__thiscall*)(c_simulation_view*), this);
+	//INVOKE_TYPE(0x1DEF6D, 0x1C642D, void(__thiscall*)(c_simulation_view*), this);
+
+	bool simulation_established = false;
+	bool simulation_active = false;
+
+	if (m_world && m_channel_index != NONE && m_view_establishment_identifier == m_remote_establishment_identifier)
+	{
+		simulation_established =
+			m_view_establishment_mode >= _simulation_view_establishment_mode_established &&
+			m_remote_establishment_mode >= _simulation_view_establishment_mode_established;
+		simulation_active =
+			m_view_establishment_mode >= _simulation_view_establishment_mode_active &&
+			m_remote_establishment_mode >= _simulation_view_establishment_mode_established;
+	}
+
+	ASSERT(!(simulation_active && !simulation_established));
+
+	if (simulation_established != established())
+	{
+		event(
+			_event_message,
+			"simulation:view: view %s simulation is now %s",
+			get_view_description(),
+			simulation_established ? "ESTABLISHED" : "NON-ESTABLISHED"
+		);
+
+		m_channel_interface.set_established(simulation_established);
+
+		if (!simulation_established)
+		{
+			if (is_client_view())
+			{
+				m_simulation_player_acknowledged_mask = NULL;
+				if (m_view_type == _simulation_view_type_synchronous_to_remote_client)
+				{
+					m_synchronous_received_action_number = NONE;
+					m_synchronous_acknowledged_update_number = NONE;
+					if (synchronous_catchup_in_progress())
+					{
+						synchronous_catchup_terminate();
+					}
+				}
+				else if (m_view_type == _simulation_view_type_distributed_to_remote_client)
+				{
+					distributed_join_abort();
+				}
+			}
+			else if (m_view_type == _simulation_view_type_synchronous_to_remote_authority)
+			{
+				m_synchronous_catchup_stream_items = 0;
+			}
+		}
+
+		if (is_distributed())
+		{
+			m_distributed_view->m_game_results_replicator.handle_view_establishment(simulation_established);
+		}
+
+		ASSERT(m_world);
+		m_world->handle_view_establishment(this, simulation_established);
+	}
+
+	if (m_simulation_active != simulation_active)
+	{
+		event(
+			_event_message,
+			"simulation:view: view %s simulation is now %s",
+			get_view_description(),
+			simulation_active ? "ACTIVE" : "INACTIVE"
+		);
+
+		m_simulation_active = simulation_active;
+
+		ASSERT(m_world);
+		m_world->handle_view_activation(this, m_simulation_active);
+	}
+
+	return;
 }
 
 void c_simulation_view::synchronous_catchup_send_data(void)
@@ -324,5 +759,57 @@ void c_simulation_view::synchronous_catchup_send_data(void)
 bool c_simulation_view::synchronous_catchup_submit_update(struct simulation_update const* update)
 {
 	return INVOKE_TYPE(0x1DE96E, 0x1C5E2E, bool(__thiscall*)(c_simulation_view*, struct simulation_update const*), this, update);
+}
+
+void c_simulation_view::synchronous_catchup_terminate(
+	void)
+{
+	INVOKE_TYPE(0x1DE932, 0x0, void(__thiscall*)(c_simulation_view*), this);
+	return;
+}
+
+void c_simulation_view::synchronous_client_block(
+	bool block)
+{
+	ASSERT(exists());
+	ASSERT(m_view_type == _simulation_view_type_synchronous_to_remote_client);
+
+	if (block && !m_synchronous_client_blocked)
+	{
+		m_synchronous_client_block_timestamp = network_time_get();
+	}
+	m_synchronous_client_blocked = block;
+
+	if (block && network_time_since(m_synchronous_client_block_timestamp) >= 2000)
+	{
+		event(
+			_event_message,
+			"simulation:view: view [%s] has blocked for [%dms] and is now dead at update/time [#%d]/[#%d]",
+			get_view_description(),
+			network_time_since(m_synchronous_client_block_timestamp),
+			m_world->get_next_update_number(),
+			m_world->get_time()
+		);
+		kill_view(_simulation_view_reason_synchronous_block);
+	}
+
+	return;
+}
+
+int32 c_simulation_view::synchronous_client_get_acknowledged_update_number(void) const
+{
+	ASSERT(exists());
+	ASSERT(m_view_type == _simulation_view_type_synchronous_to_remote_client);
+
+	return m_synchronous_acknowledged_update_number;
+}
+
+void c_simulation_view::distributed_join_abort(void)
+{
+	ASSERT(is_distributed());
+	ASSERT(m_distributed_view);
+
+	INVOKE_TYPE(0x1DEAAB, 0x0, void(__thiscall*)(c_simulation_view*), this);
+	return;
 }
 

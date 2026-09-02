@@ -98,6 +98,15 @@ ASSERT_STRUCT_SIZE(c_simulation_distributed_world, 45260);
 
 class c_simulation_world
 {
+	enum e_join_progress
+	{
+		_join_progress_waiting = 0,
+		_join_progress_ready,
+		_join_progress_complete,
+		_join_progress_failed,
+		k_join_progress_count,
+	};
+
 	class c_simulation_watcher* m_watcher;
 	c_simulation_distributed_world* m_distributed_world;
 	e_simulation_world_type m_world_type;
@@ -122,7 +131,7 @@ class c_simulation_world
 	int32 m_player_count; // guessed name for potential use, field is completely unused
 	c_simulation_player m_players[k_maximum_players];
 	c_simulation_actor m_actors[k_network_maximum_actors_per_simulation];
-	bool m_gamestate_flush_active;
+	bool m_synchronous_gamestate_read_in_progress;
 	int32 m_synchronous_gamestate_write_progress;
 	void* m_synchronous_gamestate_write_buffer;
 	uint32 m_synchronous_catchup_initiation_failure_timestamp;
@@ -154,6 +163,8 @@ public:
 
 	void delete_all_actors(void);
 
+	void update_queue_start(int32 next_update_number);
+	void update_queue_stop(void);
 	void update_queue_reset(void);
 
 	// discard resources
@@ -161,6 +172,7 @@ public:
 
 	void destroy_world(void);
 	void disconnect(void);
+	void update(void);
 
 	void queues_dispose(void);
 
@@ -168,9 +180,44 @@ public:
 	void delete_player(datum player_index);
 
 
+	void time_start(int32 next_update_number);
+	void time_stop(void);
+	void time_set_immediate_update(bool time_immediate_update);
 	int32 time_get_available(bool* match_remote_time);
+
 	void iterator_begin(struct s_simulation_world_view_iterator* iterator, uint32 view_type_mask);
 	bool iterator_next(struct s_simulation_world_view_iterator* iterator, class c_simulation_view** view) const;
+	class c_simulation_view* get_authority_view(void);
+	class c_simulation_view* get_client_view_by_machine_index(int32 remote_machine_index);
+	void handle_view_establishment(const class c_simulation_view* view, bool established);
+	void handle_view_activation(const class c_simulation_view* view, bool active);
+	void remove_all_views();
+
+	bool authority_join_timeout_expired(void);
+	void update_authority_join_initiate(void);
+	void update_authority_join_progress(void);
+	void update_authority_active(void);
+	void update_authority_handoff(void);
+
+	void update_client_join_initiate(void);
+	void update_client_join_progress(void);
+	void update_client_failure(void);
+	void update_client_disconnection(void);
+
+	void drop_simulation_from_active_to_joining(void);
+	e_join_progress update_joining_view(class c_simulation_view* view);//#TODO
+	void update_establishing_view(class c_simulation_view* view);
+	void update_player_activation(void);
+	void verify_player_activation(void);
+
+
+	void change_state_internal(e_simulation_world_state new_state);
+	void change_state_joining(uint32 joining_client_machine_mask);
+	void change_state_active(void);
+	void change_state_disconnected(void);
+	void change_state_dead(void);
+	void change_state_handoff(void);
+	void change_state_leaving(void);
 
 	void build_player_actions(struct simulation_update* update);
 
@@ -252,17 +299,55 @@ public:
 		return m_world_state == _simulation_world_state_active;
 	}
 
+	bool is_dead(void) const
+	{
+		ASSERT(exists());
+		return m_world_state == _simulation_world_state_dead;
+	}
+
+	bool is_connected(
+		void) const
+	{
+		ASSERT(exists());
+
+		return IN_RANGE(m_world_state, _simulation_world_state_active, _simulation_world_state_leaving);
+	}
+
+	bool is_joining(
+		void) const
+	{
+		ASSERT(exists());
+
+		return m_world_state == _simulation_world_state_joining;
+	}
+
+	bool is_local(
+		void) const
+	{
+		ASSERT(exists());
+
+		bool is_local = m_world_type == _simulation_world_type_local;
+
+		ASSERT(!is_local || m_view_count == 0);
+
+		return is_local;
+	}
+
 	bool simulation_queues_empty(void) const
 	{
 		return queue_get(_simulation_queue_bookkeeping)->queued_count() == 0 && queue_get(_simulation_queue)->queued_count() == 0;
 	}
 
-	void send_player_acknowledgements_not_during_simulation_reset_in_progress(bool a1);
-
-	void send_player_acknowledgements(bool a1)
+	void send_player_acknowledgements(bool force_acknowledgement)
 	{
-		INVOKE_TYPE(0x1DD777, 0x1C4C37, void(__thiscall*)(c_simulation_world*, bool), this, a1);
+		INVOKE_TYPE(0x1DD777, 0x1C4C37, void(__thiscall*)(c_simulation_world*, bool), this, force_acknowledgement);
 		return;
+	}
+
+	uint32 c_simulation_world::get_acknowledged_player_mask(
+		void) const
+	{
+		return INVOKE_TYPE(0x1DCA76, 0x0, uint32(__thiscall*)(c_simulation_world const*), this);
 	}
 
 	bool time_running(void) const
@@ -295,7 +380,7 @@ public:
 		void) const
 	{
 		ASSERT(exists());
-		return !is_authority() && m_out_of_sync;
+		return (!is_authority() || is_playback()) && m_out_of_sync;
 	}
 
 	int32 get_view_count(
@@ -312,6 +397,29 @@ public:
 			&& !is_distributed() 
 			&& m_synchronous_gamestate_write_progress != NONE;
 	}
+
+	void synchronous_gamestate_write_stop(
+		void)
+	{
+		INVOKE_TYPE(0x1DCD9B, 0x0, void(__thiscall*)(c_simulation_world*), this);
+		return;
+	}
+
+	bool synchronous_catchup_in_progress(
+		void) const
+	{
+		return m_world_type
+			&& !is_authority()
+			&& !is_distributed()
+			&& m_synchronous_gamestate_write_buffer != NULL;
+	}
+
+	int32 c_simulation_world::get_machine_index(
+		void) const
+	{
+		return m_local_machine_index;
+	}
+
 };
 ASSERT_STRUCT_SIZE(c_simulation_world, 0x12B0);
 

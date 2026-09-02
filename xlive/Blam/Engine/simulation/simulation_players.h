@@ -65,16 +65,49 @@ ASSERT_STRUCT_SIZE(s_player_collection, 0xA44);
 
 /* classes */
 
-struct c_simulation_player
+class c_simulation_player
 {
+public:
+	void set_active(bool active);
+
+	bool exists(
+		void) const
+	{
+		return m_player_index != NONE;
+	}
+
+	bool active(
+		void) const
+	{
+		return m_active;
+	}
+
+	bool pending_deletion(
+		void) const
+	{
+		ASSERT(exists());
+		return m_pending_deletion;
+	}
+	
+	void get_identifier(
+		struct s_player_identifier* player_identifier) const
+	{
+		ASSERT(exists());
+		ASSERT(player_identifier);
+		*player_identifier = m_player_identifier;
+
+		return;
+	}
+
+private:
 	int32 m_player_index;
 	int32 m_player_datum_index;
 	e_simulation_player_type m_player_type;
 	s_player_identifier m_player_identifier;
 	s_machine_identifier m_player_machine_identifier;
 	int16 pad;
-	void* m_simulation_world;
-	char m_field_20;
+	class c_simulation_world* m_world;
+	bool m_pending_deletion;
 	bool m_active;
 	int16 pad_1;
 	uint32 m_start_commit_ticks;

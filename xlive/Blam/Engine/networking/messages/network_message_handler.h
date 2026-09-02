@@ -23,6 +23,7 @@ public:
 	void register_observer(class c_network_observer* observer);
 	void handle_leave_session(const struct transport_address* address, const struct s_network_message_leave_session* received_data);
 	void handle_synchronous_update(int32 network_channel_index, const struct s_network_message_synchronous_update* message);
+	void handle_view_establishment(int32 network_channel_index, const struct s_network_message_view_establishment* message);
 
 
 

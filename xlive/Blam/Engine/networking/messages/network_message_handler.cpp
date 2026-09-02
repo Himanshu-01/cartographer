@@ -8,6 +8,7 @@
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/logic/network_session_interface.h"
 #include "networking/messages/network_message_gateway.h"
+#include "networking/messages/network_messages_simulation.h"
 #include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/messages/network_message_type_collection.h"
 #include "networking/session/network_session.h"
@@ -46,6 +47,12 @@ static __declspec(naked) void jmp_c_network_message_handler__handle_synchronous_
 {
 	CLASS_HOOK_JMP(c_network_message_handler__handle_synchronous_update, c_network_message_handler::handle_synchronous_update);
 }
+CLASS_HOOK_DECLARE_LABEL(c_network_message_handler__handle_view_establishment, c_network_message_handler::handle_view_establishment);
+static __declspec(naked) void jmp_c_network_message_handler__handle_view_establishment()
+{
+	CLASS_HOOK_JMP(c_network_message_handler__handle_view_establishment, c_network_message_handler::handle_view_establishment);
+}
+
 
 /* globals */
 
@@ -60,6 +67,7 @@ void network_message_handler_apply_patches(void)
 	p_handle_out_of_band_message = (t_handle_out_of_band_message)DetourClassFunc(Memory::GetAddress<BYTE*>(0x1E907B, 0x1CB03B), (BYTE*)handle_out_of_band_message_hook, 8);
 	WriteJmpTo(Memory::GetAddress(0x1E8D13, 0x1CACD3), jmp_c_network_message_handler__handle_leave_session);
 	WriteJmpTo(Memory::GetAddress(0x1E89D0, 0x1CA990), jmp_c_network_message_handler__handle_synchronous_update);
+	PatchCall(Memory::GetAddress(0x1E9788), jmp_c_network_message_handler__handle_view_establishment);
 }
 
 /* private code */
@@ -297,6 +305,56 @@ void c_network_message_handler::handle_synchronous_update(
 			_event_message,
 			"networking:messages:synchronous-update: no simulation view for #%d over channel '%s'",
 			message->update.update_number,
+			channel_name
+		);
+	}
+
+	return;
+}
+
+void c_network_message_handler::handle_view_establishment(
+	int32 network_channel_index,
+	const s_network_message_view_establishment* message)
+{
+	const char* channel_name = "[TODO]";
+	c_simulation_view* remote_view = simulation_get_remote_view_by_channel(network_channel_index);
+
+	if (remote_view)
+	{
+
+		if (!remote_view->handle_remote_establishment(
+			message->establishment_mode,
+			message->establishment_identifier))
+
+		{
+			event(
+				_event_warning,
+				"messages:view-establishment: simulation view failed to handle view-establishment (%d/%d) over channel '%s'",
+				message->establishment_mode,
+				message->establishment_identifier,
+				channel_name
+			);
+		}
+	}
+
+	else if (message->establishment_identifier == NONE)
+	{
+		event(
+			_event_message,
+			"messages:view-establishment: discarding non-established view-establishment (%d/%d) over channel '%s' with no simulation view",
+			message->establishment_mode,
+			message->establishment_identifier,
+			channel_name
+		);
+	}
+
+	else
+	{
+		event(
+			_event_warning,
+			"messages:view-establishment: discarding ESTABLISHED view-establishment (%d/%d) over channel '%s' with no simulation view",
+			message->establishment_mode,
+			message->establishment_identifier,
 			channel_name
 		);
 	}

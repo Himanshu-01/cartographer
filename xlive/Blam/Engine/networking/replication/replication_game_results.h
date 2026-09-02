@@ -12,5 +12,13 @@ struct c_game_results_replicator
 	int32 m_update_number;
 	s_game_results_incremental m_game_results_incremental;
 	uint32 m_update_timestamp;
+
+	void handle_view_establishment(
+		bool simulation_established)
+	{
+		INVOKE_TYPE(0x1DEE6E, 0x0, void(__thiscall*)(c_game_results_replicator*, bool), this, simulation_established);
+		return;
+	}
+
 };
 ASSERT_STRUCT_SIZE(c_game_results_replicator, 19420);
