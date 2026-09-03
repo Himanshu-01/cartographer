@@ -848,12 +848,17 @@ c_simulation_view* c_simulation_world::get_authority_view(
 {
 	//return INVOKE_TYPE(0x1DCED3, 0x0, c_simulation_view * (__thiscall*)(c_simulation_world*), this);
 
+	ASSERT(exists());
+	c_simulation_view* view = NULL;
 	s_simulation_world_view_iterator iterator;
-	c_simulation_view* test_view;
 	iterator_begin(&iterator, FLAG(_simulation_view_type_synchronous_to_remote_authority) | FLAG(_simulation_view_type_distributed_to_remote_authority));
 
-	iterator_next(&iterator, &test_view);
-	return test_view;
+	if (iterator_next(&iterator, &view))
+	{
+		ASSERT(view != NULL);
+	}
+
+	return view;
 }
 
 c_simulation_view* c_simulation_world::get_client_view_by_machine_index(
