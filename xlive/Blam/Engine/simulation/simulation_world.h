@@ -9,6 +9,9 @@
 #include "networking/replication/replication_event_manager.h"
 
 /* constants */
+// uncomment this to have authority wait for all peers before starting simulation (even in distributed)
+// used in h3 and beyond
+//#define USE_H3_DROP_SIMULATION_TO_JOINING
 
 enum
 {

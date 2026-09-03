@@ -77,6 +77,7 @@ public:
 	void dispatch_synchronous_update(struct simulation_update const* update);
 
 	void update_view_activation_state(void);
+	void failed_to_join(void);
 
 	void synchronous_catchup_send_data(void);
 	bool synchronous_catchup_submit_update(struct simulation_update const* update);
@@ -142,6 +143,7 @@ public:
 	int32 get_channel_index(
 		void) const
 	{
+		ASSERT(exists());
 		return m_channel_index;
 	}
 

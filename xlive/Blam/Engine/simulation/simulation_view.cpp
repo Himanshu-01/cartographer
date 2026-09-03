@@ -196,6 +196,7 @@ void c_simulation_view::set_view_establishment(
 		{
 			valid_mode = establishment_identifier >= 0;
 		}
+#ifdef USE_H3_DROP_SIMULATION_TO_JOINING
 		//h3 addon
 		else if (m_view_establishment_mode == _simulation_view_establishment_mode_active
 			&& establishment_mode == _simulation_view_establishment_mode_joining)
@@ -205,6 +206,7 @@ void c_simulation_view::set_view_establishment(
 			);
 			valid_mode = establishment_identifier >= 0;
 		}
+#endif
 		else
 		{
 			valid_mode =
@@ -441,32 +443,44 @@ bool c_simulation_view::handle_remote_establishment(
 				{
 					ASSERT(m_view_establishment_identifier >= 0);
 
+					//acknowledge increment
 					if (m_remote_establishment_identifier == m_view_establishment_identifier
 						&& m_remote_establishment_mode > _simulation_view_establishment_mode_established
-						&& m_remote_establishment_mode <= m_view_establishment_mode)
+						&& m_remote_establishment_mode <= m_view_establishment_mode
+						&& m_remote_establishment_mode == old_remote_establishment_mode + 1)
 					{
-
-						//acknowledge increment
-						if (m_remote_establishment_mode == old_remote_establishment_mode + 1)
-						{
-							event(
-								_event_message,
-								"simulation:view: view %s remote client mode %d/%d -> %d/%d acknowledged (authority %d/%d)",
-								get_view_description(),
-								old_remote_establishment_mode,
-								old_remote_establishment_identifier,
-								m_remote_establishment_mode,
-								m_remote_establishment_identifier,
-								m_view_establishment_mode,
-								m_view_establishment_identifier
-							);
-						}
-						else
-						{
-							//error bad value?
-						}
-
+						event(
+							_event_message,
+							"simulation:view: view %s remote client mode %d/%d -> %d/%d acknowledged (authority %d/%d)",
+							get_view_description(),
+							old_remote_establishment_mode,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
 					}
+#ifdef USE_H3_DROP_SIMULATION_TO_JOINING
+					//h3 addon
+					//acknowledge active to joining
+					else if (m_remote_establishment_identifier == m_view_establishment_identifier
+						&& m_remote_establishment_mode == _simulation_view_establishment_mode_joining
+						&& old_remote_establishment_mode == _simulation_view_establishment_mode_active)
+					{
+						event(
+							_event_message,
+							"networking:simulation:view: view %s remote client mode %d/%d -> %d/%d acknowledged (active to join) (authority %d/%d)",
+							get_view_description(),
+							_simulation_view_establishment_mode_active,
+							old_remote_establishment_identifier,
+							m_remote_establishment_mode,
+							m_remote_establishment_identifier,
+							m_view_establishment_mode,
+							m_view_establishment_identifier
+						);
+					}
+#endif
 					else
 					{
 						event(
@@ -683,7 +697,7 @@ void c_simulation_view::update_view_activation_state(void)
 			m_remote_establishment_mode >= _simulation_view_establishment_mode_established;
 		simulation_active =
 			m_view_establishment_mode >= _simulation_view_establishment_mode_active &&
-			m_remote_establishment_mode >= _simulation_view_establishment_mode_established;
+			m_remote_establishment_mode >= _simulation_view_establishment_mode_active;
 	}
 
 	ASSERT(!(simulation_active && !simulation_established));
@@ -748,6 +762,22 @@ void c_simulation_view::update_view_activation_state(void)
 		m_world->handle_view_activation(this, m_simulation_active);
 	}
 
+	return;
+}
+
+void c_simulation_view::failed_to_join(void)
+{
+	ASSERT(exists());
+	ASSERT(is_client_view());
+	ASSERT(m_world != NULL);
+
+	event(
+		_event_message,
+		"simulation:view: view %s failed to join remote authority, dying",
+		get_view_description()
+	);
+
+	kill_view(_simulation_view_reason_failed_to_join);
 	return;
 }
 

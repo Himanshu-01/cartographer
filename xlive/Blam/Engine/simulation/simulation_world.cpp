@@ -911,6 +911,7 @@ void c_simulation_world::handle_view_activation(
 			update_client_join_progress();
 		}
 	}
+#ifdef USE_H3_DROP_SIMULATION_TO_JOINING
 	//h3 addon
 	else
 	{
@@ -922,6 +923,7 @@ void c_simulation_world::handle_view_activation(
 			change_state_joining(NULL);
 		}
 	}	
+#endif
 	return;
 }
 
@@ -1355,7 +1357,6 @@ void c_simulation_world::update_client_disconnection(
 
 void c_simulation_world::drop_simulation_from_active_to_joining(void)
 {
-	//ASSERT((!is_connected() && !is_dead()) || is_active()); // h2 code
 	ASSERT(is_authority());
 
 	if (is_active())
@@ -1372,17 +1373,18 @@ void c_simulation_world::drop_simulation_from_active_to_joining(void)
 
 			if (!view->is_dead(NULL))
 			{
-				//h2 code
-				// 
-				//event(
-				//	_event_message,
-				//	"simulation:world: pausing active client view %s by killing it, it didn't actually fail to join, this is just the simplest way",
-				//	view->get_view_description()
-				//);
+#ifndef USE_H3_DROP_SIMULATION_TO_JOINING
+				//h2 code				 
+				event(
+					_event_message,
+					"simulation:world: pausing active client view %s by killing it, it didn't actually fail to join, this is just the simplest way",
+					view->get_view_description()
+				);
 
-				//view->failed_to_join();
-				//verify_player_activation();
+				view->failed_to_join();
+				verify_player_activation();
 
+#else 
 				//h3 code
 				if (view->get_view_establishment_mode() == _simulation_view_establishment_mode_active)
 				{
@@ -1397,6 +1399,7 @@ void c_simulation_world::drop_simulation_from_active_to_joining(void)
 					view->set_view_establishment(_simulation_view_establishment_mode_joining, view->get_view_establishment_identifier());
 				}
 				verify_player_activation();
+#endif
 			}
 		}
 
