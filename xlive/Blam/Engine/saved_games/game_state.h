@@ -88,6 +88,8 @@ void* __cdecl game_state_malloc(const char* name, const char* description, uint3
 
 s_game_state_globals* game_state_globals_get();
 
+void* game_state_get_buffer_address(uint32* buffer_size);
+
 void game_state_save_core(const char* name);
 
 bool game_state_read_core(const char* name, void* buffer, uint32 buffer_size);

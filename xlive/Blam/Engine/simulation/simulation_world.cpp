@@ -893,7 +893,11 @@ void c_simulation_world::handle_view_establishment(
 	if (established && view == get_authority_view())
 	{
 		ASSERT(!is_authority());
-		simulation_reset();
+
+		if (!is_synchronous())
+		{
+			simulation_reset();
+		}
 		
 		if (!simulation_reset_in_progress()) //h3 check
 		{

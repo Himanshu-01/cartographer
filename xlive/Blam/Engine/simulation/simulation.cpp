@@ -13,17 +13,34 @@
 #include "game/game.h"
 #include "game/game_time.h"
 #include "game/players.h"
+#include "main/main_game.h"
 #include "math/random_math.h"
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/session/network_session.h"
 #include "networking/network_event.h"
+#include "networking/network_time.h"
 #include "objects/objects.h"
 #include "shell/shell.h"
 #include "units/units.h"
 #include "simulation/game_interface/simulation_game_action.h"
 
 #include "H2MOD/Modules/EventHandler/EventHandler.hpp"
+
+
+/* enums */
+
+enum e_simulation_abort_reason : int32
+{
+	_simulation_abort_reason_stopped = 0x0,
+	_simulation_abort_reason_reset_failed,
+	_simulation_abort_reason_fatal_error,
+	_simulation_abort_reason_lost_connection,
+	_simulation_abort_reason_out_of_sync,
+	_simulation_abort_reason_film_ended, //yes its present in h2
+
+	k_simulation_abort_reason_count,
+};
 
 
 /* structures */
@@ -33,7 +50,7 @@ struct s_simulation_globals
 	bool initialized;
 	bool simulation_fatal_error;
 	bool simulation_aborted;
-	int32 field_4;
+	int32 simulation_aborted_timestamp;
 	bool simulation_in_initial_state;
 	bool simulation_reset_pending;
 	bool simulation_reset_in_progress;
@@ -44,6 +61,19 @@ struct s_simulation_globals
 };
 ASSERT_STRUCT_SIZE(s_simulation_globals, 24);
 
+/* globals*/
+
+const char* g_simulation_abort_reason_strings[k_simulation_abort_reason_count]
+{
+	"stopped",
+	"reset-failed",
+	"fatal-error",
+	"lost-connection",
+	"out-of-sync",
+	"film-ended"
+};
+
+
 /* prototypes */
 
 static s_simulation_globals* simulation_get_globals(void);
@@ -51,7 +81,12 @@ static s_simulation_globals* simulation_get_globals(void);
 static void simulation_player_joined_game_patch_calls(void);
 static void simulation_player_left_game_patch_calls(void);
 
+static void simulation_abort_immediate(e_simulation_abort_reason abort_reason);
+static void simulation_status_lines_update(void);
+static void simulation_test_update(void);
 static void simulation_synchronous_game_patches(void);
+
+void simulation_reset_immediate(void);
 
 /* public code */
 
@@ -143,9 +178,67 @@ bool simulation_reset_in_progress(void)
 
 void __cdecl simulation_update(void)
 {
-	INVOKE(0x1AE7C5, 0x1A8A1F, simulation_update);
-	return;
+	//INVOKE(0x1AE7C5, 0x1A8A1F, simulation_update);
+	//return;
+
+	s_simulation_globals* sim_globals = simulation_get_globals();
+	if (sim_globals->initialized && !sim_globals->simulation_aborted && game_in_progress())
+	{
+		ASSERT(sim_globals->world);
+		ASSERT(sim_globals->watcher);
+
+		if (!sim_globals->simulation_aborted)
+		{
+			if (sim_globals->simulation_fatal_error)
+			{
+				event(_event_error, "networking:simulation: fatal error raised, aborting simulation");
+				simulation_abort_immediate(_simulation_abort_reason_fatal_error);
+			}
+			else /*if (!sim_globals->simulation_aborted)*/
+			{
+				if (!sim_globals->simulation_reset_pending)
+				{
+					if (!sim_globals->simulation_aborted
+						&& !sim_globals->watcher->maintain_connection())
+					{
+						event(_event_message, "networking:simulation: watcher connection lost, aborting simulation");
+						simulation_abort_immediate(_simulation_abort_reason_lost_connection);
+					}
+
+
+					if (!sim_globals->simulation_aborted)
+					{
+						sim_globals->world->update();
+						if (sim_globals->world->is_out_of_sync())
+						{
+							simulation_abort_immediate(_simulation_abort_reason_out_of_sync);
+						}
+						else
+						{
+							if (!sim_globals->simulation_aborted
+								&& game_is_authoritative()
+								&& game_is_finished_immediate()
+								&& (!game_is_networked() || game_is_playback()))
+							{
+								main_menu_launch(7);
+							}
+						}
+					}
+				}
+				else
+				{
+					simulation_reset_immediate();
+				}
+			}
+
+		}
+	}
+
+
+	simulation_status_lines_update();
+	simulation_test_update();
 }
+
 
 bool simulation_starting_up(void)
 {
@@ -219,6 +312,7 @@ void simulation_reset_immediate(void)
 	event(_event_message, "networking:simulation: resetting simulation world");
 
 	simulation_globals->world->reset_world();
+	//main_game_reset_map(); // orignal h2 code
 
 	if (simulation_globals->world->runs_simulation())
 	{
@@ -236,12 +330,11 @@ void simulation_reset_immediate(void)
 	return;
 }
 
-// FIXME: figure out why this function is being called on clients...
 void __cdecl simulation_reset(void)
 {
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 	ASSERT(simulation_globals->world);
-	//ASSERT(simulation_globals->world->is_authority());
+	ASSERT(!simulation_globals->world->is_authority());
 
 	if (simulation_globals->simulation_in_initial_state)
 	{
@@ -351,7 +444,8 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 	if (update->game_simulation_queue.queued_count() > 0)
 	{
 		ASSERT(update->game_simulation_queue.queued_size_in_bytes() > 0);
-		ASSERT(update->simulation_in_progress); //update->flags.test(_simulation_update_simulation_in_progress_bit)
+		//figure out why is this asserting during bluescreen in distributed clients
+		//ASSERT(update->simulation_in_progress); //update->flags.test(_simulation_update_simulation_in_progress_bit)
 		ASSERT(update->game_simulation_queue_requires_application); //update->flags.test(_simulation_update_game_simulation_queue_requires_application_bit)
 
 		sim_world->apply_simulation_queue(&update->game_simulation_queue);
@@ -617,6 +711,46 @@ static void simulation_player_joined_game_patch_calls(void)
 static void simulation_player_left_game_patch_calls(void)
 {
 	PatchCall(Memory::GetAddress(0x5633A, 0x5E832), simulation_player_left_game);
+	return;
+}
+
+static void simulation_abort_immediate(e_simulation_abort_reason abort_reason)
+{
+	//INVOKE_TYPE(0x1AE899, 0x0, void(*)(void)); // release function does not use arguments
+
+	s_simulation_globals* sim_globals = simulation_get_globals();
+	ASSERT(VALID_INDEX(abort_reason, k_simulation_abort_reason_count));
+	ASSERT(sim_globals->initialized);
+	ASSERT(sim_globals->world);
+
+	if (sim_globals->world->exists()
+		&& !sim_globals->simulation_aborted)
+	{
+		event(
+			abort_reason == _simulation_abort_reason_stopped ? _event_message : _event_error,
+			"simulation:global: simulation aborted, reason='%s', at time [#%d]",
+			g_simulation_abort_reason_strings[abort_reason],
+			game_time_get()
+			);
+
+
+		sim_globals->simulation_aborted = true;
+		sim_globals->simulation_aborted_timestamp = network_time_get();
+		sim_globals->world->change_state_dead();
+	}
+
+	return;
+}
+
+static void simulation_status_lines_update(void)
+{
+	//#TODO
+	return;
+}
+
+static void simulation_test_update(void)
+{
+	//#TODO
 	return;
 }
 

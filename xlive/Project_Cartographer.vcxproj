@@ -1357,6 +1357,7 @@
     <ClCompile Include="Blam\Engine\math\random_math.cpp" />
     <ClCompile Include="Blam\Engine\math\real_quantization.cpp" />
     <ClCompile Include="Blam\Engine\memory\data.cpp" />
+    <ClCompile Include="Blam\Engine\memory\data_compress.cpp" />
     <ClCompile Include="Blam\Engine\memory\lruv_cache.cpp" />
     <ClCompile Include="Blam\Engine\memory\memory_pool.cpp" />
     <ClCompile Include="Blam\Engine\math\real_math.cpp" />
@@ -1775,6 +1776,7 @@
     <ClInclude Include="Blam\Engine\math\random_direction_table.h" />
     <ClInclude Include="Blam\Engine\math\random_math.h" />
     <ClInclude Include="Blam\Engine\math\real_quantization.h" />
+    <ClInclude Include="Blam\Engine\memory\data_compress.h" />
     <ClInclude Include="Blam\Engine\memory\hashtable.h" />
     <ClInclude Include="Blam\Engine\memory\lruv_cache.h" />
     <ClInclude Include="Blam\Engine\memory\memory_pool.h" />

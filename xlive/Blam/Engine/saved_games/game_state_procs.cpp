@@ -9,7 +9,7 @@
 
 /* typedefs */
 
-typedef void(__cdecl* game_state_call_after_load_procs_t)(int32);
+typedef void(__cdecl* game_state_call_after_load_procs_t)(uint32);
 
 /* globals */
 
@@ -29,15 +29,21 @@ void __cdecl game_state_call_after_save_procs(uint32 game_state_proc_flags)
 	return;
 }
 
-void __cdecl game_state_call_after_load_procs_hook(int32 a1)
+void __cdecl game_state_call_before_load_procs(uint32 game_state_proc_flags)
 {
-	p_game_state_call_after_load_procs(a1);
+	INVOKE(0x8C245, 0, game_state_call_before_load_procs, game_state_proc_flags);
+	return;
+}
+
+void __cdecl game_state_call_after_load_procs(uint32 game_state_proc_flags)
+{
+	p_game_state_call_after_load_procs(game_state_proc_flags);
 	halo_interpolator_reset();
 }
 
 void game_state_procs_apply_patches(void)
 {
-	DETOUR_ATTACH(p_game_state_call_after_load_procs, Memory::GetAddress<game_state_call_after_load_procs_t>(0x8C269, 0xCB93A), game_state_call_after_load_procs_hook);
+	DETOUR_ATTACH(p_game_state_call_after_load_procs, Memory::GetAddress<game_state_call_after_load_procs_t>(0x8C269, 0xCB93A), game_state_call_after_load_procs);
 	return;
 }
 

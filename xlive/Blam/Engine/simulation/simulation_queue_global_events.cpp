@@ -15,7 +15,6 @@
 
 /* prototypes */
 
-static bool game_is_synchronous_networking(void);
 
 static void simulation_queue_player_event_set_activation(int32 player_index, bool active);
 
@@ -296,12 +295,6 @@ bool simulation_queue_player_update_apply(
 }
 
 /* private code */
-
-static bool game_is_synchronous_networking(void)
-{
-	const e_game_simulation type = game_simulation_get();
-	return IN_RANGE(type, _game_simulation_synchronous_client, _game_simulation_synchronous_server);
-}
 
 static void simulation_queue_player_event_set_activation(int32 player_index, bool active)
 {

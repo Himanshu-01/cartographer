@@ -184,10 +184,23 @@ bool game_is_cooperative(void)
 	return game_options_get()->game_mode == _game_mode_campaign && game_options_get()->coop;
 }
 
+bool game_is_finished_immediate(void)
+{
+	const game_globals_storage* game_globals = get_main_game_globals();
+	ASSERT(game_globals && game_globals->map_active);
+	return game_globals->game_is_finished && !game_globals->ticks_till_end;
+}
+
 bool game_is_distributed(void)
 {
 	const e_game_simulation simulation_type = game_simulation_get();
 	return simulation_type == _game_simulation_distributed_client || simulation_type == _game_simulation_distributed_server;
+}
+
+bool game_is_synchronous_networking(void)
+{
+	const e_game_simulation simulation_type = game_simulation_get();
+	return simulation_type == _game_simulation_synchronous_client || simulation_type == _game_simulation_synchronous_server;
 }
 
 e_game_simulation game_simulation_get(void)
