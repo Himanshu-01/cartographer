@@ -17,6 +17,8 @@ void __cdecl simulation_update(void);
 
 bool simulation_starting_up(void);
 bool simulation_aborted();
+void simulation_start(void);
+void simulation_end(void);
 
 void simulation_notify_reset_complete(void);
 
@@ -25,7 +27,12 @@ void simulation_notify_reset_initiate(void);
 void simulation_notify_going_active(void);
 
 bool simulation_in_progress(void);
+void simulation_record_update(struct simulation_update* update);
 void simulation_destroy_update(struct simulation_update* update);
+
+bool simulation_update_write_to_buffer(struct simulation_update* update, int32 buffer_size, uint8* buffer, int32* out_update_length);
+bool simulation_update_read_from_buffer(struct simulation_update* update, int32 buffer_size, uint8* buffer);
+
 bool simulation_query_object_is_predicted(datum object_datum);
 class c_simulation_type_collection* simulation_get_type_collection();
 

@@ -94,12 +94,14 @@ bool game_is_multiplayer(void);
 bool game_is_ui_shell(void);
 
 bool game_is_cooperative(void);
+bool game_is_finished_immediate(void);
 
 void __cdecl game_shell_set_in_progress(void);
 bool game_in_progress(void);
 bool game_is_active(void);
 bool game_is_predicted(void);
 bool game_is_distributed(void);
+bool game_is_synchronous_networking(void);
 
 e_game_simulation game_simulation_get(void);
 
@@ -116,6 +118,8 @@ void __cdecl game_options_setup_default_players(int32 player_count, struct s_gam
 void game_time_get_date_and_time(s_date_and_time* date_and_time);
 
 void __cdecl game_initialize(void);
+
+void __cdecl game_start(void);
 
 void __cdecl game_dispose(void);
 

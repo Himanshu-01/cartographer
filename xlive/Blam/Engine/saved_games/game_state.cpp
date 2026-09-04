@@ -29,6 +29,14 @@ s_game_state_globals* game_state_globals_get()
 	return Memory::GetAddress<s_game_state_globals*>(0x47A728, 0x4D2590);
 }
 
+void* game_state_get_buffer_address(uint32* buffer_size)
+{
+	ASSERT(buffer_size);
+
+	*buffer_size = k_game_state_size;
+	return game_state_globals_get()->base_address;
+}
+
 bool game_state_header_valid(game_state_header* header)
 {
 	bool result;
