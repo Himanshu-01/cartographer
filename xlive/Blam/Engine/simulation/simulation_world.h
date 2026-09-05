@@ -241,6 +241,7 @@ public:
 
 	void gamestate_flush(void);
 	void go_out_of_sync(void);
+	void attach_to_map(void);
 	int32 get_time(void) const;
 
 	bool can_generate_updates(void);
@@ -421,6 +422,13 @@ public:
 		void) const
 	{
 		return m_local_machine_index;
+	}
+
+	bool attached_to_map(
+		void) const
+	{
+		ASSERT(exists());
+		return m_attached_to_map;
 	}
 
 };

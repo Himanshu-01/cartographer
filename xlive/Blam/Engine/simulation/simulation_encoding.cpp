@@ -24,6 +24,7 @@ enum
 
 static void __cdecl player_action_encode(c_bitstream* packet, struct player_action* action);
 static bool __cdecl player_action_decode(c_bitstream* packet, struct player_action* action);
+static bool __cdecl player_action_compare(struct player_action const* action1, struct player_action* action2);
 static void __cdecl simulation_machine_update_encode(c_bitstream* packet, struct simulation_machine_update* machine_update);
 static bool __cdecl simulation_machine_update_decode(c_bitstream* packet, struct simulation_machine_update* machine_update);
 
@@ -183,24 +184,60 @@ bool __cdecl simulation_update_decode(
 	return result;
 }
 
+bool simulation_update_compare(
+	struct simulation_update const* update1,
+	struct simulation_update* update2)
+{
+	bool result = true;
+
+	if (result)
+	{
+		if (update1->player_action_mask != update2->player_action_mask)
+		{
+			result = false;
+		}
+	}
+
+	if (result)
+	{
+		for (int32 i = 0; i < NUMBEROF(update1->player_actions); ++i)
+		{
+			if (TEST_BIT(update1->player_action_mask, i))
+			{
+				result = result && player_action_compare(
+					&update1->player_actions[i],
+					&update2->player_actions[i]
+				);
+			}
+		}
+	}
+
+	return result;
+}
+
 /* private code */
 
 void __cdecl player_action_encode(c_bitstream* packet, struct player_action* action)
 {
-	INVOKE(0x1DFE4C, 0x0, player_action_encode, packet, action);
+	INVOKE(0x1DFE4C, 0x1C730C, player_action_encode, packet, action);
 }
 
 bool __cdecl player_action_decode(c_bitstream* packet, struct player_action* action)
 {
-	return INVOKE(0x1E01CB, 0x0, player_action_decode, packet, action);
+	return INVOKE(0x1E01CB, 0x1C768B, player_action_decode, packet, action);
+}
+
+bool __cdecl player_action_compare(struct player_action const* action1, struct player_action* action2)
+{
+	return INVOKE(0x1E04CB, 0x1C798B, player_action_compare, action1, action2);
 }
 
 void __cdecl simulation_machine_update_encode(c_bitstream* packet, struct simulation_machine_update* machine_update)
 {
-	INVOKE(0x1E08E7, 0x0, simulation_machine_update_encode, packet, machine_update);
+	INVOKE(0x1E08E7, 0x1C7DA7, simulation_machine_update_encode, packet, machine_update);
 }
 
 bool __cdecl simulation_machine_update_decode(c_bitstream* packet, struct simulation_machine_update* machine_update)
 {
-	return INVOKE(0x1E0935, 0x0, simulation_machine_update_decode, packet, machine_update);
+	return INVOKE(0x1E0935, 0x1C7DF5, simulation_machine_update_decode, packet, machine_update);
 }

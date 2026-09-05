@@ -119,6 +119,8 @@ void game_time_get_date_and_time(s_date_and_time* date_and_time);
 
 void __cdecl game_initialize(void);
 
+void __cdecl game_start(void);
+
 void __cdecl game_dispose(void);
 
 bool __cdecl main_events_pending(void);

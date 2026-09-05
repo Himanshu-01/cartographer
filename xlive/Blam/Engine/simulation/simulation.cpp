@@ -15,6 +15,7 @@
 #include "game/players.h"
 #include "main/main_game.h"
 #include "math/random_math.h"
+#include "memory/bitstream.h"
 #include "networking/logic/life_cycle_manager.h"
 #include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/session/network_session.h"
@@ -84,6 +85,7 @@ static void simulation_player_left_game_patch_calls(void);
 static void simulation_abort_immediate(e_simulation_abort_reason abort_reason);
 static void simulation_status_lines_update(void);
 static void simulation_test_update(void);
+static void simulation_film_record_update(struct simulation_update* update);
 static void simulation_synchronous_game_patches(void);
 
 void simulation_reset_immediate(void);
@@ -169,6 +171,28 @@ bool simulation_engine_initialized()
 bool simulation_aborted()
 {
 	return simulation_get_globals()->simulation_aborted;
+}
+
+void simulation_start(void)
+{
+	ASSERT(game_in_progress());
+	if (simulation_engine_initialized())
+	{
+		ASSERT(simulation_get_world());
+		c_simulation_world* world = simulation_get_world();
+
+		if (!world->attached_to_map())
+		{
+			world->attach_to_map();
+		}
+	}
+
+	return;
+}
+
+void simulation_end(void)
+{
+	simulation_abort_immediate(_simulation_abort_reason_stopped);
 }
 
 bool simulation_reset_in_progress(void)
@@ -369,6 +393,24 @@ bool simulation_in_progress(void)
 	}
 
 	return result;
+}
+
+void simulation_record_update(struct simulation_update* update)
+{
+	ASSERT(update);
+	ASSERT(simulation_get_globals()->initialized);
+	ASSERT(simulation_get_globals()->world);
+	ASSERT(game_in_progress());
+
+	event(_event_verbose,
+		"networking:simulation: record update #%ld",
+		update->update_number
+		);
+
+	// #TODO
+	//simulation_film_record_update(update);
+
+	return;
 }
 
 bool simulation_query_object_is_predicted(datum object_index)
@@ -608,6 +650,7 @@ void simulation_update_pregame(void)
 			simulation_build_update(&update);
 			ASSERT(!update.simulation_in_progress);
 
+			simulation_record_update(&update);
 			simulation_apply_before_game(&update);
 			simulation_update_aftermath(&update);
 			simulation_destroy_update(&update);			
@@ -626,6 +669,77 @@ void simulation_destroy_update(struct simulation_update* update)
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 	simulation_globals->world->destroy_update(update);
 	return;
+}
+
+bool simulation_update_write_to_buffer(
+	struct simulation_update* update,
+	int32 buffer_size,
+	uint8* buffer,
+	int32* out_update_length)
+{
+	c_bitstream message(buffer, buffer_size);
+
+	ASSERT(update);
+	ASSERT(buffer);
+	ASSERT(out_update_length);
+
+	message.begin_writing(k_bitstream_default_alignment);
+	simulation_update_encode(&message, update);
+
+	*out_update_length = message.get_space_used_in_bytes();
+	message.finish_writing(NULL);
+
+	bool result = true;
+	if (message.begin_consistency_check())
+	{
+		struct simulation_update encoded_update;
+		csmemset(&encoded_update, 0, sizeof(encoded_update));
+		if (simulation_update_decode(&message, &encoded_update))
+		{
+			message.finish_consistency_check();
+			if (simulation_update_compare(update, &encoded_update))
+			{
+				// Consistency check complete
+			}
+			else
+			{
+				result = false;
+			}
+		}
+		else
+		{
+			result = false;
+		}
+	}
+
+	return result;
+}
+
+bool simulation_update_read_from_buffer(
+	struct simulation_update* update,
+	int32 buffer_size,
+	uint8* buffer)
+{
+	c_bitstream message(buffer, buffer_size);
+
+	ASSERT(update);
+	ASSERT(buffer);
+
+	csmemset(update, 0, sizeof(*update));
+	message.begin_reading();
+
+	bool result = false;
+	if (simulation_update_decode(&message, update))
+	{
+		message.finish_reading();
+		result = true;
+	}
+	else
+	{
+		event(_event_warning, "networking:simulation: failed to read simulation update, decode failed");
+	}
+
+	return result;
 }
 
 bool __cdecl simulation_get_machine_active_in_game(s_machine_identifier* machine_identifier)

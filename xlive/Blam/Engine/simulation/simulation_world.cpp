@@ -1727,6 +1727,14 @@ void c_simulation_world::go_out_of_sync(
 	return;
 }
 
+void c_simulation_world::attach_to_map(void)
+{
+	ASSERT(!m_attached_to_map);
+	ASSERT(m_view_count == 0);
+
+	m_attached_to_map = true;
+}
+
 int32 c_simulation_world::get_time(
 	void) const
 {

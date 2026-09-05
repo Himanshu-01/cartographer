@@ -417,6 +417,8 @@ void __cdecl game_engine_update_after_game(void);
 
 void __cdecl game_engine_update(void);
 
+void __cdecl game_engine_game_starting(void);
+
 void __cdecl game_engine_render(void);
 
 void __cdecl game_engine_update_player_movement_traits();

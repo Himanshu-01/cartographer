@@ -102,6 +102,9 @@ static void __cdecl game_finished_update(void);
 
 static void __cdecl game_save_update(void);
 
+static void __cdecl game_launch_initial_script(void);
+
+
 /* public code */
 
 void game_apply_pre_winmain_patches(void)
@@ -109,6 +112,9 @@ void game_apply_pre_winmain_patches(void)
 	PatchCall(Memory::GetAddress(0x86BE, 0x1EB86), game_initialize_for_new_map);
 	PatchCall(Memory::GetAddress(0x9802, 0x1FAED), game_initialize_for_new_map);
 	PatchCall(Memory::GetAddress(0x39E42, 0xBA4F), game_initialize);
+
+	PatchCall(Memory::GetAddress(0x86E1, 0x1EBA9), game_start);
+	PatchCall(Memory::GetAddress(0x9825, 0x1FB10), game_start);
 
 	PatchCall(Memory::GetAddress(0x1DD394, 0x1C4848), game_tick);	// c_simulation_world::time_set_immediate_update
 	PatchCall(Memory::GetAddress(0x1DD49A, 0x1C495A), game_tick);	// c_simulation_world::handle_synchronous_update
@@ -325,6 +331,24 @@ void __cdecl game_initialize(void)
 	return;
 }
 
+void __cdecl game_start(void)
+{
+	game_globals_storage* game_globals = get_main_game_globals();
+	ASSERT(game_globals);
+	ASSERT(!game_globals->initializing);
+	ASSERT(game_globals->map_active);
+	ASSERT(game_globals->active_structure_bsp_index != NONE);
+	ASSERT(!game_globals->game_in_progress);
+
+	game_globals->game_in_progress = true;
+
+	simulation_start();
+	random_seed_allow_use();
+	game_engine_game_starting();
+	game_launch_initial_script();
+	random_seed_disallow_use();
+}
+
 void __cdecl game_dispose(void)
 {
 	set_main_game_globals(NULL);
@@ -361,7 +385,7 @@ void __cdecl game_tick(void)
 	simulation_build_update(&update);
 	
 	random_seed_allow_use();
-
+	simulation_record_update(&update);
 	simulation_apply_before_game(&update);
 	if (update.simulation_in_progress)
 	{
@@ -646,4 +670,11 @@ static void __cdecl game_save_update(void)
 	INVOKE(0x9E673, 0x90909, game_save_update);
 	return;
 }
+
+static void __cdecl game_launch_initial_script(void)
+{
+	INVOKE(0x49BF7, 0x42E75, game_launch_initial_script);
+	return;
+}
+
 

@@ -85,6 +85,12 @@ void __cdecl game_engine_update(void)
 	return;
 }
 
+void __cdecl game_engine_game_starting(void)
+{
+	INVOKE(0x6FE78, 0x6EA70, game_engine_game_starting);
+	return;
+}
+
 void __cdecl game_engine_render(void)
 {
 	INVOKE(0x6A60F, 0x0, game_engine_render);

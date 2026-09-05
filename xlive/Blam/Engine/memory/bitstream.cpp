@@ -211,6 +211,28 @@ void c_bitstream::read_unit_vector(const char* name, real_vector3d* out_unit_vec
 	dequantize_unit_vector3d(quantized_vector, out_unit_vector);
 }
 
+bool c_bitstream::begin_consistency_check(
+	void)
+{
+	ASSERT(!writing());
+
+	reset(_bitstream_state_read_only_for_consistency);
+
+	// TODO: ifdef name
+#ifdef NDEBUG
+	return false;
+#else
+	return true;
+#endif
+}
+
+void c_bitstream::finish_consistency_check(
+	void)
+{
+	finish_reading();
+	return;
+}
+
 __declspec(naked) void jmp_write_unit_vector()
 {
 	CLASS_HOOK_JMP(c_bitstream__write_unit_vector, c_bitstream::write_unit_vector);
