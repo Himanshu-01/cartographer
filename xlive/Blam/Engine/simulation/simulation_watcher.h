@@ -18,10 +18,7 @@ public:
 	bool get_player_is_in_game(int32 player_index, struct s_player_identifier const* player_identifier) const;
 
 
-	bool maintain_connection()
-	{
-		return INVOKE_TYPE(0x1D6531, 0x1C3141, bool(__thiscall*)(c_simulation_watcher*), this);
-	}
+	bool maintain_connection();
 
 	void boot_machines(uint32 boot_machine_mask, bool notify)
 	{

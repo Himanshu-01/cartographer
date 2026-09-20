@@ -10,6 +10,7 @@
 
 #include "ai/ai.h"
 #include "camera/director.h"
+#include "cartographer/films/debug_simulation_globals.h"
 #include "cutscene/cinematics.h"
 #include "cutscene/recorded_animations.h"
 #include "effects/effects.h"
@@ -130,6 +131,14 @@ void game_apply_pre_winmain_patches(void)
 	{
 		PatchCall(Memory::GetAddress(0x0, 0xC6F7), game_dispose);	// main_loop
 	}
+	else
+	{
+		PatchCall(Memory::GetAddress(0x7C29A), game_is_playback); // game_time_update
+		PatchCall(Memory::GetAddress(0x1D4878), game_is_playback); // setup_connection
+		PatchCall(Memory::GetAddress(0x216F0D), game_is_playback); // user_interface_networking_update
+		PatchCall(Memory::GetAddress(0x21747D), game_is_playback); // user_interface_recover_from_disconnection
+
+	}
 
 	PatchCall(Memory::GetAddress(0xA57AB, 0x9790F), random_math_get_globals);
 	PatchCall(Memory::GetAddress(0xA5892, 0x979828), random_math_get_globals);
@@ -230,8 +239,8 @@ bool game_is_server(void)
 // TODO: saved films
 bool game_is_playback(void)
 {
-	return false;
 	//return _game_playback_none;
+	return debug_simulation_active() && debug_simulation_is_replaying();
 }
 
 void __cdecl game_shell_set_in_progress(void)
@@ -343,6 +352,16 @@ void __cdecl game_start(void)
 	game_globals->game_in_progress = true;
 
 	simulation_start();
+
+	debug_simulation_initialize();
+	if (g_simulation_debug_globals.start_capture_on_map_change)
+	{
+		debug_simulation_start_recording();
+		debug_simulation_set_options(game_options_get());
+
+		g_simulation_debug_globals.start_capture_on_map_change = false;
+	}
+
 	random_seed_allow_use();
 	game_engine_game_starting();
 	game_launch_initial_script();
@@ -360,6 +379,7 @@ void __cdecl game_dispose(void)
 	}
 	
 	halo_interpolator_dispose();
+	debug_simulation_dispose();
 	return;
 }
 

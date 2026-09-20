@@ -7,6 +7,7 @@
 #include "CommandsUtil.h"
 #include "ComVar.h"
 
+#include "cartographer/films/debug_simulation_globals.h"
 #include "game/game.h"
 #include "game/players.h"
 #include "main/main.h"
@@ -64,6 +65,13 @@ namespace CommandCollection
 	static int SetAddressLANIpv4(const std::vector<std::string>& tokens, ConsoleCommandCtxData ctx);
 	static int SetAddressBroadcastIpv4(const std::vector<std::string>& tokens, ConsoleCommandCtxData ctx);
 	static int SetPortNumber(const std::vector<std::string>& tokens, ConsoleCommandCtxData ctx);
+
+	static int debug_save_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	static int debug_load_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	static int debug_pause(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	static int debug_simuation_name(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	static int debug_simuation_record(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
+	static int debug_simuation_launch(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData);
 
 	TEST_N_DEF(CC5);
 }
@@ -126,6 +134,12 @@ void CommandCollection::InitializeCommands()
 	InsertCommand(new ConsoleCommand("connect", "lets you directly connect to a session with an invite code", 1, 1, CommandCollection::connect));
 	InsertCommand(new ConsoleCommand("sv_change_player_team", "changes the player team to the specivied team", 2, 2, CommandCollection::change_player_team));
 	InsertCommand(new ConsoleCommand("quit", "quits the game to desktop", 0, 0, CommandCollection::quit));
+	InsertCommand(new ConsoleCommand("debug_save_test", "write test", 0, 0, CommandCollection::debug_save_test));
+	InsertCommand(new ConsoleCommand("debug_load_test", "read test", 0, 0, CommandCollection::debug_load_test));
+	InsertCommand(new ConsoleCommand("debug_pause", "set game pause/unpause", 1, 1, CommandCollection::debug_pause));
+	InsertCommand(new ConsoleCommand("debug_simuation_name", "set name for debug simulation_file", 1, 1, CommandCollection::debug_simuation_name));
+	InsertCommand(new ConsoleCommand("debug_simuation_record", "start recording debug simulation data", 0, 0, CommandCollection::debug_simuation_record));
+	InsertCommand(new ConsoleCommand("debug_simuation_launch", "launch into debug simulation replay", 0, 0, CommandCollection::debug_simuation_launch));
 
 
 	atexit([]() -> void {
@@ -135,7 +149,7 @@ void CommandCollection::InitializeCommands()
 		}
 
 		commandTable.clear();
-	});
+		});
 
 	DeleteCriticalSection(&g_command_insert_section);
 	return;
@@ -852,6 +866,72 @@ static int CommandCollection::SetPortNumber(const std::vector<std::string>& toke
 		outputCb(StringFlag_None, "# invalid port number, a number between %u and %u is expected", port_min, port_max);
 	}
 
+	return 0;
+}
+
+
+static int CommandCollection::debug_save_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	//debug_simulation_initialize();
+	//debug_simulation_gamestate_write_test();
+
+	debug_simulation_write_saved_film();
+	return 0;
+}
+
+static int CommandCollection::debug_load_test(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	//debug_simulation_initialize();
+	//debug_simulation_gamestate_read_test();
+
+	debug_simulation_read_saved_film();
+	return 0;
+}
+
+static int CommandCollection::debug_pause(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	bool pauseInput = false;
+	std::string exception;
+
+	TextOutputCb* outputCb = cbData.outputCb;
+
+	if (!ComVar(&pauseInput).SetFromStr(tokens[1]))
+	{
+		outputCb(StringFlag_None, command_error_bad_arg);
+		outputCb(StringFlag_None, "	%s", exception.c_str());
+		
+		return -1;
+	}
+
+	debug_simulation_pause(pauseInput);
+
+	return 0;
+}
+
+static int CommandCollection::debug_simuation_name(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	TextOutputCb* outputCb = cbData.outputCb;
+	std::string arg = tokens[1];
+
+	if (arg.length() >= 32)
+	{
+		outputCb(StringFlag_None, "name length should not be more than 32 characters");
+		return -1;
+	}
+
+	debug_simulation_set_name(arg.c_str());
+	return 0;
+}
+
+static int CommandCollection::debug_simuation_record(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	debug_simulation_start_recording_on_map_change();
+	return 0;
+}
+
+static int CommandCollection::debug_simuation_launch(const std::vector<std::string>& tokens, ConsoleCommandCtxData cbData)
+{
+	debug_simulation_launch_replay();
 	return 0;
 }
 

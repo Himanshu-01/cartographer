@@ -10,6 +10,7 @@
 #include "simulation_encoding.h"
 #include "simulation_watcher.h"
 
+#include "cartographer/films/debug_simulation_globals.h"
 #include "game/game_time.h"
 #include "math/random_math.h"
 #include "memory/bitstream.h"
@@ -341,6 +342,12 @@ void c_simulation_world::queues_clear(void)
 	}
 }
 
+bool c_simulation_world::is_playback(void) const
+{
+	ASSERT(exists());
+	return debug_simulation_active() && debug_simulation_is_replaying();
+}
+
 typedef void(__thiscall* t_c_simulation_world__initialize_world)(c_simulation_world*, c_simulation_type_collection*, c_simulation_watcher*, c_simulation_distributed_world*);
 t_c_simulation_world__initialize_world p_c_simulation_world__initialize_world;
 
@@ -409,6 +416,11 @@ void c_simulation_world::initialize_world(c_simulation_type_collection* type_col
 	if (!is_playback())
 	{
 		queues_initialize();
+	}
+	else
+	{
+		//emulate world-playback using world-sync-server (gives authority + no distributed)
+		m_world_type = _simulation_world_type_synchronous_authority;
 	}
 
 	if (!runs_simulation())
@@ -561,13 +573,12 @@ t_c_simulation_world__destroy_world p_c_simulation_world__destroy_world;
 CLASS_HOOK_DECLARE_LABEL(c_simulation_world__destroy_world, c_simulation_world::destroy_world);
 void c_simulation_world::destroy_world(void)
 {
-	// call orig
-	p_c_simulation_world__destroy_world(this);
-
 	if (!is_playback())
 	{
 		queues_dispose();
 	}
+	// call orig
+	p_c_simulation_world__destroy_world(this);
 }
 
 void __declspec(naked) jmp_destroy_world(void)
@@ -804,6 +815,11 @@ int32 c_simulation_world::time_get_available(
 			unreachable();
 		}
 	}
+
+	//#TODO: 
+	// currently following logic for _simulation_world_type_local_playback
+	// update this when we implement _synchronous_playback_authority and _synchronous_playback_client
+	available_time = is_playback() ? update_queue_get_available_updates() : available_time;
 
 	return available_time;
 }

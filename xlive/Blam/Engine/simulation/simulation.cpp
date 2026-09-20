@@ -10,6 +10,8 @@
 #include "simulation_world.h"
 
 #include "cartographer/discord/discord_interface.h"
+#include "cartographer/films/debug_update.h"
+#include "cartographer/films/debug_simulation_globals.h"
 #include "game/game.h"
 #include "game/game_time.h"
 #include "game/players.h"
@@ -81,6 +83,7 @@ static s_simulation_globals* simulation_get_globals(void);
 
 static void simulation_player_joined_game_patch_calls(void);
 static void simulation_player_left_game_patch_calls(void);
+static void simulation_notify_players_created(void);
 
 static void simulation_abort_immediate(e_simulation_abort_reason abort_reason);
 static void simulation_status_lines_update(void);
@@ -100,7 +103,8 @@ void simulation_apply_patches(void)
 	simulation_game_action_apply_patches();
 
 	PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);	// c_simulation_world::build_update
-	PatchCall(Memory::GetAddress(0x7C2BD, 0), simulation_time_get_maximum_available);//inside game_time_update
+	PatchCall(Memory::GetAddress(0x7C2BD, 0x4BF6D), simulation_time_get_maximum_available);//inside game_time_update
+	PatchCall(Memory::GetAddress(0x49F2C, 0x431AA), simulation_notify_players_created); // inside game_create_players
 
 	WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);
 	simulation_synchronous_game_patches();
@@ -117,7 +121,8 @@ void __cdecl simulation_player_joined_game(
 
 	ASSERT(simulation_globals->world);
 
-	if (simulation_globals->initialized && !simulation_globals->loading_saved_game)
+	if (simulation_globals->initialized && !simulation_globals->loading_saved_game
+		&& !simulation_globals->world->is_playback())
 	{
 		simulation_globals->world->create_player(player_index);
 		if (!shell_is_dedicated_server())
@@ -145,7 +150,8 @@ void __cdecl simulation_player_left_game(
 
 	ASSERT(simulation_globals->world);
 
-	if (simulation_globals->initialized && !simulation_globals->loading_saved_game)
+	if (simulation_globals->initialized && !simulation_globals->loading_saved_game
+		&& !simulation_globals->world->is_playback())
 	{
 		simulation_globals->world->delete_player(player_index);
 		if (!shell_is_dedicated_server())
@@ -246,6 +252,46 @@ void __cdecl simulation_update(void)
 							{
 								main_menu_launch(7);
 							}
+
+							// film playback
+							bool film_playback_error = false;
+							if (!sim_globals->simulation_aborted
+								&& sim_globals->world->is_playback()
+								&& sim_globals->world->is_authority()
+								&& sim_globals->world->time_running()
+								&& sim_globals->world->is_active()
+								&& !sim_globals->world->is_out_of_sync())
+							{
+
+								bool match_remote_time;
+								int32 available_updates = simulation_get_world()->time_get_available(&match_remote_time);
+								int32 saved_film_ticks_remaining = debug_simulation_replay_update_queue_length();
+
+								if (saved_film_ticks_remaining > 0)
+								{
+									if (!debug_simulation_retrieve_updates())
+									{
+										event(_event_error, "networking:simulation: failed to read updates from saved film!");
+										film_playback_error = true;
+									}
+								}
+								else if (available_updates == NULL && saved_film_ticks_remaining > 0)
+								{
+									event(_event_error,
+										"networking:simulation: update queue empty and it should not be (film ticks remaming %d)",
+										saved_film_ticks_remaining);
+
+									debug_simulation_stop_replay();
+									debug_simulation_pause(true);
+									//film_playback_error = true;
+								}
+							}
+
+							if (film_playback_error)
+							{
+								simulation_abort_immediate(_simulation_abort_reason_film_ended);
+							}
+
 						}
 					}
 				}
@@ -402,13 +448,26 @@ void simulation_record_update(struct simulation_update* update)
 	ASSERT(simulation_get_globals()->world);
 	ASSERT(game_in_progress());
 
-	event(_event_verbose,
-		"networking:simulation: record update #%ld",
-		update->update_number
-		);
 
-	// #TODO
-	//simulation_film_record_update(update);
+	if (debug_simulation_is_recording())
+	{
+		event(_event_verbose,
+			"networking:simulation: record update #%ld",
+			update->update_number
+		);
+		simulation_film_record_update(update);
+	}
+
+	if (simulation_get_world()->is_out_of_sync())
+	{
+		if (debug_simulation_is_recording())
+			debug_simulation_stop_recording();
+
+		//saved_film_close();
+		//main_menu_launch();
+
+		simulation_abort_immediate(_simulation_abort_reason_out_of_sync);
+	}
 
 	return;
 }
@@ -828,6 +887,16 @@ static void simulation_player_left_game_patch_calls(void)
 	return;
 }
 
+static void simulation_notify_players_created(void)
+{
+	s_simulation_globals* simulation_globals = simulation_get_globals();
+	if (simulation_globals->initialized && !simulation_globals->loading_saved_game
+		&& !simulation_globals->world->is_playback())
+	{
+		INVOKE(0x1ADC4B, 0x1A8028, simulation_notify_players_created);
+	}
+}
+
 static void simulation_abort_immediate(e_simulation_abort_reason abort_reason)
 {
 	//INVOKE_TYPE(0x1AE899, 0x0, void(*)(void)); // release function does not use arguments
@@ -865,6 +934,21 @@ static void simulation_status_lines_update(void)
 static void simulation_test_update(void)
 {
 	//#TODO
+	return;
+}
+
+static void simulation_film_record_update(struct simulation_update* update)
+{
+	ASSERT(update);
+
+	if (!debug_update_record_update(update))
+	{
+		event(_event_error,
+			"networking:simulation:saved_film: failed to write update #%d to film",
+			update->update_number
+		);
+		debug_simulation_stop_recording();
+	}
 	return;
 }
 

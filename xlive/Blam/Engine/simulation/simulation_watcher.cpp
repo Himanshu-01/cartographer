@@ -61,3 +61,18 @@ bool c_simulation_watcher::get_player_is_in_game(
 
 	return player_in_game;
 }
+
+bool c_simulation_watcher::maintain_connection(void)
+{
+	if (!m_world)
+	{
+		return false;
+	}
+	else if (m_world->is_local() || m_world->is_playback())
+	{
+		// if we are local or playback we dont want to abort
+		return true;
+	}
+
+	return INVOKE_TYPE(0x1D6531, 0x0, bool(__thiscall*)(c_simulation_watcher*), this);
+}
