@@ -1181,6 +1181,10 @@
     <ClCompile Include="Blam\Engine\cartographer\build_version\cartographer_build_version.cpp" />
     <ClCompile Include="Blam\Engine\cartographer\cartographer.cpp" />
     <ClCompile Include="Blam\Engine\cartographer\config\endpoints.cpp" />
+    <ClCompile Include="Blam\Engine\cartographer\films\debug_gamestate.cpp" />
+    <ClCompile Include="Blam\Engine\cartographer\films\debug_simulation_globals.cpp" />
+    <ClCompile Include="Blam\Engine\cartographer\films\debug_update.cpp" />
+    <ClCompile Include="Blam\Engine\cartographer\films\debug_update_queue.cpp" />
     <ClCompile Include="Blam\Engine\cartographer\tag_fixes\tag_fixes.cpp" />
     <ClCompile Include="Blam\Engine\cartographer\twizzler\twizzler.cpp" />
     <ClCompile Include="Blam\Engine\creatures\creature_definitions.cpp" />
@@ -1546,6 +1550,10 @@
     <ClInclude Include="Blam\Engine\cartographer\build_version\cartographer_build_version.h" />
     <ClInclude Include="Blam\Engine\cartographer\cartographer.h" />
     <ClInclude Include="Blam\Engine\cartographer\config\endpoints.h" />
+    <ClInclude Include="Blam\Engine\cartographer\films\debug_gamestate.h" />
+    <ClInclude Include="Blam\Engine\cartographer\films\debug_simulation_globals.h" />
+    <ClInclude Include="Blam\Engine\cartographer\films\debug_update.h" />
+    <ClInclude Include="Blam\Engine\cartographer\films\debug_update_queue.h" />
     <ClInclude Include="Blam\Engine\cartographer\tag_fixes\tag_fixes.h" />
     <ClInclude Include="Blam\Engine\cartographer\twizzler\twizzler.h" />
     <ClInclude Include="Blam\Engine\creatures\creatures.h" />
