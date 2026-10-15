@@ -24,6 +24,7 @@ class c_replication_entity_manager
 public:
 	void initialize(void);
 	void reset(void);
+	void attach_client(class c_simulation_entity_database* client);
 
 
 	s_replication_entity_data* get_entity(int32 entity_index);

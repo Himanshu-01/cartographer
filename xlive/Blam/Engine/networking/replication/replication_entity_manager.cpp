@@ -30,6 +30,18 @@ void c_replication_entity_manager::initialize(void)
 	return;
 }
 
+void c_replication_entity_manager::attach_client(
+	class c_simulation_entity_database* client)
+{
+	ASSERT(client);
+	ASSERT(m_client == NULL);
+	ASSERT(m_view_mask == 0);
+
+	m_client = client;
+
+	return;
+}
+
 s_replication_entity_data* c_replication_entity_manager::get_entity(int32 entity_index)
 {
 	ASSERT(entity_index != NONE);

@@ -674,6 +674,29 @@ void c_simulation_entity_database::reset(void)
 	return;
 }
 
+
+void c_simulation_entity_database::initialize(
+	c_simulation_world* world,
+	c_replication_entity_manager* entity_manager,
+	c_simulation_type_collection* type_collection)
+{
+	ASSERT(!m_initialized);
+	ASSERT(world);
+	ASSERT(world->exists());
+	ASSERT(entity_manager);
+	ASSERT(type_collection);
+
+	m_resetting = false;
+	m_world = world;
+	m_entity_manager = entity_manager;
+	m_type_collection = type_collection;
+	m_entity_manager->attach_client(this);
+	reset();
+	m_initialized = true;
+
+	return;
+}
+
 void c_simulation_entity_database::entity_capture_creation_data(int32 entity_index)
 {
 	s_simulation_game_entity* entity = this->entity_get(entity_index);
