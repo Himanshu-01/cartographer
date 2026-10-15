@@ -8,13 +8,25 @@ enum
 	k_replication_entity_manager_view_max_entities = 1024
 };
 
+/* enums */
+
+enum e_replication_entity_view_state : int16
+{
+	_replication_entity_view_state_none = 0x0,
+	_replication_entity_view_state_ready = 0x1,
+	_replication_entity_view_state_replicating = 0x2,
+	_replication_entity_view_state_active = 0x3,
+	_replication_entity_view_state_deleting = 0x4,
+	k_replication_entity_view_state_count = 0x5,
+};
+
 /* structures */
 
 struct s_replication_entity_view_data
 {
 	  int32 entity_index;
 	  uint32 update_mask;
-	  int16 state;
+	  e_replication_entity_view_state state;
 	  int16 next_index;
 	  uint32 update_timestamp;
 	  uint16 flags;

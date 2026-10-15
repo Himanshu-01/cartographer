@@ -75,6 +75,17 @@ union s_world_state_data
 };
 ASSERT_STRUCT_SIZE(s_world_state_data, 0x8);
 
+struct s_simulation_world_view_iterator
+{
+	uint32 view_type_mask;
+	datum next_world_view_index;
+};
+ASSERT_STRUCT_SIZE(s_simulation_world_view_iterator, 8);
+
+
+/* classes */
+
+
 class c_simulation_distributed_world
 {
 public:
@@ -110,20 +121,19 @@ class c_simulation_world
 	c_simulation_view* m_views[k_simulation_world_maximum_views];
 	int32 m_player_count; // guessed name for potential use, field is completely unused
 	c_simulation_player m_players[k_maximum_players];
-	c_simulation_actor m_actors[k_network_maximum_players_per_session];
+	c_simulation_actor m_actors[k_network_maximum_actors_per_simulation];
 	bool m_gamestate_flush_active;
 	int32 m_synchronous_gamestate_write_progress;
 	void* m_synchronous_gamestate_write_buffer;
 	uint32 m_synchronous_catchup_initiation_failure_timestamp;
-	int32 m_synchronous_client_next_update_number_to_dequeue;
-	int32 m_synchronous_client_latest_update_number_received;
-	int32 m_synchronous_client_queue_length;
-	void* m_synchronous_client_queue_head;
-	void* m_synchronous_client_queue_tail;
+	int32 m_update_queue_next_update_number_to_dequeue;
+	int32 m_update_queue_latest_update_number_received;
+	int32 m_update_queue_length;
+	struct s_simulation_queued_update* m_update_queue_head;
+	struct s_simulation_queued_update* m_update_queue_tail;
 	int32 _pad_12AC;
 
 public:
-	void gamestate_flush_immediate(void);
 
 	void simulation_queue_allocate(e_event_queue_type type, int32 encoded_size, s_simulation_queue_element** out_allocated_elem);
 	void simulation_queue_free(s_simulation_queue_element* element);
@@ -132,7 +142,7 @@ public:
 	void queues_initialize(void);
 	void apply_simulation_queue(c_simulation_queue const* queue);
 
-	void attach_simulation_queues_to_update(c_simulation_queue* out_bookkeepin_queue, c_simulation_queue* out_game_simulation_queue);
+	void attach_simulation_queues_to_update(struct simulation_update* update);
 
 	c_simulation_queue* queue_get(e_simulation_queue_type type) const;
 
@@ -156,6 +166,34 @@ public:
 
 	void create_player(datum player_index);
 	void delete_player(datum player_index);
+
+
+	int32 time_get_available(bool* match_remote_time);
+	void iterator_begin(struct s_simulation_world_view_iterator* iterator, uint32 view_type_mask);
+	bool iterator_next(struct s_simulation_world_view_iterator* iterator, class c_simulation_view** view) const;
+
+	void build_player_actions(struct simulation_update* update);
+
+	void build_update(struct simulation_update* update);
+	void distribute_update(const struct simulation_update* update);
+	void advance_update(const struct simulation_update* update);
+	void destroy_update(struct simulation_update* update);
+	void synchronous_authority_dispatch_update(struct simulation_update const* update);
+	int32 synchronous_authority_get_maximum_updates(void);
+	bool handle_synchronous_update(const struct simulation_update* update);
+	bool update_queue_handle_server_update(const struct simulation_update* update);
+	void update_queue_retrieve_update(struct simulation_update* update);
+	int32 update_queue_get_available_updates(void) const;
+
+
+	void distributed_authority_dispatch_player_actions(uint32 player_valid_mask, const struct player_action* player_actions);
+	void distributed_authority_dispatch_actor_control(uint32 actor_valid_mask, const struct unit_control_data* actor_control);
+
+	void gamestate_flush(void);
+	void go_out_of_sync(void);
+	int32 get_time(void) const;
+
+	bool can_generate_updates(void);
 
 	void queues_update_statistics(void)
 	{
@@ -185,6 +223,12 @@ public:
 			|| m_world_type == _simulation_world_type_distributed_client;
 	}
 
+	bool is_synchronous(void) const
+	{
+		return m_world_type == _simulation_world_type_synchronous_authority
+			|| m_world_type == _simulation_world_type_synchronous_client;
+	}
+
 	bool exists(void) const
 	{
 		return m_world_type != _simulation_world_type_none;
@@ -208,6 +252,41 @@ public:
 		return m_world_state == _simulation_world_state_active;
 	}
 
+	bool is_dead(void) const
+	{
+		ASSERT(exists());
+		return m_world_state == _simulation_world_state_dead;
+	}
+
+	bool is_connected(
+		void) const
+	{
+		ASSERT(exists());
+
+		return IN_RANGE(m_world_state, _simulation_world_state_active, _simulation_world_state_leaving);
+	}
+
+	bool is_joining(
+		void) const
+	{
+		ASSERT(exists());
+
+		return m_world_state == _simulation_world_state_joining;
+	}
+
+	bool is_local(
+		void) const
+	{
+		ASSERT(exists());
+
+		const bool is_local = m_world_type == _simulation_world_type_local;
+
+		ASSERT(!is_local || m_view_count == 0);
+
+		return is_local;
+	}
+
+
 	bool simulation_queues_empty(void) const
 	{
 		return queue_get(_simulation_queue_bookkeeping)->queued_count() == 0 && queue_get(_simulation_queue)->queued_count() == 0;
@@ -225,6 +304,48 @@ public:
 	{
 		ASSERT(exists());
 		return m_time_running;
+	}
+
+	e_simulation_world_state get_state(
+		void) const
+	{
+		ASSERT(exists());
+		return m_world_state;
+	}
+
+	int32 get_next_update_number(
+		void) const
+	{
+		ASSERT(exists());
+		return m_next_update_number;
+	}
+
+	int32 update_queue_get_next_expected_update_number(
+		void) const
+	{
+		return m_update_queue_latest_update_number_received + 1;
+	}
+
+	bool is_out_of_sync(
+		void) const
+	{
+		ASSERT(exists());
+		return !is_authority() && m_out_of_sync;
+	}
+
+	int32 get_view_count(
+		void) const
+	{
+		return m_view_count;
+	}
+
+	bool synchronous_gamestate_write_in_progress(
+		void) const
+	{
+		return exists() 
+			&& !is_authority() 
+			&& !is_distributed() 
+			&& m_synchronous_gamestate_write_progress != NONE;
 	}
 };
 ASSERT_STRUCT_SIZE(c_simulation_world, 0x12B0);

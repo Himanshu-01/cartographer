@@ -76,7 +76,7 @@ struct s_network_message_type
 	int32 message_size_maximum;
 	void* encode_function;
 	void* decode_function;
-	void* unknown_function;
+	void* compare_function;
 };
 ASSERT_STRUCT_SIZE(s_network_message_type, 32);
 

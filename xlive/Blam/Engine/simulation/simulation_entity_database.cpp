@@ -81,16 +81,17 @@ bool c_simulation_entity_database::process_creation(int32 entity_index, e_simula
 	ASSERT(VALID_INDEX(absolute_index, k_simulation_entity_database_maximum_entities));
 
 	ASSERT(m_entity_manager);
-	//ASSERT(m_entity_manager->is_entity_allocated(entity_index));
+	ASSERT(m_entity_manager->is_entity_allocated(entity_index));
 	ASSERT(entity_type != NONE);
 
 	// TODO: implement gamestate
 	//ASSERT(block_count == 4);
+	ASSERT(block_count == k_entity_creation_block_order_count);
 	
 	ASSERT(blocks[0].block_type == _network_memory_block_simulation_entity_creation);
 	ASSERT(blocks[1].block_type == _network_memory_block_simulation_entity_state);
-	//ASSERT(blocks[2].block_type == _network_memory_block_forward_gamestate_element);
-	//ASSERT(blocks[3].block_type == _network_memory_block_forward_simulation_queue_element);
+	ASSERT(blocks[2].block_type == _network_memory_block_forward_simulation_queue_element);
+	//ASSERT(blocks[3].block_type == _network_memory_block_forward_gamestate_element);
 
 	bool result = false;
 	s_simulation_game_entity* entity = entity_get(entity_index);
@@ -125,6 +126,7 @@ bool c_simulation_entity_database::process_creation(int32 entity_index, e_simula
 
 	const c_simulation_entity_definition* entity_definition = m_type_collection->get_entity_definition(entity_type);
 	
+	ASSERT(entity_type != NONE);
 	ASSERT(entity_definition != NULL);
 	ASSERT(creation_data_size == entity_definition->creation_data_size());
 	ASSERT(state_data_size == entity_definition->state_data_size());
@@ -321,7 +323,7 @@ uint32 c_simulation_entity_database::read_creation_from_packet(int32 entity_inde
 
 						ASSERT(block_count);
 						ASSERT(blocks);
-						ASSERT(*block_count + 4 <= maximum_block_count);
+						ASSERT(*block_count + k_entity_creation_block_order_count <= maximum_block_count);
 
 						//blocks[_entity_creation_block_order_gamestate_index].block_type = _network_memory_block_forward_gamestate_element;
 						//blocks[_entity_creation_block_order_gamestate_index].block_size = sizeof(gamestate_index);
@@ -355,10 +357,9 @@ uint32 c_simulation_entity_database::read_creation_from_packet(int32 entity_inde
 						result = 3;
 					}
 
-					if (!packet->read_only_for_consistency())
+					if (packet->read_only_for_consistency())
 					{
-						// FIXME: figure out why this breaks...
-						//DISPLAY_ASSERT("entity initial update decode failed consistency checking a packet");
+						DISPLAY_ASSERT("entity initial update decode failed consistency checking a packet");
 					}
 				}
 			}
@@ -372,9 +373,9 @@ uint32 c_simulation_entity_database::read_creation_from_packet(int32 entity_inde
 					entity_index);
 				result = 3;
 
-				if (!packet->read_only_for_consistency())
+				if (packet->read_only_for_consistency())
 				{
-					DISPLAY_ASSERT("entity initial update decode failed consistency checking a packet");
+					DISPLAY_ASSERT("entity creation data decode failed consistency checking a packet");
 				}
 			}
 		}
@@ -393,11 +394,6 @@ uint32 c_simulation_entity_database::read_creation_from_packet(int32 entity_inde
 
 			if (simulation_queue_element != NULL)
 			{
-				if (*simulation_queue_element != NULL)
-				{
-					simulation_get_world()->simulation_queue_free(*(s_simulation_queue_element**)simulation_queue_element);
-				}
-
 				network_heap_free_block(simulation_queue_element);
 			}
 
@@ -415,11 +411,21 @@ uint32 c_simulation_entity_database::read_creation_from_packet(int32 entity_inde
 	return result;
 }
 
-bool c_simulation_entity_database::process_update(int32 entity_index, uint32 update_mask, int32 block_count, s_replication_allocation_block* blocks)
+void c_simulation_entity_database::process_update(int32 entity_index, uint32 update_mask, int32 block_count, s_replication_allocation_block* blocks)
 {
-	bool result = false;
 	s_simulation_game_entity* entity = entity_get(entity_index);
-	//c_simulation_entity_definition* entity_definition = m_type_collection->get_entity_definition(entity->entity_type);
+	c_simulation_entity_definition* entity_definition = m_type_collection->get_entity_definition(entity->entity_type);
+
+	ASSERT(entity_definition != NULL);
+	ASSERT(update_mask != 0);
+	ASSERT(block_count == 2);
+	ASSERT(blocks[0].block_type == _network_memory_block_simulation_entity_state);
+	ASSERT((uint32)(blocks[0].block_size) == entity->state_data_size);
+	ASSERT(blocks[0].block_data != NULL);
+	ASSERT(blocks[1].block_type == _network_memory_block_forward_simulation_queue_element);
+	ASSERT(blocks[1].block_size == sizeof(struct s_simulation_queue_element*));
+	ASSERT(blocks[1].block_data != NULL);
+
 	s_simulation_queue_element* simulation_queue_element = *(s_simulation_queue_element**)blocks[_entity_update_block_order_forward_memory_queue_element].block_data;
 	uint8* state_data = (uint8*)blocks[_entity_update_block_order_simulation_entity_state].block_data;
 
@@ -427,8 +433,9 @@ bool c_simulation_entity_database::process_update(int32 entity_index, uint32 upd
 	simulation_queue_entity_update_insert(simulation_queue_element);
 	network_heap_free_block((uint8*)blocks[_entity_update_block_order_forward_memory_queue_element].block_data);
 	csmemset(&blocks[_entity_update_block_order_forward_memory_queue_element], 0, sizeof(blocks[_entity_update_block_order_forward_memory_queue_element]));
-	result = true;
-	return result;
+
+
+	return;
 }
 
 int32 c_simulation_entity_database::read_update_from_packet(
@@ -442,7 +449,7 @@ int32 c_simulation_entity_database::read_update_from_packet(
 {
 	uint32 result = 3;
 	s_simulation_game_entity* entity = entity_try_and_get(entity_index);
-	if (entity && entity != (void*)-20)
+	if (entity)
 	{
 		c_simulation_entity_definition* entity_definition = m_type_collection->get_entity_definition(entity->entity_type);
 		
@@ -453,8 +460,6 @@ int32 c_simulation_entity_database::read_update_from_packet(
 		uint8* state_data = network_heap_allocate_block(entity->state_data_size);
 		uint8* simulation_queue_element = network_heap_allocate_block(sizeof(s_simulation_queue_element*));
 
-		result = (!state_data || !simulation_queue_element ? 2 : result);
-
 		if (state_data && simulation_queue_element)
 		{
 			uint32 update_mask = 0;
@@ -462,6 +467,7 @@ int32 c_simulation_entity_database::read_update_from_packet(
 
 			if (packet->read_only_for_consistency())
 			{
+				csmemset(state_data, 0, entity->state_data_size);
 				read_success = entity_definition->build_baseline_state_data(
 						entity->creation_data_size,
 						entity->creation_data, 
@@ -493,6 +499,21 @@ int32 c_simulation_entity_database::read_update_from_packet(
 					state_data,
 					packet
 				);
+
+				if (!read_success)
+				{
+					event(
+						_event_error,
+						"networking:simulation:entity:read_update_from_packet: failed to decode update for entity [0x%08X] type %d",
+						entity_index,
+						entity->entity_type);
+					result = 3;
+
+					if (packet->read_only_for_consistency())
+					{
+						DISPLAY_ASSERT("entity decode failed consistency checking a packet");
+					}
+				}
 			}
 
 			if (read_success)
@@ -536,6 +557,20 @@ int32 c_simulation_entity_database::read_update_from_packet(
 				result = 0;
 			}
 		}
+		else
+		{
+			result = 2;
+			
+#ifdef EVENTS_ENABLED
+			char description[1024];
+			event(
+				_event_error,
+				"networking:simulation:entity: OUT OF MEMORY allocating %s pending state data [%d] bytes, heap [%s]",
+				entity_definition->entity_type_name(),
+				entity->state_data_size,
+				network_heap_describe(description, sizeof(description)));
+#endif
+		}
 
 		if (result == 3 || result == 2)
 		{
@@ -546,11 +581,6 @@ int32 c_simulation_entity_database::read_update_from_packet(
 
 			if (simulation_queue_element)
 			{
-				if (*simulation_queue_element != NULL)
-				{
-					simulation_get_world()->simulation_queue_free(*(s_simulation_queue_element**)simulation_queue_element);
-				}
-
 				network_heap_free_block(simulation_queue_element);
 			}
 		}
@@ -657,4 +687,12 @@ void c_simulation_entity_database::entity_capture_creation_data(int32 entity_ind
 	entity->field_10 = 0;
 	entity->entity_update_flag = FLAG(count) - 1;
 	return;
+}
+
+bool c_simulation_entity_database::entity_is_local(int32 entity_index)
+{
+	ASSERT(m_entity_manager);
+	ASSERT(m_world->is_distributed());
+
+	return m_entity_manager->is_entity_local(entity_index);
 }

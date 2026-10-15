@@ -311,8 +311,11 @@ void c_screen_pause_game::update_objective_text(void)
 void c_screen_pause_game::revert_to_last_save(
 	void)
 {
-	main_revert_map();
-	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_revert_map);
+	//main_revert_map();
+	if(game_is_server())
+	{
+		simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_revert_map);
+	}
 	start_widget_animation(3);
 	
 	return;
@@ -377,8 +380,11 @@ static bool screen_singleplayer_pause_game_handle_restart(
 	void)
 {
 	achievement_manager_get()->start_level_chosen(true);
-	main_reset_map();
-	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_reset_map);
+	//main_reset_map();
+	if (game_is_server())
+	{
+		simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_reset_map);
+	}
 
 	return true;
 }

@@ -179,6 +179,38 @@ void c_network_observer::send_message(
 	INVOKE_TYPE(0x1BED40, 0x1B8C1A, observer_channel_send_message_t, this, session_index, observer_index, send_out_of_band, type, size, data);
 }
 
+void c_network_observer::observer_channel_set_waiting_on_backlog(
+	e_network_observer_owner owner_type,
+	int32 observer_index,
+	e_network_message_type message_type)
+{
+	INVOKE_TYPE(
+		0x1BD9FA,
+		0x0,
+		void(__thiscall*)(c_network_observer*, e_network_observer_owner, int32, e_network_message_type),
+		this,
+		owner_type,
+		observer_index,
+		message_type);
+
+	return;
+}
+
+bool c_network_observer::observer_channel_backlogged(
+	e_network_observer_owner owner_type,
+	int32 observer_index,
+	e_network_message_type message_type) const
+{
+	return INVOKE_TYPE(
+		0x1BD95D,
+		0x0,
+		bool(__thiscall*)(const c_network_observer*, e_network_observer_owner, int32, e_network_message_type),
+		this,
+		owner_type,
+		observer_index,
+		message_type);
+}
+
 bool __cdecl is_network_observer_mode_managed()
 {
 	// or in other terms this checks if the network protocol is LIVE

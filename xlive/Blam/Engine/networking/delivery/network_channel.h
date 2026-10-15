@@ -121,6 +121,11 @@ ASSERT_STRUCT_SIZE(s_network_channel_client_info, 8);
 
 class c_network_channel_simulation_interface
 {
+public:
+	void set_established(bool established);
+	bool established(void) const;
+
+private:
 	bool m_initialized;
 	void* m_simulation_context;
 	void(__cdecl* m_simulation_closure_callback)(void*);

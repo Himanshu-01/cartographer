@@ -13,7 +13,9 @@
 #include "game/game.h"
 #include "game/game_time.h"
 #include "game/players.h"
+#include "math/random_math.h"
 #include "networking/logic/life_cycle_manager.h"
+#include "networking/messages/network_messages_simulation_synchronous.h"
 #include "networking/session/network_session.h"
 #include "networking/network_event.h"
 #include "objects/objects.h"
@@ -61,6 +63,7 @@ void simulation_apply_patches(void)
 	simulation_game_action_apply_patches();
 
 	PatchCall(Memory::GetAddress(0x1DD22F, 0x1C46E3), simulation_build_player_updates);	// c_simulation_world::build_update
+	PatchCall(Memory::GetAddress(0x7C2BD, 0), simulation_time_get_maximum_available);//inside game_time_update
 
 	WriteJmpTo(Memory::GetAddress(0x1AE6D8, 0x1A8932), simulation_reset);
 	simulation_synchronous_game_patches();
@@ -165,12 +168,17 @@ void simulation_notify_reset_complete(void)
 {
 	s_simulation_globals* sim_globals = simulation_get_globals();
 
-	if (!game_is_playback() && simulation_reset_in_progress())// // make sure simulation is still in resetting
+	if (!game_is_playback()
+		&& sim_globals->world->exists())
 	{
-		if (sim_globals->world->exists() && !sim_globals->world->is_authority())
+		if (!sim_globals->world->is_authority())
 		{
-			// dont need this if we are not authority
+			ASSERT(simulation_reset_in_progress());
 			sim_globals->world->send_player_acknowledgements(true);
+		}
+		else
+		{
+			event(_event_warning, "networking:simulation: calling simulation_reset_immediate() with a simulation reset already in progress");
 		}
 	}
 	sim_globals->simulation_reset_in_progress = false;
@@ -193,7 +201,7 @@ void simulation_notify_going_active(void)
 	return;
 }
 
-void simulation_reset_immediate()
+void simulation_reset_immediate(void)
 {
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 
@@ -201,13 +209,30 @@ void simulation_reset_immediate()
 	ASSERT(simulation_globals->world->exists());
 	ASSERT(!simulation_globals->world->is_authority());
 
+	if (simulation_globals->simulation_reset_in_progress)
+	{
+		event(_event_message, "networking:simulation: calling simulation_reset_immediate() with a simulation reset already in progress");
+	}
+
 	simulation_globals->simulation_reset_in_progress = true;
+
+	event(_event_message, "networking:simulation: resetting simulation world");
+
 	simulation_globals->world->reset_world();
-	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_reset_map);
-	// ### TODO figure out these
-	// simulation_gamestate_entities_build_clear_flags();
-	// simulation_queue_gamestates_delete_insert();
-	simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_simulation_reset_complete);
+
+	if (simulation_globals->world->runs_simulation())
+	{
+		simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_reset_map);
+		// ### TODO figure out these
+		// simulation_gamestate_entities_build_clear_flags();
+		// simulation_queue_gamestates_delete_insert();
+		simulation_queue_game_global_event_insert(_simulation_queue_game_global_event_type_simulation_reset_complete);
+	}
+	else
+	{
+		simulation_globals->simulation_reset_in_progress = false;
+	}
+
 	return;
 }
 
@@ -276,21 +301,9 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 	ASSERT(simulation_get_globals()->world);
 	ASSERT(game_in_progress());
 
-	c_simulation_queue simulation_bookkeeping_queue, game_simulation_queue;
 	c_simulation_world* sim_world = simulation_get_world();
+	sim_world->queues_update_statistics();
 
-	simulation_get_globals()->world->queues_update_statistics();
-
-	// only during distributed system or server synchronous
-	// but not client synchronous
-	// transfer the elements to the 
-	if (sim_world->runs_simulation())
-	{
-		sim_world->attach_simulation_queues_to_update(
-			&simulation_bookkeeping_queue,
-			&game_simulation_queue
-		);
-	}
 
 	for (int32 i = 0; i < k_maximum_players; i++)
 	{
@@ -306,7 +319,7 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 		players_set_machines(update->machine_update.machine_valid_mask, update->machine_update.identifiers);
 	}
 
-	sim_world->apply_simulation_queue(&simulation_bookkeeping_queue);
+	sim_world->apply_simulation_queue(&update->bookkeeping_simulation_queue);
 
 	// Player activation code
 	/* Moved so we can activate in the queue
@@ -335,31 +348,31 @@ void __cdecl simulation_apply_before_game(const struct simulation_update* update
 	// ### FIXME 
 	// IMPLEMENT simulation_get_world()->queue_get(_simulation_queue_basic)->requires_application();
 
-	if (game_simulation_queue.queued_count() <= 0)
+	if (update->game_simulation_queue.queued_count() > 0)
 	{
-		ASSERT(game_simulation_queue.allocated_size_in_bytes() == 0);
-	}
-	else
-	{
-		ASSERT(game_simulation_queue.allocated_size_in_bytes() > 0);
+		ASSERT(update->game_simulation_queue.queued_size_in_bytes() > 0);
+		ASSERT(update->simulation_in_progress); //update->flags.test(_simulation_update_simulation_in_progress_bit)
+		ASSERT(update->game_simulation_queue_requires_application); //update->flags.test(_simulation_update_game_simulation_queue_requires_application_bit)
 
-		sim_world->apply_simulation_queue(&game_simulation_queue);
+		sim_world->apply_simulation_queue(&update->game_simulation_queue);
 
 		// purge any deletion pending object during this update
 		// if simulation is not in progress
 		if (!update->simulation_in_progress)
 			objects_purge_deleted_objects();
-	}
 
-	if (update->flush_gamestate)
+	}
+	else
 	{
-		simulation_get_globals()->world->gamestate_flush_immediate();
+		ASSERT(update->game_simulation_queue.queued_size_in_bytes() == 0);
 	}
 
-	// destroy the update exactly after we applied the queues to the gamestate
-	simulation_bookkeeping_queue.dispose();
-	game_simulation_queue.dispose();
-	//simulation_destroy_update();
+	if (update->flush_gamestate && !sim_world->is_authority())
+	{
+		ASSERT(!game_is_distributed());
+
+		sim_world->gamestate_flush();
+	}
 
 	return;
 }
@@ -385,6 +398,8 @@ void simulation_fatal_error(void)
 
 void __cdecl simulation_build_update(struct simulation_update* update)
 {
+	//profile_attribute_enter(2, _profile_attribution_subsystem_9);
+
 	s_simulation_globals* simulation_globals = simulation_get_globals();
 
 	ASSERT(simulation_globals->initialized);
@@ -399,14 +414,89 @@ void __cdecl simulation_build_update(struct simulation_update* update)
 	ASSERT(game_in_progress());
 	ASSERT(update);
 
+	//INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+	
+	csmemset(update, 0, sizeof(*update));
 
-	INVOKE(0x1ADDF3, 0x1A81AA, simulation_build_update, update);
+	simulation_globals->world->build_update(update);
+	bool go_oos = false;
+
+	if ((!simulation_globals->world->is_authority() || simulation_globals->world->is_playback()) &&
+		(!simulation_globals->world->is_distributed() || simulation_globals->world->is_playback()) &&
+		!simulation_globals->world->is_out_of_sync())
+	{
+		if (update->flush_gamestate)
+		{
+			simulation_globals->world->gamestate_flush();
+		}
+
+		if (update->update_number != simulation_globals->world->get_next_update_number())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, update number differs, update [#%d] != next [#%d]",
+				update->update_number,
+				simulation_globals->world->get_next_update_number()
+			);
+			go_oos = true;
+		}
+		else if (update->verify_game_time != simulation_globals->world->get_time())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, update time differs, update [#%d] time [%d] != local time %d",
+				update->update_number,
+				update->verify_game_time,
+				simulation_globals->world->get_time()
+			);
+			go_oos = true;
+		}
+		else if (update->verify_random_seed != get_random_seed())
+		{
+			event(
+				_event_error,
+				"simulation:global: OUT OF SYNC, random seed differs, update [#%d] time [%d] seed [0x%08X] (local seed [0x%08X])",
+				update->update_number,
+				update->verify_game_time,
+				update->verify_random_seed,
+				get_random_seed()
+			);
+			go_oos = true;
+		}
+	}
+
+	if (go_oos)
+	{
+		simulation_globals->world->go_out_of_sync();
+	}
+
+	//profile_attribute_exit(2, _profile_attribution_subsystem_9);
+
 	return;
 }
 
 void __cdecl simulation_update_aftermath(const struct simulation_update* update)
 {
-	INVOKE(0x1ADEA9, 0x1A8260, simulation_update_aftermath, update);
+	//INVOKE(0x1ADEA9, 0x1A8260, simulation_update_aftermath, update);
+
+	//profile_attribute_enter(2, _profile_attribution_subsystem_9);
+
+	s_simulation_globals* simulation_globals = simulation_get_globals();
+
+	ASSERT(update);
+	ASSERT(simulation_globals->initialized);
+	ASSERT(simulation_globals->world);
+	ASSERT(game_in_progress());
+
+	if (simulation_globals->world->is_authority())
+	{
+		simulation_globals->world->distribute_update(update);
+	}
+
+	simulation_globals->world->advance_update(update);
+
+	//profile_attribute_exit(2, _profile_attribution_subsystem_9);
+
 	return;
 }
 
@@ -422,8 +512,11 @@ void simulation_update_pregame(void)
 		if (simulation_globals->watcher->need_to_generate_updates())
 		{
 			simulation_build_update(&update);
+			ASSERT(!update.simulation_in_progress);
+
 			simulation_apply_before_game(&update);
 			simulation_update_aftermath(&update);
+			simulation_destroy_update(&update);			
 		}
 		else
 		{
@@ -437,7 +530,7 @@ void simulation_destroy_update(struct simulation_update* update)
 {
 	ASSERT(update);
 	s_simulation_globals* simulation_globals = simulation_get_globals();
-	simulation_globals->world->destroy_world();
+	simulation_globals->world->destroy_update(update);
 	return;
 }
 
@@ -464,6 +557,48 @@ void __cdecl simulation_build_player_updates(int32* player_update_count, int32 m
 	return;
 }
 
+void __cdecl simulation_build_machine_update(
+	bool* machine_update_valid,
+	simulation_machine_update* machine_update)
+{
+	s_simulation_globals* simulation_globals = simulation_get_globals();
+
+	ASSERT(simulation_globals->initialized);
+	ASSERT(simulation_globals->world);
+	ASSERT(simulation_globals->world->exists());
+	ASSERT(simulation_globals->world->runs_simulation());
+	ASSERT(simulation_globals->watcher);
+	ASSERT(game_in_progress());
+	//simulation_globals->watcher->generate_machine_update(machine_update_valid, machine_update);
+	INVOKE(0x1ADE77, 0x1A822E, simulation_build_machine_update, machine_update_valid, machine_update);
+	return;
+}
+
+class c_simulation_view* __cdecl simulation_get_remote_view_by_channel(uint32 channel_index)
+{
+	return INVOKE(0x1ADF06, 0x0, simulation_get_remote_view_by_channel, channel_index);
+}
+
+int32 __cdecl simulation_time_get_maximum_available(bool* match_remote_time)
+{
+	//return INVOKE(0x1ADCBB, 0x0, simulation_time_get_maximum_available, match_remote_time);
+
+	ASSERT(match_remote_time);
+	*match_remote_time = 0;
+
+	int32 available_updates = INT32_MAX;
+	if (simulation_engine_initialized())
+	{
+		ASSERT(simulation_get_globals()->world);
+		if(simulation_get_world()->exists())
+		{
+			available_updates = simulation_get_world()->time_get_available(match_remote_time);
+		}
+	}
+
+	return available_updates;
+}
+
 /* private code */
 
 static s_simulation_globals* simulation_get_globals(void)
@@ -488,9 +623,10 @@ static void simulation_player_left_game_patch_calls(void)
 
 static void simulation_synchronous_game_patches(void)
 {
-	PatchCall(Memory::GetAddress(0x1AE002), synchronous_update_encode);
-	PatchCall(Memory::GetAddress(0x1ED08E), synchronous_update_encode);
-	PatchCall(Memory::GetAddress(0x1AE084), synchronous_update_decode);
-	PatchCall(Memory::GetAddress(0x1ED0A3), synchronous_update_decode);
-	return;
+	PatchCall(Memory::GetAddress(0x1AE002), simulation_update_encode);
+	PatchCall(Memory::GetAddress(0x1ED08E), simulation_update_encode);
+	PatchCall(Memory::GetAddress(0x1AE084), simulation_update_decode);
+	PatchCall(Memory::GetAddress(0x1ED0A3), simulation_update_decode);
+
+	network_messages_simulation_synchronous_apply_patches();
 }

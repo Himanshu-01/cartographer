@@ -76,7 +76,7 @@ void c_replication_entity_manager_view::initialize(int32 world_view_index,	class
 
 		data->entity_index = NONE;
 		data->update_mask = 0;
-		data->state = 0;
+		data->state = _replication_entity_view_state_none;
 		data->next_index = NONE;
 		data->update_timestamp = 0;
 		data->flags = 0;
