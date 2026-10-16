@@ -260,13 +260,7 @@ public:
 	}
 
 	void queues_clear(void);
-
-	bool is_playback(void) const
-	{
-		// todo: re-add once destroy_world function is re-written
-		//ASSERT(exists());
-		return false;
-	}
+	bool is_playback(void) const;
 
 	bool is_distributed(void) const
 	{
